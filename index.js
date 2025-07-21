@@ -1,6 +1,9 @@
 const express = require('express');
 const fetch = require('node-fetch');
 const app = express();
+app.use(cors({
+  origin: "http://127.0.0.1:5500"
+}));
 app.use(express.json());
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
