@@ -1,195 +1,661 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">  
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Astro Chat V3</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4f46e5; /* Indigo-600 */
+            --secondary-color: #7c3aed; /* Violet-600 */
+            --background-color: #0f172a; /* Slate-900 */
+            --surface-color: #1e293b; /* Slate-800 */
+            --text-color: #e2e8f0; /* Slate-200 */
+            --text-muted-color: #94a3b8; /* Slate-400 */
+        }
+        @keyframes stars {
+            from { background-position: 0 0; }
+            to { background-position: -10000px 5000px; }
+        }
+        body {
+            font-family: 'SF Mono', 'Courier New', Courier, monospace;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            overscroll-behavior: none;
+            background-image: url('https://www.transparenttextures.com/patterns/stardust.png');
+            animation: stars 180s linear infinite;
+        }
+        .splash-loader {
+            border-top-color: var(--primary-color);
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .chat-bubble {
+            word-break: break-word;
+        }
+        .scroll-container::-webkit-scrollbar { width: 6px; }
+        .scroll-container::-webkit-scrollbar-track { background: transparent; }
+        .scroll-container::-webkit-scrollbar-thumb { background-color: var(--secondary-color); border-radius: 20px; }
+        .glassmorphism {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glow-on-hover:hover {
+            box-shadow: 0 0 15px rgba(79, 70, 229, 0.6);
+        }
+        .fab-menu button {
+            transform: scale(0) translateY(20px);
+            opacity: 0;
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s;
+        }
+        #fab-container.open .fab-menu button {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+        #fab-container.open .fab-menu button:nth-child(1) { transition-delay: 0.1s; }
+        #fab-container.open .fab-menu button:nth-child(2) { transition-delay: 0.05s; }
+        
+        @keyframes static-flicker {
+            0%, 100% { opacity: 0; }
+            10% { opacity: 0.1; } 20% { opacity: 0.05; } 30% { opacity: 0.2; }
+            40% { opacity: 0.1; } 50% { opacity: 0.25; } 60% { opacity: 0.15; }
+            70% { opacity: 0.05; } 80% { opacity: 0.2; } 90% { opacity: 0.1; }
+        }
 
-    <title>Chat em Salas</title>
-    <link rel="stylesheet" href="css/style.css">
-     <link rel="stylesheet" href="framework7/css/framework7-icons.css">
+        .static-effect::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuNjUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2UpIi8+PC9zdmc+');
+            background-size: cover;
+            opacity: 0.3;
+            animation: static-flicker 0.3s infinite;
+            pointer-events: none;
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -468px 0; }
+            100% { background-position: 468px 0; }
+        }
+        .skeleton {
+            animation: shimmer 1.5s linear infinite;
+            background: linear-gradient(to right, #2c3e50 8%, #46607e 18%, #2c3e50 33%);
+            background-size: 800px 104px;
+        }
+
+    </style>
 </head>
-<body><!-- Modal de Confirmação -->
-<div class="title" style="position: absolute; top: 80px; font-size: 50px;z-index: 0;">
-  <i class="f7-icons" style="font-size: 90px;">rocket</i>
-  <span style="margin-left: -50px;">stro</span>
-</div>
+<body class="w-screen h-screen overflow-hidden">
 
-<div id="confirmModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000000c9; z-index:999; align-items:center; justify-content:center;">
-  <div style="background:var(--background-color);; padding:20px; border-radius:10px; max-width:300px; width:90%; border: 1px solid;">
-    <p id="confirmMessage">Você tem certeza?</p>
-    <div class="modal-buttons">
-      <button id="confirmYes" style="margin: 5px 0; margin-right: 5px; border: 1px dotted;">Sim</button>
-      <button id="confirmNo" style="margin: 5px 0; margin-left: 5px; ">Cancelar</button>
+    <!-- Tela de Carregamento (Splash) -->
+    <div id="splash-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900 transition-opacity duration-500">
+        <div class="flex items-center text-5xl font-bold text-slate-200 z-10">
+            <i class="fas fa-rocket mr-3 transform -rotate-45 text-indigo-500"></i>
+            <span>Astro</span>
+        </div>
+        <div class="splash-loader w-12 h-12 border-4 border-slate-700 rounded-full mt-12 z-10"></div>
+        <p class="absolute bottom-10 text-slate-500 text-center px-4 z-10">Conectando galáxias, uma mensagem de cada vez.</p>
     </div>
-  </div>
-</div>
 
-<!-- Modal de Seleção de Cor -->
-<div id="colorModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000000c9; z-index:999; align-items:center; justify-content:center;">
-  <div style="background:var(--background-color);; padding:20px; border-radius:10px; max-width:320px; width:90%; border: 1px solid var(--border-color); text-align: center;">
-    <h3 style="color: var(--border-color);">Escolher Cor da Caneta</h3>
+    <!-- App Principal -->
+    <div id="app-container" class="w-full h-full flex items-center justify-center opacity-0 transition-opacity duration-500">
+        
+        <!-- Tela de Nickname -->
+        <div id="nickname-screen" class="w-full max-w-sm p-6 glassmorphism rounded-2xl shadow-lg flex-col gap-5 hidden">
+             <h2 class="text-2xl font-bold text-center text-slate-100 flex items-center justify-center gap-3"><i class="fas fa-user-astronaut text-indigo-400"></i>Identificação Cósmica</h2>
+            <div>
+                <label for="nickname-input" class="text-sm font-medium text-slate-400">Crie seu apelido de viajante</label>
+                <input type="text" id="nickname-input" placeholder="Viajante Estelar" class="w-full mt-1 p-3 bg-slate-900/80 border border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <button id="save-nickname-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 font-bold p-3 rounded-md transition-colors glow-on-hover text-lg">Entrar no Universo</button>
+        </div>
+
+        <!-- Tela de Lobby -->
+        <div id="lobby-screen" class="w-full h-full max-w-md flex-col hidden relative">
+             <header class="flex items-center justify-between p-4 bg-slate-800/80 glassmorphism rounded-b-2xl">
+                <h2 class="text-xl font-bold text-slate-100">Conversas</h2>
+                <div class="flex items-center gap-2">
+                    <p class="text-slate-300 text-sm">Olá, <span id="lobby-nickname" class="font-bold text-indigo-400"></span>!</p>
+                    <button id="change-nickname-btn" class="text-slate-400 hover:text-white transition-colors"><i class="fas fa-edit"></i></button>
+                </div>
+            </header>
+            <main id="room-list-container" class="flex-1 overflow-y-auto p-4 space-y-3 scroll-container"></main>
+
+            <div id="fab-container" class="absolute bottom-6 right-6">
+                <div class="fab-menu flex-col items-center gap-3 mb-3 hidden">
+                    <button id="create-room-btn" class="w-44 bg-indigo-600 hover:bg-indigo-700 font-bold p-3 rounded-full transition-colors glow-on-hover flex items-center justify-center gap-2 text-sm shadow-lg"><i class="fas fa-meteor"></i>Criar Sala</button>
+                    <button id="join-room-modal-btn" class="w-44 bg-green-600 hover:bg-green-700 font-bold p-3 rounded-full transition-colors glow-on-hover flex items-center justify-center gap-2 text-sm shadow-lg"><i class="fas fa-keyboard"></i>Entrar com Código</button>
+                </div>
+                <button id="fab-main-btn" class="w-16 h-16 bg-violet-600 hover:bg-violet-700 rounded-full flex items-center justify-center shadow-lg transition-transform duration-300 glow-on-hover">
+                    <i id="fab-icon" class="fas fa-plus text-2xl transition-transform duration-300"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tela de Chat -->
+        <div id="chat-screen" class="w-full h-full flex-col hidden bg-slate-900/80">
+            <header class="flex items-center p-3 bg-slate-800/80 shadow-md z-10 glassmorphism">
+                <button id="leave-btn" class="p-2 rounded-full hover:bg-slate-700"><i class="fas fa-arrow-left"></i></button>
+                <div class="flex-1 text-center">
+                    <h2 id="room-code-display" class="font-bold text-lg tracking-widest"></h2>
+                    <p id="user-count-display" class="text-xs text-green-400 font-medium"></p>
+                </div>
+                <div class="w-8"></div>
+            </header>
+            <main id="messages-container" class="flex-1 p-4 overflow-y-auto flex flex-col scroll-container">
+                <div id="messages-list" class="flex flex-col gap-1"></div>
+            </main>
+            <footer class="p-3 bg-slate-800/80 glassmorphism">
+                <div class="flex items-center gap-3">
+                    <input type="text" id="message-input" placeholder="Digite uma mensagem..." class="flex-1 bg-slate-700 rounded-full py-3 px-5 outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button id="send-btn" class="bg-indigo-600 hover:bg-indigo-700 w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90 glow-on-hover">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </footer>
+        </div>
+    </div>
     
-    <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 10px 0;">
-      <!-- Tons claros e neutros -->
-      <button class="color-choice" data-color="#ffffff" style="background:#ffffff;"></button> <!-- branco -->
-      <button class="color-choice" data-color="#f0f0f0" style="background:#f0f0f0;"></button> <!-- cinza claro -->
-      <button class="color-choice" data-color="#cccccc" style="background:#cccccc;"></button> <!-- cinza médio -->
-      <button class="color-choice" data-color="#999999" style="background:#999999;"></button> <!-- cinza escuro -->
-
-      <!-- Cores quentes -->
-      <button class="color-choice" data-color="#ff0000" style="background:#ff0000;"></button> <!-- vermelho -->
-      <button class="color-choice" data-color="#ff6600" style="background:#ff6600;"></button> <!-- laranja vivo -->
-      <button class="color-choice" data-color="#ffa500" style="background:#ffa500;"></button> <!-- laranja -->
-      <button class="color-choice" data-color="#ffff00" style="background:#ffff00;"></button> <!-- amarelo -->
-
-      <!-- Cores frias -->
-      <button class="color-choice" data-color="#00ff00" style="background:#00ff00;"></button> <!-- verde limão -->
-      <button class="color-choice" data-color="#008000" style="background:#008000;"></button> <!-- verde escuro -->
-      <button class="color-choice" data-color="#00ffff" style="background:#00ffff;"></button> <!-- ciano -->
-      <button class="color-choice" data-color="#00aaff" style="background:#00aaff;"></button> <!-- azul claro -->
-      <button class="color-choice" data-color="#0000ff" style="background:#0000ff;"></button> <!-- azul -->
-      <button class="color-choice" data-color="#4b0082" style="background:#4b0082;"></button> <!-- índigo -->
-
-      <!-- Tons artísticos -->
-      <button class="color-choice" data-color="#ff00ff" style="background:#ff00ff;"></button> <!-- magenta -->
-      <button class="color-choice" data-color="#800080" style="background:#800080;"></button> <!-- roxo -->
-      <button class="color-choice" data-color="#8b4513" style="background:#8b4513;"></button> <!-- marrom -->
-      <button class="color-choice" data-color="#ffd700" style="background:#ffd700;"></button> <!-- dourado -->
-      <button class="color-choice" data-color="#c0c0c0" style="background:#c0c0c0;"></button> <!-- prata -->    
+    <!-- Modais -->
+    <div id="confirm-reset-modal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden items-center justify-center p-4">
+        <div class="glassmorphism p-6 rounded-2xl max-w-sm w-full text-center">
+            <i class="fas fa-exclamation-triangle text-4xl text-yellow-400 mb-4"></i>
+            <h3 class="text-xl font-bold mb-2">Mudar de Apelido?</h3>
+            <p class="text-slate-300 mb-6">Isso irá apagar seu histórico de salas criadas e recentes. Deseja continuar?</p>
+            <div class="flex justify-center gap-4">
+                <button id="cancel-reset-btn" class="bg-slate-600 hover:bg-slate-700 font-bold rounded-lg py-2 px-6 transition-colors">Cancelar</button>
+                <button id="confirm-reset-btn" class="bg-red-600 hover:bg-red-700 font-bold rounded-lg py-2 px-6 transition-colors">Sim, apagar tudo</button>
+            </div>
+        </div>
+    </div>
+    <div id="join-room-modal" class="fixed inset-0 bg-black bg-opacity-75 z-40 hidden items-center justify-center p-4">
+        <div class="glassmorphism p-6 rounded-2xl max-w-sm w-full flex flex-col gap-4">
+            <h3 class="text-xl font-bold text-center flex items-center justify-center gap-3"><i class="fas fa-sign-in-alt text-green-400"></i>Entrar em uma Sala</h3>
+            <input type="text" id="modal-room-code-input" placeholder="Código da Sala" class="w-full p-3 bg-slate-900/80 border border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 text-center uppercase tracking-widest font-bold">
+            <div class="flex gap-3 mt-2">
+                <button id="modal-cancel-join-btn" class="w-full bg-slate-600 hover:bg-slate-700 p-3 rounded-md">Cancelar</button>
+                <button id="modal-confirm-join-btn" class="w-full bg-green-600 hover:bg-green-700 p-3 rounded-md font-bold">Confirmar</button>
+            </div>
+        </div>
+    </div>
+     <div id="confirm-delete-modal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden items-center justify-center p-4">
+        <div class="glassmorphism p-6 rounded-2xl max-w-sm w-full text-center">
+            <i class="fas fa-trash-alt text-4xl text-red-500 mb-4"></i>
+            <h3 class="text-xl font-bold mb-2">Apagar Sala?</h3>
+            <p class="text-slate-300 mb-6">Esta ação é irreversível e irá apagar a sala <strong id="delete-room-code" class="text-indigo-300"></strong> para todos. Deseja continuar?</p>
+            <div class="flex justify-center gap-4">
+                <button id="cancel-delete-btn" class="bg-slate-600 hover:bg-slate-700 font-bold rounded-lg py-2 px-6 transition-colors">Cancelar</button>
+                <button id="confirm-delete-btn" class="bg-red-600 hover:bg-red-700 font-bold rounded-lg py-2 px-6 transition-colors">Sim, apagar</button>
+            </div>
+        </div>
     </div>
 
-    <input type="color" id="manualColorInput" value="#ffffff" style="width: 100%; height: 40px; border: none;"/>
-    <h3 style="color: var(--border-color);; margin-top: 20px;">Escolher Cor do Papel</h3>
 
-    <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 10px 0;">
-      <button class="bg-choice" data-bg="var(--background-color);" style="background:var(--background-color);"></button>
-      <button class="bg-choice" data-bg="#000000" style="background:#000000;"></button>
-      <button class="bg-choice" data-bg="#121212" style="background:#121212;"></button>
-      <button class="bg-choice" data-bg="#333333" style="background:#333333;"></button>
-      <button class="bg-choice" data-bg="#555555" style="background:#555555;"></button>
-      <button class="bg-choice" data-bg="#777777" style="background:#777777;"></button>
-      <button class="bg-choice" data-bg="#aaaaaa" style="background:#aaaaaa;"></button>
-      <button class="bg-choice" data-bg="#ffffff" style="background:#ffffff;"></button>
-    </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getDatabase, ref, set, get, onValue, onChildAdded, serverTimestamp, onDisconnect, push, query, orderByKey, startAfter, off } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-    <input type="color" id="bgColorInput" value="var(--background-color);" style="width: 100%; height: 40px; border: none;"/>
-    <button onclick="closeColorModal()" style="margin-top: 15px;border: 0; transform: rotate(180deg);"> <i class="f7-icons" style="font-size: 20px;">paintbrush</i></button>
-  </div>
-</div>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAxb2s4tzbtD1arG9UAf7UrzhFqbRrrsl8",
+            authDomain: "astro-642b6.firebaseapp.com",
+            databaseURL: "https://astro-642b6-default-rtdb.firebaseio.com",
+            projectId: "astro-642b6",
+            storageBucket: "astro-642b6.appspot.com",
+            messagingSenderId: "141832763492",
+            appId: "1:141832763492:web:c8f6a529849bab54ee8771"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        let currentRoom, nickname, userId, presenceRef, typingTimeout;
+        let roomUnsubscribes = [];
+        let lobbyUnsubscribes = [];
+        let notificationUnsubscribes = [];
+        let roomToDelete = null;
+        const userColors = {};
+
+        const DOMElements = {
+            splash: document.getElementById('splash-screen'),
+            app: document.getElementById('app-container'),
+            nicknameScreen: document.getElementById('nickname-screen'),
+            lobbyScreen: document.getElementById('lobby-screen'),
+            chat: document.getElementById('chat-screen'),
+            nicknameInput: document.getElementById('nickname-input'),
+            messagesContainer: document.getElementById('messages-container'),
+            messagesList: document.getElementById('messages-list'),
+            messageInput: document.getElementById('message-input'),
+            roomCodeDisplay: document.getElementById('room-code-display'),
+            userCountDisplay: document.getElementById('user-count-display'),
+            roomListContainer: document.getElementById('room-list-container'),
+            lobbyNickname: document.getElementById('lobby-nickname'),
+            confirmResetModal: document.getElementById('confirm-reset-modal'),
+            fabContainer: document.getElementById('fab-container'),
+            fabMenu: document.querySelector('.fab-menu'),
+            fabIcon: document.getElementById('fab-icon'),
+            joinRoomModal: document.getElementById('join-room-modal'),
+            modalRoomCodeInput: document.getElementById('modal-room-code-input'),
+            confirmDeleteModal: document.getElementById('confirm-delete-modal'),
+            deleteRoomCode: document.getElementById('delete-room-code'),
+        };
+
+        window.onload = async () => {
+            let storedUserId = localStorage.getItem('astroUserId');
+            const invalidCharRegex = /[\.\#\$\[\]]/;
+            if (storedUserId && invalidCharRegex.test(storedUserId)) {
+                storedUserId = null;
+                localStorage.removeItem('astroUserId');
+            }
+            userId = storedUserId || `user_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+            localStorage.setItem('astroUserId', userId);
+
+            await new Promise(res => setTimeout(res, 2500));
+            DOMElements.splash.style.opacity = 0;
+            DOMElements.app.style.opacity = 1;
+            setTimeout(() => DOMElements.splash.classList.add('hidden'), 500);
+
+            nickname = localStorage.getItem('astroNickname');
+            if (nickname) {
+                DOMElements.nicknameInput.value = nickname;
+                DOMElements.lobbyNickname.textContent = nickname;
+                setupNotificationListeners();
+                switchScreen('lobby');
+            } else {
+                switchScreen('nickname');
+            }
+        };
+        
+        const switchScreen = (screen) => {
+            ['nickname', 'lobby', 'chat'].forEach(s => {
+                const el = DOMElements[`${s}Screen`] || DOMElements[s];
+                el.classList.toggle('hidden', s !== screen);
+                el.classList.toggle('flex', s === screen);
+            });
+            clearLobbyListeners();
+            if (screen === 'lobby') {
+                if (Notification.permission === 'default') {
+                    Notification.requestPermission();
+                }
+                renderRoomList();
+            }
+        };
+        
+        const saveNicknameAndEnterLobby = () => {
+            nickname = DOMElements.nicknameInput.value.trim();
+            if (!nickname) return;
+            localStorage.setItem('astroNickname', nickname);
+            DOMElements.lobbyNickname.textContent = nickname;
+            setupNotificationListeners();
+            switchScreen('lobby');
+        };
+
+        const renderMessage = (msgData) => {
+            const allBubbles = DOMElements.messagesList.querySelectorAll('.chat-bubble[data-user-id]');
+            const lastBubble = allBubbles.length > 0 ? allBubbles[allBubbles.length - 1] : null;
+            const isConsecutive = lastBubble && lastBubble.dataset.userId === msgData.userId;
+            const isSelf = msgData.userId === userId;
+
+            if (isConsecutive && lastBubble) {
+                const isSelfLast = lastBubble.classList.contains('self-end');
+                lastBubble.classList.remove('rounded-bl-2xl', 'rounded-br-2xl');
+                lastBubble.classList.add(isSelfLast ? 'rounded-b-lg' : 'rounded-b-lg');
+            }
+
+            const messageElement = document.createElement('div');
+            messageElement.dataset.userId = msgData.userId;
+            
+            let bubbleClasses = 'chat-bubble flex flex-col max-w-xs md:max-w-md p-3 ';
+            if (isSelf) {
+                bubbleClasses += 'bg-indigo-600 self-end ';
+                bubbleClasses += isConsecutive ? 'rounded-t-lg rounded-bl-lg' : 'rounded-t-2xl rounded-bl-2xl';
+            } else {
+                bubbleClasses += 'bg-slate-700 self-start ';
+                bubbleClasses += isConsecutive ? 'rounded-t-lg rounded-br-lg' : 'rounded-t-2xl rounded-br-2xl';
+            }
+            messageElement.className = bubbleClasses;
+
+            const sanitizedText = msgData.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            const showNickname = !isSelf && !isConsecutive;
+
+            messageElement.innerHTML = `
+                <span class="nickname-header font-bold text-sm ${showNickname ? '' : 'hidden'}" style="color: ${userColors[msgData.userId]};">
+                    ${msgData.nickname}
+                </span>
+                <p class="text-white ${showNickname ? 'mt-1' : ''}">${sanitizedText}</p>
+                <span class="text-xs text-slate-400 self-end mt-1">${new Date(msgData.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+            `;
+            
+            const typingIndicators = DOMElements.messagesList.querySelector('.typing-indicator-container');
+            DOMElements.messagesList.insertBefore(messageElement, typingIndicators);
+            DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
+        };
+        
+        const renderTypingIndicator = (typingUsers) => {
+            let typingContainer = DOMElements.messagesList.querySelector('.typing-indicator-container');
+            if(!typingContainer) {
+                typingContainer = document.createElement('div');
+                typingContainer.className = 'typing-indicator-container w-full';
+                DOMElements.messagesList.appendChild(typingContainer);
+            }
+            typingContainer.innerHTML = '';
+            
+            Object.entries(typingUsers).forEach(([typingUserId, userData]) => {
+                if (!userData || !userData.nickname) return;
+                const userColor = userColors[typingUserId] || (userColors[typingUserId] = `hsl(${Math.random() * 360}, 80%, 70%)`);
+                const typingElement = document.createElement('div');
+                typingElement.className = 'typing-bubble relative chat-bubble flex flex-col max-w-max p-3 rounded-t-2xl rounded-br-2xl bg-slate-700 self-start opacity-50 static-effect';
+                const sanitizedText = userData.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                typingElement.innerHTML = `
+                    <span class="font-bold text-sm" style="color: ${userColor};">${userData.nickname}</span>
+                    <p class="text-white">${sanitizedText}</p>
+                `;
+                typingContainer.appendChild(typingElement);
+            });
+            if (Object.keys(typingUsers).length > 0) {
+                DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
+            }
+        };
+        
+        const createRoom = async () => {
+            const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
+            await set(ref(db, `rooms/${roomCode}`), { createdAt: serverTimestamp() });
+            let createdRooms = JSON.parse(localStorage.getItem("createdRooms") || "[]");
+            createdRooms.unshift(roomCode);
+            localStorage.setItem("createdRooms", JSON.stringify(createdRooms.slice(0, 10)));
+            setupNotificationListeners();
+            joinRoom(roomCode);
+        };
+
+        const cleanupRoomListeners = async () => {
+            if (presenceRef) {
+                await set(presenceRef, { isOnline: false });
+            }
+            roomUnsubscribes.forEach(unsub => unsub());
+            roomUnsubscribes = [];
+            presenceRef = null;
+        };
+
+        const joinRoom = async (roomCode) => {
+            await cleanupRoomListeners();
+            
+            if (!roomCode) return console.error("Código da sala inválido.");
+            const roomSnapshot = await get(ref(db, `rooms/${roomCode}`));
+            if (!roomSnapshot.exists()) return console.error("Sala não encontrada.");
+            
+            localStorage.setItem(`lastEntered-${roomCode}`, Date.now());
+            
+            currentRoom = roomCode;
+            let recentRooms = JSON.parse(localStorage.getItem("recentRooms") || "[]");
+            recentRooms = recentRooms.filter(r => r !== roomCode);
+            recentRooms.unshift(roomCode);
+            localStorage.setItem("recentRooms", JSON.stringify(recentRooms.slice(0, 10)));
+            
+            setupNotificationListeners();
+
+            switchScreen('chat');
+            DOMElements.roomCodeDisplay.textContent = `Sala #${currentRoom}`;
+            DOMElements.messagesList.innerHTML = '';
+            presenceRef = ref(db, `presence/${currentRoom}/${userId}`);
+            await set(presenceRef, { nickname, isOnline: true });
+            onDisconnect(presenceRef).update({ isOnline: false });
+
+            const unsubRoom = onValue(ref(db, `rooms/${currentRoom}`), (snapshot) => {
+                if (!snapshot.exists()) {
+                    leaveRoom();
+                }
+            });
+            roomUnsubscribes.push(unsubRoom);
+            
+            const unsubPresence = onValue(ref(db, `presence/${currentRoom}`), snapshot => {
+                const users = snapshot.val() || {};
+                const onlineCount = Object.values(users).filter(u => u.isOnline).length;
+                DOMElements.userCountDisplay.textContent = `${onlineCount} ${onlineCount > 1 ? 'viajantes' : 'viajante'} online`;
+            });
+            roomUnsubscribes.push(unsubPresence);
+
+            const messagesRef = ref(db, `messages/${currentRoom}`);
+            let lastKey = null;
+
+            const initialMessagesSnapshot = await get(messagesRef);
+            if (initialMessagesSnapshot.exists()) {
+                const messages = [];
+                initialMessagesSnapshot.forEach(child => {
+                    messages.push({ ...child.val(), key: child.key });
+                    lastKey = child.key;
+                });
+                messages.sort((a, b) => a.timestamp - b.timestamp);
+                messages.forEach(msg => renderMessage(msg));
+            }
+            
+            const newMessagesQuery = lastKey ? query(messagesRef, orderByKey(), startAfter(lastKey)) : messagesRef;
+            const unsubMessages = onChildAdded(newMessagesQuery, (snapshot) => {
+                 renderMessage({...snapshot.val(), key: snapshot.key});
+            });
+            roomUnsubscribes.push(unsubMessages);
+
+            const unsubTyping = onValue(ref(db, `typing/${currentRoom}`), snapshot => {
+                 const typingUsers = snapshot.val() || {};
+                 delete typingUsers[userId];
+                 renderTypingIndicator(typingUsers);
+            });
+            roomUnsubscribes.push(unsubTyping);
+        };
+        
+        const sendMessage = () => {
+            const text = DOMElements.messageInput.value.trim();
+            if (text && currentRoom) {
+                const newMessageRef = push(ref(db, `messages/${currentRoom}`));
+                set(newMessageRef, { userId, nickname, text, timestamp: serverTimestamp() });
+                DOMElements.messageInput.value = '';
+                handleTyping();
+            }
+        };
+
+        const handleTyping = () => {
+            const typingRef = ref(db, `typing/${currentRoom}/${userId}`);
+            const text = DOMElements.messageInput.value;
+            if (text) {
+                set(typingRef, { nickname, text });
+                clearTimeout(typingTimeout);
+                typingTimeout = setTimeout(() => set(typingRef, null), 3000);
+            } else {
+                set(typingRef, null);
+            }
+        };
+        
+        const leaveRoom = async () => {
+            await cleanupRoomListeners();
+            currentRoom = null;
+            switchScreen('lobby');
+        };
+
+        const renderRoomList = async () => {
+            const list = DOMElements.roomListContainer;
+            let skeletonHTML = '';
+            for (let i = 0; i < 3; i++) {
+                skeletonHTML += `
+                    <div class="flex items-center p-3 bg-slate-700/50 rounded-lg">
+                        <div class="w-10 h-10 rounded-full skeleton mr-3"></div>
+                        <div class="flex-1 space-y-2">
+                            <div class="w-1/2 h-4 rounded skeleton"></div>
+                            <div class="w-1/3 h-3 rounded skeleton"></div>
+                        </div>
+                    </div>
+                `;
+            }
+            list.innerHTML = skeletonHTML;
+
+            const createdRooms = new Set(JSON.parse(localStorage.getItem("createdRooms") || "[]"));
+            const recentRooms = JSON.parse(localStorage.getItem("recentRooms") || "[]");
+            const allRooms = [...new Set([...createdRooms, ...recentRooms])];
+
+            if (allRooms.length === 0) {
+                list.innerHTML = `<div class="text-center text-slate-400 mt-10">
+                    <i class="fas fa-ghost text-5xl mb-4"></i>
+                    <p>Nenhuma sala por aqui.</p>
+                    <p class="text-sm">Crie uma ou entre com um código!</p>
+                </div>`;
+                return;
+            }
+
+            list.innerHTML = "";
+            allRooms.forEach(roomCode => {
+                const isCreator = createdRooms.has(roomCode);
+                const roomElement = document.createElement('div');
+                roomElement.className = "flex items-center p-3 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-600/50 transition-colors";
+                roomElement.dataset.roomcode = roomCode;
+                roomElement.innerHTML = `
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            ${isCreator ? '<i class="fas fa-space-shuttle text-yellow-400" title="Sala criada por você"></i>' : '<i class="fas fa-satellite-dish text-cyan-400"></i>'}
+                            <span class="font-bold text-indigo-300">${roomCode}</span>
+                        </div>
+                        <p class="text-sm text-slate-400 mt-1 online-count">...</p>
+                    </div>
+                    ${isCreator ? `<button class="btn-delete-room text-slate-500 hover:text-red-500 p-2 rounded-md" data-roomcode="${roomCode}"><i class="fas fa-trash pointer-events-none"></i></button>` : ''}
+                `;
+                list.appendChild(roomElement);
+                
+                const presenceRef = ref(db, `presence/${roomCode}`);
+                const unsub = onValue(presenceRef, (snapshot) => {
+                    const onlineCount = snapshot.exists() ? Object.values(snapshot.val()).filter(u => u.isOnline).length : 0;
+                    const countEl = roomElement.querySelector('.online-count');
+                    if(countEl) countEl.textContent = `${onlineCount} online`;
+                });
+                lobbyUnsubscribes.push(unsub);
+            });
+        };
+
+        const showNotification = (roomCode, text) => {
+            if (Notification.permission !== 'granted') {
+                return;
+            }
+            const notification = new Notification(`Nova mensagem em #${roomCode}`, {
+                body: text,
+                icon: `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>`
+            });
+            notification.onclick = () => {
+                window.focus();
+                joinRoom(roomCode);
+            };
+        };
+        
+        const clearNotificationListeners = () => {
+            notificationUnsubscribes.forEach(unsub => unsub());
+            notificationUnsubscribes = [];
+        };
+        
+        const setupNotificationListeners = () => {
+            clearNotificationListeners();
+            const createdRooms = new Set(JSON.parse(localStorage.getItem("createdRooms") || "[]"));
+            const recentRooms = JSON.parse(localStorage.getItem("recentRooms") || "[]");
+            const allRooms = [...new Set([...createdRooms, ...recentRooms])];
+
+            allRooms.forEach(roomCode => {
+                let lastKey = null;
+                const messagesRef = ref(db, `messages/${roomCode}`);
+                get(query(messagesRef, orderByKey())).then(initialSnapshot => {
+                    if (initialSnapshot.exists()) {
+                        initialSnapshot.forEach(child => { lastKey = child.key; });
+                    }
+                    const newMessagesQuery = lastKey ? query(messagesRef, orderByKey(), startAfter(lastKey)) : messagesRef;
+                    const unsub = onChildAdded(newMessagesQuery, (snapshot) => {
+                        const msg = snapshot.val();
+                        if(msg && msg.userId !== userId && currentRoom !== roomCode) {
+                            showNotification(roomCode, `${msg.nickname}: ${msg.text}`);
+                        }
+                    });
+                    notificationUnsubscribes.push(unsub);
+                });
+            });
+        };
+
+        const clearLobbyListeners = () => {
+            lobbyUnsubscribes.forEach(unsub => unsub());
+            lobbyUnsubscribes = [];
+        };
+        
+        // BIND DE EVENTOS
+        document.getElementById('save-nickname-btn').addEventListener('click', saveNicknameAndEnterLobby);
+        document.getElementById('create-room-btn').addEventListener('click', createRoom);
+        document.getElementById('send-btn').addEventListener('click', sendMessage);
+        document.getElementById('leave-btn').addEventListener('click', leaveRoom);
+        
+        DOMElements.roomListContainer.addEventListener('click', e => {
+             const roomItem = e.target.closest('[data-roomcode]');
+             if(!roomItem) return;
+             const roomCode = roomItem.dataset.roomcode;
+             if(e.target.closest('.btn-delete-room')) {
+                roomToDelete = roomCode;
+                DOMElements.deleteRoomCode.textContent = roomCode;
+                DOMElements.confirmDeleteModal.classList.remove('hidden');
+                DOMElements.confirmDeleteModal.classList.add('flex');
+             } else {
+                 joinRoom(roomCode);
+             }
+        });
+        
+        document.getElementById('cancel-delete-btn').addEventListener('click', () => {
+            DOMElements.confirmDeleteModal.classList.add('hidden');
+            DOMElements.confirmDeleteModal.classList.remove('flex');
+            roomToDelete = null;
+        });
+
+        document.getElementById('confirm-delete-btn').addEventListener('click', () => {
+            if (roomToDelete) {
+                set(ref(db, `rooms/${roomToDelete}`), null);
+                let created = JSON.parse(localStorage.getItem("createdRooms") || "[]");
+                localStorage.setItem("createdRooms", JSON.stringify(created.filter(r => r !== roomToDelete)));
+                let recent = JSON.parse(localStorage.getItem("recentRooms") || "[]");
+                localStorage.setItem("recentRooms", JSON.stringify(recent.filter(r => r !== roomToDelete)));
+                renderRoomList();
+                setupNotificationListeners();
+            }
+            DOMElements.confirmDeleteModal.classList.add('hidden');
+            DOMElements.confirmDeleteModal.classList.remove('flex');
+            roomToDelete = null;
+        });
 
 
-<!-- Modal de Alerta -->
-<div id="alertModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000000c9; z-index:1000; align-items:center; justify-content:center;">
-  <div  style="background:var(--background-color);; padding:20px; border-radius:10px; max-width:300px; width:90%; border: 1px solid;">
-    <p id="alertMessage">Mensagem de alerta</p>
-    <div class="modal-buttons">
-      <button id="alertOk">OK</button>
-    </div>
-  </div>
-</div>
+        document.getElementById('fab-main-btn').addEventListener('click', () => {
+            DOMElements.fabContainer.classList.toggle('open');
+            DOMElements.fabMenu.classList.toggle('hidden');
+            DOMElements.fabMenu.classList.toggle('flex');
+            DOMElements.fabIcon.classList.toggle('fa-plus');
+            DOMElements.fabIcon.classList.toggle('fa-times');
+            DOMElements.fabIcon.classList.toggle('rotate-45');
+        });
+        document.getElementById('join-room-modal-btn').addEventListener('click', () => {
+            DOMElements.joinRoomModal.classList.remove('hidden');
+            DOMElements.joinRoomModal.classList.add('flex');
+        });
+        document.getElementById('modal-cancel-join-btn').addEventListener('click', () => {
+            DOMElements.joinRoomModal.classList.add('hidden');
+        });
+        document.getElementById('modal-confirm-join-btn').addEventListener('click', () => {
+            const roomCode = DOMElements.modalRoomCodeInput.value.trim().toUpperCase();
+            DOMElements.joinRoomModal.classList.add('hidden');
+            joinRoom(roomCode);
+        });
 
+        document.getElementById('change-nickname-btn').addEventListener('click', () => DOMElements.confirmResetModal.classList.remove('hidden'));
+        document.getElementById('cancel-reset-btn').addEventListener('click', () => DOMElements.confirmResetModal.classList.add('hidden'));
+        document.getElementById('confirm-reset-btn').addEventListener('click', () => {
+            localStorage.removeItem('astroNickname');
+            localStorage.removeItem('createdRooms');
+            localStorage.removeItem('recentRooms');
+            DOMElements.confirmResetModal.classList.add('hidden');
+            clearNotificationListeners();
+            switchScreen('nickname');
+        });
 
-<div class="container" style="width: calc(100%); height: 100%; display: flex; align-items: center">
-  <!-- Botão para abrir o modal -->
-   <button id="btnColor" style="position: absolute; top: 10px; right: 10px; width: 45px; height: 45px; padding: 5px; border: 0; transform: rotate(180deg);">
-  <i class="f7-icons">paintbrush</i>
-</button>
-
-  <!-- Tela de login -->
-  <div id="loginScreen" style="max-width: 450px; background: var(--background-color);; z-index: 1;">
-  <h2 style="width: calc(100% + 40px); color: var(--background-color);;">Entrar no Chat</h2>
-  <input type="text" id="nicknameInput" placeholder="Seu apelido" autocomplete="off" />
-  <div style="display: flex;">
-    <button id="showMyRoomsBtn" style="border: 1px dotted;">Minhas Salas</button>
-    <button id="createRoomBtn" style="">Criar Sala</button>
-  </div>
-  <br>
-  <p style="text-align: center; margin: 10px 5px; width: 100%;">Ou</p>
-  <br>
-  <input type="text" id="joinCodeInput" placeholder="Código da Sala" autocomplete="off" />
-  <div style="display: flex;">
-    <button id="showLastRoomsBtn" style="border: 1px dotted;">Salas Recentes</button>
-    <button id="enterRoomBtn" style="">Entrar na Sala</button>
-  </div>
-</div>
-
-  <!-- Modal de salas recentes -->
-  <div id="recentRoomsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000000c9; z-index:998; align-items:center; justify-content:center;">
-    <div style="background:var(--background-color);; padding:20px; border-radius:10px; max-width:300px; width:90%;  border: 1px solid;">
-      <h3>Salas Recentes</h3>
-      <ul id="recentRoomsList" style="margin: 10px 0;"></ul>
-      <button id="closeRecentRooms" style="margin: 5px 0;">Fechar</button>
-    </div>
-  </div>
-
-  
-
-  <div id="myRoomsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000000c9; z-index:998; align-items:center; justify-content:center;">
-    <div style="background:var(--background-color);; padding:20px; border-radius:10px; max-width:300px; width:90%;  border: 1px solid;">
-      <h3>Minhas Salas</h3>
-      <ul id="myRoomsList" style="margin: 10px 0;"></ul>
-    <button id="closeMyRoomsBtn" style="margin: 5px 0;">Fechar</button>
-    </div>
-  </div>
-
-
-  <!-- Tela da sala de chat -->
- <div id="chatScreen" style="background: var(--background-color);">
-  <!-- <div id="voiceStatus" style="display:none; position:fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 8px 16px; border-radius: 12px; font-weight: bold; z-index: 1000;">
-  Usuário está falando...
-</div>
-  <button id="startCallBtn">Iniciar Chamada</button>
-<button id="hangupBtn" disabled>Desligar</button>
-<audio id="localAudio" autoplay muted></audio>
-<audio id="remoteAudio" autoplay></audio> -->
-
-  <h2 style="display: flex; height: 49px; align-items: center; justify-content: space-between; padding: 10px; margin-top: 0px;">
-    <button id="leaveRoomBtn" style="color: var(--background-color); width: 30px; height: 30px; padding: 0; margin: 10px; border: 0;">
-      <i class="f7-icons" style="font-size: 15px;">arrow_left</i>
-    </button>
-    <span id="roomCodeDisplay" style="color: var(--background-color);" title="Clique para copiar o código"></span>
-    <div id="userCountDisplay" style="margin: 10px; color: var(--background-color);"></div>
-  </h2>
-
-  <div id="messages"><div id="typingMessages"></div></div>
-
-  <div class="div-send">
-    <input type="text" id="messageInput" placeholder="Digite sua mensagem" autocomplete="off" style="margin-left: 0;" />
-    <button id="sendMessageBtn" style="width: 50px; margin-right: 0;">
-      <i class="f7-icons" style="font-size: 15px;">arrowshape_turn_up_right</i>
-    </button>
-  </div>
-</div>
-
-</div>
-<div id="entry-notification" style="
-  display: none;
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: var(--background-color);
-  color: var(--border-color);
-  border: 1px solid var(--border-color);
-  padding: 12px 20px;
-  border-radius: 8px;
-  font-size: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 9999;
-  transition: opacity 0.3s ease;
-">
-  <!-- Conteúdo será preenchido dinamicamente -->
-</div>
-<div class="rodape" style="position: absolute; bottom: 50px; text-align: center; width: 250px;z-index: 0;">Astro é um chat em tempo real com visualização ao vivo do que estão digitando.</di>
-
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="js/firebase.js"></script>
-
-<script src="js/color.js"></script>
-<script src="js/background.js"></script>
-<script src="js/show-modal.js"></script>
-<script src="js/script.js"></script>
-<!-- <script src="js/audio.js"></script> -->
+        DOMElements.messageInput.addEventListener('keydown', e => e.key === 'Enter' && sendMessage());
+        DOMElements.messageInput.addEventListener('input', handleTyping);
+    </script>
 </body>
 </html>
+
