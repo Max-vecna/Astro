@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Astro Duel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --secondary-color: #7c3aed;
+        }
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background-color: #0f172a;
+            background-image:
+                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px),
+                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px),
+                radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 40px),
+                radial-gradient(rgba(255,255,255,.4), rgba(255,255,255,.1) 2px, transparent 30px);
+            background-size: 550px 550px, 350px 350px, 250px 250px, 150px 150px;
+            background-position: 0 0, 40px 60px, 130px 270px, 70px 100px;
+            color: white;
+            overflow: hidden;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        canvas {
+            background-color: rgba(15, 23, 42, 0.5);
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 0 20px var(--primary-color);
+            width: 100%;
+            height: 100%;
+        }
+        .hud {
+            text-shadow: 0 0 5px var(--primary-color), 0 0 10px var(--primary-color);
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 0 20px var(--primary-color) inset;
+        }
+        .game-button {
+            background-color: var(--primary-color);
+            border: 2px solid var(--secondary-color);
+            box-shadow: 0 0 10px var(--secondary-color);
+            transition: all 0.3s ease;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .game-button:hover {
+            background-color: var(--secondary-color);
+            box-shadow: 0 0 20px var(--secondary-color), 0 0 30px #ffffff;
+        }
+        #countdown {
+            text-shadow: 0 0 10px #ffffff, 0 0 20px #ffffff, 0 0 30px var(--primary-color);
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .move-button {
+            opacity: 0.5;
+        }
+        .move-button:active {
+            opacity: 1;
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center h-screen w-screen">
+
+    <div id="game-container" class="relative hidden w-full h-full">
+        <div id="hud" class="hud absolute top-0 left-0 right-0 p-2 sm:p-4 flex justify-between text-base sm:text-xl w-full">
+            <div id="p1-hud" class="flex items-center gap-2 sm:gap-4">
+                <span id="p1-score">P1: 0</span>
+                <div id="p1-lives" class="flex gap-2"></div>
+            </div>
+            <div id="p2-hud" class="flex items-center gap-2 sm:gap-4">
+                <div id="p2-lives" class="flex gap-2"></div>
+                <span id="p2-score">P2: 0</span>
+            </div>
+        </div>
+        <div id="countdown-overlay" class="absolute inset-0 flex items-center justify-center hidden">
+            <h1 id="countdown" class="text-9xl font-bold"></h1>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+        <div id="controls" class="absolute bottom-5 left-0 right-0 flex justify-between px-4 sm:px-10 z-10">
+            <button id="left-btn" class="move-button game-button rounded-full w-16 h-16 sm:w-20 sm:h-20 text-3xl sm:text-4xl select-none"><i class="fas fa-chevron-left"></i></button>
+            <button id="right-btn" class="move-button game-button rounded-full w-16 h-16 sm:w-20 sm:h-20 text-3xl sm:text-4xl select-none"><i class="fas fa-chevron-right"></i></button>
+        </div>
+    </div>
+    
+    <div id="loading-screen" class="glass-panel p-6 sm:p-8 rounded-lg text-center w-full max-w-md mx-4 flex flex-col items-center">
+        <h1 class="text-4xl sm:text-5xl font-bold mb-6 hud">ASTRO DUEL</h1>
+        <p class="text-lg animate-pulse">A conectar ao duelo...</p>
+    </div>
+
+    <div id="game-over-screen" class="glass-panel p-6 sm:p-8 rounded-lg text-center w-full max-w-md mx-4 hidden">
+        <h2 class="text-3xl sm:text-4xl font-bold mb-4 hud">FIM DE JOGO</h2>
+        <p id="winner-text" class="text-xl sm:text-2xl mb-6"></p>
+        <button id="close-btn" class="game-button w-full py-3 rounded-md text-xl font-bold">Sair do Duelo</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getDatabase, ref, set, onValue, onDisconnect, get, serverTimestamp, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+        // --- CONFIGURAÇÃO DO FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyAxb2s4tzbtD1arG9UAf7UrzhFqbRrrsl8",
+            authDomain: "astro-642b6.firebaseapp.com",
+            databaseURL: "https://astro-642b6-default-rtdb.firebaseio.com",
+            projectId: "astro-642b6",
+            storageBucket: "astro-642b6.appspot.com",
+            messagingSenderId: "141832763492",
+            appId: "1:141832763492:web:c8f6a529849bab54ee8771"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // --- ELEMENTOS DO DOM ---
+        const DOMElements = {
+            gameContainer: document.getElementById('game-container'),
+            loadingScreen: document.getElementById('loading-screen'),
+            gameOverScreen: document.getElementById('game-over-screen'),
+            p1Score: document.getElementById('p1-score'),
+            p2Score: document.getElementById('p2-score'),
+            p1Lives: document.getElementById('p1-lives'),
+            p2Lives: document.getElementById('p2-lives'),
+            countdownOverlay: document.getElementById('countdown-overlay'),
+            countdown: document.getElementById('countdown'),
+            winnerText: document.getElementById('winner-text'),
+            closeBtn: document.getElementById('close-btn'),
+            canvas: document.getElementById('gameCanvas'),
+            leftBtn: document.getElementById('left-btn'),
+            rightBtn: document.getElementById('right-btn'),
+        };
+        const ctx = DOMElements.canvas.getContext('2d');
+
+        // --- ESTADO DO JOGO ---
+        let localPlayerId = `player_${Math.random().toString(36).substring(2, 9)}`;
+        let gameId = null;
+        let gameState = {};
+        let gameRef = null;
+        let animationFrameId;
+        let lastShotTime = 0;
+        let lastUpdateTime = 0;
+        let moveDirection = null;
+        
+        const SHIP_SIZE = 30;
+        const SHIP_SPEED = 6;
+        const BULLET_SPEED = 7;
+        const ASTEROID_SIZES = [30, 20, 10];
+        const MAX_ASTEROIDS = 15;
+        const LIVES = 3;
+        const SHOOT_COOLDOWN = 200;
+        const UPDATE_INTERVAL = 40;
+        const COUNTDOWN_SECONDS = 5;
+
+        // --- FUNÇÕES DE NAVEGAÇÃO E UI ---
+        const switchScreen = (screen) => {
+            ['loading', 'game', 'gameOver'].forEach(s => {
+                const element = DOMElements[`${s}Screen`] || DOMElements.gameContainer;
+                element.classList.toggle('hidden', s !== screen);
+                element.classList.toggle('flex', ['loading', 'gameOver'].includes(s));
+                 element.classList.toggle('block', s === 'game');
+            });
+        };
+        
+        const setupCanvas = () => {
+            DOMElements.canvas.width = window.innerWidth;
+            DOMElements.canvas.height = window.innerHeight;
+        };
+
+        // --- LÓGICA DE CRIAÇÃO E ADESÃO AO JOGO ---
+        const joinOrCreateGame = async () => {
+            gameRef = ref(db, `games/${gameId}`);
+            const snapshot = await get(gameRef);
+            if (snapshot.exists()) {
+                const currentGameState = snapshot.val();
+                if (Object.keys(currentGameState.players || {}).length < 2 && currentGameState.status === 'waiting') {
+                    set(ref(db, `games/${gameId}/players/${localPlayerId}`), createPlayer(2));
+                    update(gameRef, { status: 'countdown', countdownStart: serverTimestamp() });
+                    listenToGameState();
+                } else {
+                    alert('Este duelo já está cheio ou em andamento.');
+                    window.close();
+                }
+            } else {
+                const initialState = {
+                    players: { [localPlayerId]: createPlayer(1) },
+                    asteroids: {}, bullets: {}, status: 'waiting', hostId: localPlayerId
+                };
+                set(gameRef, initialState);
+                listenToGameState();
+            }
+        };
+
+        const listenToGameState = () => {
+            gameRef = ref(db, `games/${gameId}`);
+            onValue(gameRef, (snapshot) => {
+                if (!snapshot.exists()) {
+                    if (animationFrameId) endGame(true, "O duelo foi encerrado.");
+                    return;
+                }
+                gameState = snapshot.val();
+                
+                const players = gameState.players || {};
+                const numPlayers = Object.keys(players).length;
+
+                if ((gameState.status === 'playing' || gameState.status === 'countdown') && numPlayers < 2) {
+                     if (animationFrameId) endGame(true, "O oponente desconectou-se.");
+                     return;
+                }
+
+                if ((gameState.status === 'playing' || gameState.status === 'countdown') && !animationFrameId) {
+                    startGameLoop();
+                }
+                if (gameState.status === 'gameover') {
+                    endGame();
+                }
+            });
+            onDisconnect(ref(db, `games/${gameId}/players/${localPlayerId}`)).remove();
+        };
+        
+        const createPlayer = (playerNum) => ({
+            x: playerNum === 1 ? DOMElements.canvas.width / 4 : DOMElements.canvas.width * 3 / 4,
+            y: DOMElements.canvas.height * 0.8,
+            score: 0, lives: LIVES, playerNum, isAlive: true, thrusting: false
+        });
+
+        const createAsteroid = () => {
+            const sizeIndex = Math.floor(Math.random() * 2);
+            const radius = ASTEROID_SIZES[sizeIndex];
+            const x = Math.random() * DOMElements.canvas.width;
+            const y = -radius;
+            const angle = Math.PI / 2 + (Math.random() - 0.5) * 0.8;
+            const speed = 1.5 + Math.random();
+            const points = [];
+            const numPoints = 8 + Math.floor(Math.random() * 5);
+            for (let i = 0; i < numPoints; i++) {
+                const pointAngle = (i / numPoints) * Math.PI * 2;
+                const dist = radius * (0.8 + Math.random() * 0.4);
+                points.push({ x: Math.cos(pointAngle) * dist, y: Math.sin(pointAngle) * dist });
+            }
+            return { x, y, radius, sizeIndex, points, velX: Math.cos(angle) * speed, velY: Math.sin(angle) * speed };
+        };
+
+        const startGameLoop = () => {
+            switchScreen('game');
+            animationFrameId = requestAnimationFrame(gameLoop);
+        };
+        
+        const gameLoop = () => {
+            if (!gameState) return;
+            if (gameState.status === 'playing') handleInput();
+            if (gameState.hostId === localPlayerId) updateState();
+            draw();
+            animationFrameId = requestAnimationFrame(gameLoop);
+        };
+
+        const handleInput = () => {
+            const player = gameState.players?.[localPlayerId];
+            if (!player || !player.isAlive) return;
+            const now = Date.now();
+            if (now - lastUpdateTime > UPDATE_INTERVAL) {
+                lastUpdateTime = now;
+                let newX = player.x;
+                if (moveDirection === 'left') newX -= SHIP_SPEED;
+                else if (moveDirection === 'right') newX += SHIP_SPEED;
+                newX = Math.max(SHIP_SIZE / 2, Math.min(DOMElements.canvas.width - SHIP_SIZE / 2, newX));
+                update(ref(db, `games/${gameId}/players/${localPlayerId}`), { x: newX, thrusting: moveDirection !== null });
+            }
+            if (now - lastShotTime > SHOOT_COOLDOWN) {
+                lastShotTime = now;
+                shoot();
+            }
+        };
+        
+        const shoot = () => {
+             const player = gameState.players?.[localPlayerId];
+             if (!player || !player.isAlive) return;
+             set(ref(db, `games/${gameId}/bullets/bullet_${Date.now()}_${localPlayerId}`), {
+                x: player.x, y: player.y - SHIP_SIZE, velX: 0, velY: -BULLET_SPEED,
+                ownerId: localPlayerId, born: Date.now()
+             });
+        };
+
+        const updateState = () => {
+            if (!gameState.players) return;
+            const updates = {};
+            if (gameState.status === 'countdown' && Date.now() - gameState.countdownStart > (COUNTDOWN_SECONDS * 1000)) updates['status'] = 'playing';
+            
+            if (gameState.status === 'playing') {
+                if (!gameState.asteroids || Object.keys(gameState.asteroids).length < MAX_ASTEROIDS) {
+                    updates[`asteroids/ast_${Date.now()}`] = createAsteroid();
+                }
+                for (const id in gameState.bullets) {
+                    const b = gameState.bullets[id];
+                    b.y += b.velY;
+                    if (b.y < 0 || Date.now() - b.born > 3000) updates[`bullets/${id}`] = null;
+                    else updates[`bullets/${id}`] = b;
+                }
+                for (const astId in gameState.asteroids) {
+                    const a = gameState.asteroids[astId];
+                    if (!a) continue;
+                    a.x += a.velX; a.y += a.velY;
+                    if (a.y > DOMElements.canvas.height + a.radius) updates[`asteroids/${astId}`] = null;
+                    else updates[`asteroids/${astId}`] = a;
+
+                    for (const bullId in gameState.bullets) {
+                        const b = gameState.bullets[bullId];
+                        if (!b || !a) continue;
+                        if (Math.hypot(a.x - b.x, a.y - b.y) < a.radius) {
+                            updates[`bullets/${bullId}`] = null;
+                            const shooter = gameState.players[b.ownerId];
+                            if(shooter) updates[`players/${b.ownerId}/score`] = (shooter.score || 0) + Math.round((ASTEROID_SIZES[0] / a.radius) * 10);
+                            if (a.sizeIndex < ASTEROID_SIZES.length - 1) {
+                                for(let i=0; i<2; i++) {
+                                    const newAst = {...a, sizeIndex: a.sizeIndex + 1, radius: ASTEROID_SIZES[a.sizeIndex + 1], velX: a.velX + Math.random() - 0.5, velY: a.velY + Math.random() * 0.5 };
+                                    updates[`asteroids/ast_${Date.now()}_${i}`] = newAst;
+                                }
+                            }
+                            updates[`asteroids/${astId}`] = null;
+                            break; 
+                        }
+                    }
+                    for (const pId in gameState.players) {
+                        const p = gameState.players[pId];
+                        if (p.isAlive && Math.hypot(a.x - p.x, a.y - p.y) < a.radius + SHIP_SIZE / 2) {
+                            updates[`asteroids/${astId}`] = null;
+                            const newLives = p.lives - 1;
+                            updates[`players/${pId}/lives`] = newLives;
+                            if (newLives <= 0) updates[`players/${pId}/isAlive`] = false;
+                            else {
+                                updates[`players/${pId}/x`] = p.playerNum === 1 ? DOMElements.canvas.width / 4 : DOMElements.canvas.width * 3 / 4;
+                                updates[`players/${pId}/y`] = DOMElements.canvas.height * 0.8;
+                            }
+                        }
+                    }
+                }
+                if (Object.keys(gameState.players).length > 1 && Object.values(gameState.players).filter(p => p.isAlive).length <= 1) {
+                    updates['status'] = 'gameover';
+                }
+            }
+            if(Object.keys(updates).length > 0) update(gameRef, updates);
+        };
+
+        const endGame = (opponentLeft = false, customMessage = "") => {
+             cancelAnimationFrame(animationFrameId);
+             animationFrameId = null;
+
+             if (gameState.hostId === localPlayerId && !opponentLeft) {
+                setTimeout(() => {
+                    if (gameRef) set(gameRef, null);
+                }, 5000);
+             }
+
+             if (opponentLeft) {
+                 DOMElements.winnerText.textContent = customMessage;
+             } else {
+                const players = Object.values(gameState.players || {});
+                if (players.length >= 2) {
+                    const winner = players.find(p => p.isAlive) || (players[0].score > players[1].score ? players[0] : players[1]);
+                    DOMElements.winnerText.textContent = `Jogador ${winner.playerNum} Vence!`;
+                } else {
+                     DOMElements.winnerText.textContent = `Fim de Jogo!`;
+                }
+             }
+             switchScreen('gameOver');
+        };
+
+        const draw = () => {
+            ctx.clearRect(0, 0, DOMElements.canvas.width, DOMElements.canvas.height);
+            if (!gameState.players) return;
+            for (const id in gameState.players) if (gameState.players[id].isAlive) drawShip(gameState.players[id]);
+            for (const id in gameState.asteroids) drawAsteroid(gameState.asteroids[id]);
+            for (const id in gameState.bullets) drawBullet(gameState.bullets[id]);
+            updateHUD();
+            if (gameState.status === 'countdown') drawCountdown();
+        };
+
+        const drawCountdown = () => {
+            DOMElements.countdownOverlay.classList.remove('hidden');
+            const count = Math.ceil(( (COUNTDOWN_SECONDS * 1000) - (Date.now() - gameState.countdownStart)) / 1000);
+            DOMElements.countdown.textContent = count > 0 ? count : '';
+            if (count <= 0) DOMElements.countdownOverlay.classList.add('hidden');
+        };
+        
+        const updateHUD = () => {
+            const p1 = Object.values(gameState.players || {}).find(p => p.playerNum === 1);
+            const p2 = Object.values(gameState.players || {}).find(p => p.playerNum === 2);
+            DOMElements.p1Score.textContent = `P1: ${p1 ? p1.score : 0}`;
+            DOMElements.p2Score.textContent = `P2: ${p2 ? p2.score : 0}`;
+            DOMElements.p1Lives.innerHTML = p1 ? Array.from({length: p1.lives}, () => `<i class="fas fa-space-shuttle text-indigo-400 -rotate-45"></i>`).join('') : '';
+            DOMElements.p2Lives.innerHTML = p2 ? Array.from({length: p2.lives}, () => `<i class="fas fa-space-shuttle text-violet-400 -rotate-45"></i>`).join('') : '';
+        };
+
+        const drawShip = (p) => {
+            ctx.save(); ctx.translate(p.x, p.y);
+            ctx.strokeStyle = p.playerNum === 1 ? "var(--primary-color)" : "var(--secondary-color)";
+            ctx.fillStyle = p.playerNum === 1 ? "rgba(79, 70, 229, 0.2)" : "rgba(124, 58, 237, 0.2)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, -SHIP_SIZE * 0.8);
+            ctx.lineTo(SHIP_SIZE * 0.6, SHIP_SIZE * 0.4);
+            ctx.lineTo(0, 0);
+            ctx.lineTo(-SHIP_SIZE * 0.6, SHIP_SIZE * 0.4);
+            ctx.closePath();
+            ctx.stroke(); ctx.fill();
+            if(p.thrusting) {
+                 ctx.fillStyle = "#ffc83d"; ctx.beginPath();
+                 ctx.moveTo(0, SHIP_SIZE * 0.4); ctx.lineTo(SHIP_SIZE * 0.4, SHIP_SIZE * 0.8);
+                 ctx.lineTo(-SHIP_SIZE * 0.4, SHIP_SIZE * 0.8);
+                 ctx.closePath(); ctx.fill();
+            }
+            ctx.restore();
+        };
+
+        const drawAsteroid = (a) => {
+            if (!a.points) return;
+            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.beginPath();
+            ctx.moveTo(a.x + a.points[0].x, a.y + a.points[0].y);
+            for (let i = 1; i < a.points.length; i++) ctx.lineTo(a.x + a.points[i].x, a.y + a.points[i].y);
+            ctx.closePath(); ctx.stroke();
+        };
+
+        const drawBullet = (b) => {
+            ctx.fillStyle = "#ffff00"; ctx.beginPath();
+            ctx.arc(b.x, b.y, 3, 0, Math.PI * 2); ctx.fill();
+        };
+
+        // --- LISTENERS DE EVENTOS ---
+        DOMElements.closeBtn.addEventListener('click', () => window.close());
+        
+        ['mousedown', 'touchstart'].forEach(evt => {
+            DOMElements.leftBtn.addEventListener(evt, (e) => { e.preventDefault(); moveDirection = 'left'; });
+            DOMElements.rightBtn.addEventListener(evt, (e) => { e.preventDefault(); moveDirection = 'right'; });
+        });
+        ['mouseup', 'mouseleave', 'touchend'].forEach(evt => {
+            DOMElements.leftBtn.addEventListener(evt, () => { moveDirection = null; });
+            DOMElements.rightBtn.addEventListener(evt, () => { moveDirection = null; });
+        });
+        
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'ArrowLeft') moveDirection = 'left';
+            if (e.code === 'ArrowRight') moveDirection = 'right';
+        });
+        window.addEventListener('keyup', (e) => {
+            if ((e.code === 'ArrowLeft' && moveDirection === 'left') || (e.code === 'ArrowRight' && moveDirection === 'right')) moveDirection = null;
+        });
+
+        window.addEventListener('resize', setupCanvas);
+
+        // --- INICIALIZAÇÃO ---
+        const initialize = () => {
+            setupCanvas();
+            const urlParams = new URLSearchParams(window.location.search);
+            gameId = urlParams.get('game');
+            if (gameId) {
+                gameId = gameId.toUpperCase();
+                switchScreen('loading');
+                joinOrCreateGame();
+            } else {
+                document.body.innerHTML = `<div class="glass-panel p-8 rounded-lg text-center w-full max-w-md">
+                    <h1 class="text-3xl font-bold mb-6 hud">ERRO</h1>
+                    <p>Falta o código do jogo. Por favor, entre através de um convite no chat.</p>
+                </div>`;
+            }
+        };
+        
+        initialize();
+    </script>
+</body>
+</html>
+

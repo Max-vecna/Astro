@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Astro Chat V4</title>
+    <title>Astro Chat V6</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
@@ -254,6 +254,21 @@
             animation: static-flicker 0.3s infinite;
             pointer-events: none;
         }
+
+        .duel-invite-button {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            margin-top: 8px;
+            font-weight: bold;
+            display: inline-block;
+            text-decoration: none;
+            transition: transform 0.2s;
+        }
+        .duel-invite-button:hover {
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body data-theme="dark">
@@ -330,13 +345,17 @@
                 <div class="flex items-center -space-x-4" id="user-avatars-container"></div>
             </header>
             <main id="messages-container" class="flex-1 p-4 overflow-y-auto flex flex-col scroll-container">
-                <div id="messages-list" class="flex flex-col gap-1"></div>
-                <div id="typing-indicator-container" class="h-8"></div>
+                <div id="messages-list" class="flex flex-col gap-1">
+                    <div id="typing-indicator-container" class="h-8"></div>
+                </div>
             </main>
             <footer class="p-3 glassmorphism md:rounded-b-2xl">                
                 <div id="reply-preview" class="hidden"></div>
                 <div class="flex items-center gap-3">
                     <input type="text" id="message-input" placeholder="Digite uma mensagem..." class="flex-1 bg-[var(--background-color)] text-[var(--text-color)] rounded-full py-3 px-5 outline-none focus:ring-2 focus:ring-primary-color">
+                    <button id="duel-btn" class="bg-[var(--secondary-color)] hover:opacity-90 w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90 glow-on-hover text-white">
+                        <i class="fas fa-gamepad"></i>
+                    </button>
                     <button id="send-btn" class="bg-[var(--primary-color)] hover:opacity-90 w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90 glow-on-hover text-white">
                         <i class="fas fa-paper-plane"></i>
                     </button>
@@ -346,6 +365,15 @@
     </div>
     
     <!-- Modals -->
+    <div id="duel-modal" class="fixed inset-0 bg-black bg-opacity-75 z-40 hidden items-center justify-center p-4">
+        <div class="glassmorphism p-6 rounded-2xl max-w-sm w-full flex flex-col gap-4">
+            <h3 class="text-xl font-bold text-center">Desafiar para Duelo</h3>
+            <p class="text-sm text-center text-muted-color">Escolha um oponente online:</p>
+            <div id="duel-user-list" class="space-y-2 max-h-60 overflow-y-auto scroll-container">
+            </div>
+            <button id="close-duel-modal-btn" class="w-full bg-slate-600 hover:bg-slate-700 p-3 rounded-md mt-2">Cancelar</button>
+        </div>
+    </div>
     <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-75 z-40 hidden items-center justify-center p-4">
         <div class="glassmorphism p-6 rounded-2xl max-w-sm w-full flex flex-col gap-5">
             <div class="flex justify-between items-center">
@@ -412,7 +440,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getDatabase, ref, set, get, onValue, onChildAdded, onChildChanged, serverTimestamp, onDisconnect, push, query, orderByKey, startAfter } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        import { getDatabase, ref, set, get, onValue, onChildAdded, onChildChanged, serverTimestamp, onDisconnect, push, query, orderByKey, startAfter, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
         // Cole aqui sua configuração do Firebase
         const firebaseConfig = {
@@ -464,6 +492,10 @@
             deleteRoomCode: document.getElementById('delete-room-code'),
             settingsModal: document.getElementById('settings-modal'),
             toastContainer: document.getElementById('toast-container'),
+            duelBtn: document.getElementById('duel-btn'),
+            duelModal: document.getElementById('duel-modal'),
+            duelUserList: document.getElementById('duel-user-list'),
+            closeDuelModalBtn: document.getElementById('close-duel-modal-btn'),
         };
 
         const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -505,15 +537,15 @@
         
         // Lógica de Renderização
         const renderMessage = (msgData, msgId) => {
-            const existingMsg = DOMElements.messagesList.querySelector(`[data-msg-id="${msgId}"]`);
-            if (existingMsg) {
-                updateMessage(existingMsg, msgData);
+            const existingMsgWrapper = DOMElements.messagesList.querySelector(`[data-msg-id="${msgId}"]`);
+            if (existingMsgWrapper) {
+                updateMessage(existingMsgWrapper, msgData);
                 return;
             }
 
             const isSelf = msgData.userId === userId;
-            const lastMessageWrapper = DOMElements.messagesList.lastElementChild;
-            const isConsecutive = lastMessageWrapper && lastMessageWrapper.dataset.userId === msgData.userId;
+            const lastMessageWrapper = DOMElements.typingIndicatorContainer.previousElementSibling;
+            const isConsecutive = lastMessageWrapper && lastMessageWrapper.dataset.userId === msgData.userId && msgData.type !== 'duel_invite';
 
             const messageWrapper = document.createElement('div');
             messageWrapper.className = `flex flex-col items-${isSelf ? 'end' : 'start'}`;
@@ -530,40 +562,12 @@
                 const lastBubble = lastMessageWrapper.querySelector('.chat-bubble');
                 if (lastBubble) lastBubble.classList.add('has-consecutive');
             }
-
-            const showNickname = !isSelf && !isConsecutive;
-            const sanitizedText = msgData.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            if (!userColors[msgData.userId]) userColors[msgData.userId] = `hsl(${Math.random() * 360}, 70%, 50%)`;
             
-            let replyHTML = '';
-            if (msgData.repliedTo) {
-                const repliedSanitizedText = msgData.repliedTo.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                replyHTML = `
-                    <div class="replied-message-block" data-replied-id="${msgData.repliedTo.msgId}">
-                        <strong class="font-bold">${msgData.repliedTo.nickname}</strong>
-                        <p class="truncate opacity-80">${repliedSanitizedText}</p>
-                    </div>
-                `;
-            }
-
-            bubble.innerHTML = `
-                ${replyHTML}
-                <div class="message-content">
-                    ${showNickname ? `<span class="font-bold text-sm" style="color: ${userColors[msgData.userId]};">${msgData.nickname}</span>` : ''}
-                    <p class="text-white message-text ${showNickname ? '' : ''}" style="color: inherit;">${sanitizedText}</p>
-                </div>
-                 <div class="message-actions-trigger cursor-pointer flex items-center self-end gap-2 text-xs opacity-70 hover:opacity-100 transition-opacity mt-1">
-                    <span>${new Date(msgData.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                    <span class="read-receipt-status">${isSelf ? getReadReceiptIcon(msgData) : ''}</span>
-                </div>
-                <div class="reactions-container"></div>
-            `;
-
             messageWrapper.appendChild(bubble);
             updateMessage(messageWrapper, msgData);
             
-            DOMElements.messagesList.appendChild(messageWrapper);
-            if(msgData.userId !== userId && !msgData.readBy?.[userId]) {
+            DOMElements.messagesList.insertBefore(messageWrapper, DOMElements.typingIndicatorContainer);
+            if(msgData.userId !== userId && !msgData.readBy?.[userId] && msgData.type !== 'duel_invite') {
                 messageObserver.observe(messageWrapper);
             }
             DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
@@ -573,7 +577,7 @@
             const notification = document.createElement('div');
             notification.className = 'notification-bubble';
             notification.textContent = text;
-            DOMElements.messagesList.appendChild(notification);
+            DOMElements.messagesList.insertBefore(notification, DOMElements.typingIndicatorContainer);
             DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
         };
 
@@ -607,10 +611,68 @@
         };
 
         const updateMessage = (element, msgData) => {
-            // Update Reactions
+            const bubble = element.querySelector('.chat-bubble');
+            const msgId = element.dataset.msgId;
+            if (!userColors[msgData.userId]) userColors[msgData.userId] = `hsl(${Math.random() * 360}, 70%, 50%)`;
+
+            let contentHTML = '';
+
+            if (msgData.type === 'duel_invite') {
+                let duelHTML = `<p class="text-white message-text mt-1" style="color: inherit;">desafiou <strong>${msgData.challengedNickname}</strong> para um duelo!</p>`;
+                
+                switch (msgData.duelStatus) {
+                    case 'accepted':
+                        duelHTML += `<p class="font-bold text-green-400 mt-2">Duelo aceite! A preparar naves...</p>`;
+                        break;
+                    case 'refused':
+                        duelHTML += `<p class="font-bold text-red-400 mt-2">Duelo recusado.</p>`;
+                        break;
+                    case 'pending':
+                    default:
+                        if (msgData.challengedId === userId) {
+                            duelHTML += `
+                                <div class="flex gap-2 mt-2">
+                                    <button class="accept-duel-btn text-sm bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded-full" data-msg-id="${msgId}" data-game-id="${msgData.duelGameId}">Aceitar</button>
+                                    <button class="refuse-duel-btn text-sm bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded-full" data-msg-id="${msgId}">Recusar</button>
+                                </div>`;
+                        } else {
+                            duelHTML += `<p class="text-sm text-muted-color mt-2">Aguardando resposta...</p>`;
+                        }
+                        break;
+                }
+                 contentHTML = `<div class="message-content">
+                        <span class="font-bold text-sm" style="color: ${userColors[msgData.userId]};">${msgData.nickname}</span>
+                        ${duelHTML}
+                    </div>`;
+
+            } else {
+                const sanitizedText = msgData.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                let replyHTML = '';
+                if (msgData.repliedTo) {
+                   const repliedSanitizedText = msgData.repliedTo.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                   replyHTML = `<div class="replied-message-block" data-replied-id="${msgData.repliedTo.msgId}">
+                           <strong class="font-bold">${msgData.repliedTo.nickname}</strong>
+                           <p class="truncate opacity-80">${repliedSanitizedText}</p>
+                       </div>`;
+                }
+                const showNickname = !element.classList.contains('is-consecutive') && msgData.userId !== userId;
+                contentHTML = `${replyHTML}
+                    <div class="message-content">
+                        ${showNickname ? `<span class="font-bold text-sm" style="color: ${userColors[msgData.userId]};">${msgData.nickname}</span>` : ''}
+                        <p class="text-white message-text ${showNickname ? '' : ''}" style="color: inherit;">${sanitizedText}</p>
+                    </div>
+                     <div class="message-actions-trigger cursor-pointer flex items-center self-end gap-2 text-xs opacity-70 hover:opacity-100 transition-opacity mt-1">
+                        <span>${new Date(msgData.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        <span class="read-receipt-status">${msgData.userId === userId ? getReadReceiptIcon(msgData) : ''}</span>
+                    </div>
+                    <div class="reactions-container"></div>`;
+            }
+
+            bubble.innerHTML = contentHTML;
+
             const reactionsContainer = element.querySelector('.reactions-container');
-            reactionsContainer.innerHTML = '';
-            if (msgData.reactions) {
+            if (reactionsContainer && msgData.reactions) {
+                reactionsContainer.innerHTML = '';
                 Object.entries(msgData.reactions).forEach(([emoji, users]) => {
                     const userCount = Object.keys(users).length;
                     if (userCount > 0) {
@@ -622,11 +684,6 @@
                         reactionsContainer.appendChild(chip);
                     }
                 });
-            }
-            // Update Read Status
-            if (msgData.userId === userId) {
-                const receiptEl = element.querySelector('.read-receipt-status');
-                if (receiptEl) receiptEl.innerHTML = getReadReceiptIcon(msgData);
             }
         };
 
@@ -650,11 +707,14 @@
             });
             menu.appendChild(reactionBar);
             
-            const itemsWrapper = document.createElement('div');
-            itemsWrapper.innerHTML = `
+            const isSelf = msgData.userId === userId;
+            let itemsHTML = `
                 <div class="message-actions-menu-item reply-btn"><i class="fas fa-reply"></i><span>Responder</span></div>
                 <div class="message-actions-menu-item copy-btn"><i class="fas fa-copy"></i><span>Copiar</span></div>
             `;
+            
+            const itemsWrapper = document.createElement('div');
+            itemsWrapper.innerHTML = itemsHTML;
             menu.appendChild(itemsWrapper);
             
             document.body.appendChild(menu);
@@ -663,6 +723,7 @@
             menu.querySelector('.copy-btn').onclick = () => {
                  navigator.clipboard.writeText(msgData.text);
                  showToast('Texto copiado!');
+                 if (activeMessageMenu) activeMessageMenu.remove();
             };
 
             const rect = triggerElement.getBoundingClientRect();
@@ -704,24 +765,30 @@
             switchScreen('chat');
             DOMElements.roomCodeDisplay.textContent = roomCode;
             DOMElements.messagesList.innerHTML = '';
+            DOMElements.messagesList.appendChild(DOMElements.typingIndicatorContainer);
             
             isInitialPresenceLoad = true;
 
             initializePresence();
             initializeMessageObserver();
             
-            // Listeners
+            const messagesRef = ref(db, `messages/${currentRoom}`);
+            const unsubMessages = onChildAdded(query(messagesRef, orderByKey()), s => renderMessage(s.val(), s.key));
+            const unsubMessageChanges = onChildChanged(query(messagesRef, orderByKey()), s => {
+                const msgData = s.val();
+                renderMessage(msgData, s.key);
+                if (msgData.type === 'duel_invite' && msgData.duelStatus === 'accepted' && msgData.userId === userId) {
+                    window.open(`./astro_duel.html?game=${msgData.duelGameId}`, '_blank');
+                }
+            });
+            
             const unsubRoom = onValue(ref(db, `rooms/${currentRoom}`), s => !s.exists() && leaveRoom());
             const unsubPresence = onValue(ref(db, `presence/${currentRoom}`), updatePresenceUI);
             const unsubTyping = onValue(ref(db, `typing/${currentRoom}`), snapshot => {
                 const typingUsers = snapshot.val() || {};
-                delete typingUsers[userId]; // Remove self from indicator
+                delete typingUsers[userId];
                 renderTypingIndicator(typingUsers);
             });
-            
-            const messagesRef = ref(db, `messages/${currentRoom}`);
-            const unsubMessages = onChildAdded(query(messagesRef, orderByKey()), s => renderMessage(s.val(), s.key));
-            const unsubMessageChanges = onChildChanged(query(messagesRef, orderByKey()), s => renderMessage(s.val(), s.key));
             
             roomUnsubscribes.push(unsubRoom, unsubPresence, unsubTyping, unsubMessages, unsubMessageChanges);
         };
@@ -742,6 +809,24 @@
             DOMElements.messageInput.value = '';
             cancelReply();
             handleTyping();
+        };
+
+        const sendDuelInvite = (challengedId, challengedNickname) => {
+            if (!currentRoom) return;
+            const duelGameId = Math.random().toString(36).substring(2, 7).toUpperCase();
+            
+            const newMessage = {
+                userId,
+                nickname,
+                type: 'duel_invite',
+                duelStatus: 'pending',
+                challengedId,
+                challengedNickname,
+                duelGameId,
+                timestamp: serverTimestamp()
+            };
+            set(push(ref(db, `messages/${currentRoom}`)), newMessage);
+            showToast(`Convite para duelo enviado para ${challengedNickname}!`);
         };
 
         const toggleReaction = (msgId, emoji) => {
@@ -952,6 +1037,36 @@
             DOMElements.replyPreview.innerHTML = '';
         };
 
+        const openDuelModal = () => {
+            const list = DOMElements.duelUserList;
+            list.innerHTML = ''; 
+
+            const onlineOpponents = Object.entries(onlineUsersInRoom)
+                .filter(([id, user]) => id !== userId && user.isOnline);
+
+            if (onlineOpponents.length === 0) {
+                list.innerHTML = `<p class="text-center text-muted-color">Nenhum outro jogador online.</p>`;
+            } else {
+                onlineOpponents.forEach(([id, user]) => {
+                    const userButton = document.createElement('button');
+                    userButton.className = 'w-full text-left p-3 rounded-md hover:bg-primary-color/20 transition-colors';
+                    userButton.textContent = user.nickname;
+                    if (!userColors[id]) userColors[id] = `hsl(${Math.random() * 360}, 70%, 50%)`;
+                    userButton.style.borderLeft = `4px solid ${userColors[id]}`;
+
+                    userButton.onclick = () => {
+                        sendDuelInvite(id, user.nickname);
+                        DOMElements.duelModal.classList.add('hidden');
+                        DOMElements.duelModal.classList.remove('flex');
+                    };
+                    list.appendChild(userButton);
+                });
+            }
+
+            DOMElements.duelModal.classList.remove('hidden');
+            DOMElements.duelModal.classList.add('flex');
+        };
+
         // Event Listeners
         document.body.addEventListener('click', (e) => {
             if (activeMessageMenu && !activeMessageMenu.contains(e.target)) {
@@ -964,6 +1079,25 @@
         });
 
         DOMElements.messagesList.addEventListener('click', async e => {
+            const acceptBtn = e.target.closest('.accept-duel-btn');
+            if (acceptBtn) {
+                e.preventDefault();
+                const msgId = acceptBtn.dataset.msgId;
+                const gameId = acceptBtn.dataset.gameId;
+                const messageRef = ref(db, `messages/${currentRoom}/${msgId}`);
+                update(messageRef, { duelStatus: 'accepted' });
+                window.open(`./astro_duel.html?game=${gameId}`, '_blank');
+                return;
+            }
+
+            const refuseBtn = e.target.closest('.refuse-duel-btn');
+            if(refuseBtn) {
+                const msgId = refuseBtn.dataset.msgId;
+                const messageRef = ref(db, `messages/${currentRoom}/${msgId}`);
+                update(messageRef, { duelStatus: 'refused' });
+                return;
+            }
+
             const reactionChip = e.target.closest('.reaction-chip');
             const replyBlock = e.target.closest('.replied-message-block');
             const actionsTrigger = e.target.closest('.message-actions-trigger');
@@ -971,13 +1105,13 @@
             
             if (!msgWrapper) return;
             const msgId = msgWrapper.dataset.msgId;
+            const msgSnapshot = await get(ref(db, `messages/${currentRoom}/${msgId}`));
+            if (!msgSnapshot.exists()) return;
+            const msgData = msgSnapshot.val();
 
-            if (actionsTrigger) {
+            if (actionsTrigger && msgData.type !== 'duel_invite') {
                 e.stopPropagation();
-                const msgSnapshot = await get(ref(db, `messages/${currentRoom}/${msgId}`));
-                if (msgSnapshot.exists()) {
-                    openActionsMenu(actionsTrigger, msgId, msgSnapshot.val());
-                }
+                openActionsMenu(actionsTrigger, msgId, msgData);
                 return;
             }
 
@@ -996,6 +1130,12 @@
             }
         });
         
+        DOMElements.duelBtn.addEventListener('click', openDuelModal);
+        DOMElements.closeDuelModalBtn.addEventListener('click', () => {
+             DOMElements.duelModal.classList.add('hidden');
+             DOMElements.duelModal.classList.remove('flex');
+        });
+
         document.getElementById('settings-btn').addEventListener('click', () => {
             DOMElements.settingsModal.classList.remove('hidden');
             DOMElements.settingsModal.classList.add('flex');
@@ -1177,7 +1317,8 @@
                     const unsub = onChildAdded(newMessagesQuery, (s) => {
                         const msg = s.val();
                         if(msg && msg.userId !== userId && currentRoom !== roomCode && Notification.permission === 'granted' && !document.hasFocus()) {
-                            new Notification(`Nova mensagem em #${roomCode}`, { body: `${msg.nickname}: ${msg.text}`, icon: `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>`})
+                            const body = msg.type === 'duel_invite' ? `${msg.nickname} desafiou você para um duelo!` : `${msg.nickname}: ${msg.text}`;
+                            new Notification(`Nova mensagem em #${roomCode}`, { body, icon: `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>`})
                             .onclick = () => { window.focus(); joinRoom(roomCode); };
                         }
                     });
