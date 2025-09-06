@@ -147,7 +147,7 @@
 
     <div id="splash-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900 transition-opacity duration-500">
         <div class="flex items-center text-5xl font-bold text-slate-200 z-10">
-            <i class="fas fa-rocket mr-3 transform -rotate-45 text-indigo-500"></i>
+            <i class="fas fa-space-shuttle mr-3 transform -rotate-45 text-indigo-500"></i>
             <span>Astro</span>
         </div>
         <div class="splash-loader w-12 h-12 border-4 border-slate-700 rounded-full mt-12 z-10"></div>
@@ -177,7 +177,7 @@
 
             <div id="fab-container" class="absolute bottom-6 right-6">
                 <div class="fab-menu flex-col items-center gap-3 mb-3 hidden">
-                    <button id="create-room-btn" class="w-44 bg-indigo-600 hover:bg-indigo-700 font-bold p-3 rounded-full transition-colors glow-on-hover flex items-center justify-center gap-2 text-sm shadow-lg"><i class="fas fa-meteor"></i>Criar Sala</button>
+                    <button id="create-room-btn" class="w-44 bg-indigo-600 hover:bg-indigo-700 font-bold p-3 rounded-full transition-colors glow-on-hover flex items-center justify-center gap-2 text-sm shadow-lg"><i class="fas fa-rocket"></i>Criar Sala</button>
                     <button id="join-room-modal-btn" class="w-44 bg-green-600 hover:bg-green-700 font-bold p-3 rounded-full transition-colors glow-on-hover flex items-center justify-center gap-2 text-sm shadow-lg"><i class="fas fa-keyboard"></i>Entrar com Código</button>
                 </div>
                 <button id="fab-main-btn" class="w-16 h-16 bg-violet-600 hover:bg-violet-700 rounded-full flex items-center justify-center shadow-lg transition-transform duration-300 glow-on-hover">
@@ -199,6 +199,7 @@
                         <span id="copy-feedback" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1 bg-green-500 text-white text-xs rounded-md opacity-0 transition-opacity duration-500 whitespace-nowrap hidden">Copiado!</span>
                     </div>
                     <p id="user-count-display" class="text-sm text-green-400 font-medium mt-1"></p>
+                    <p id="transmission-indicator" class="hidden absolute top-full mt-2 text-red-500 text-xs font-bold uppercase tracking-wider animate-pulse">Transmitindo</p>
                 </div>
                 <div class="w-8"></div>
             </header>
@@ -208,8 +209,11 @@
             <footer class="p-3 bg-slate-800/80 glassmorphism md:rounded-b-2xl">
                 <div class="flex items-center gap-3">
                     <input type="text" id="message-input" placeholder="Digite uma mensagem..." class="flex-1 bg-slate-700 rounded-full py-3 px-5 outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button id="transmit-btn" class="bg-slate-600 hover:bg-slate-500 w-12 h-12 rounded-full flex items-center justify-center transition-colors glow-on-hover">
+                        <i class="fas fa-microphone"></i>
+                    </button>
                     <button id="send-btn" class="bg-indigo-600 hover:bg-indigo-700 w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90 glow-on-hover">
-                        <i class="fas fa-paper-plane"></i>
+                        <i class="fas fa-rocket"></i>
                     </button>
                 </div>
             </footer>
@@ -254,6 +258,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getDatabase, ref, set, get, onValue, onChildAdded, serverTimestamp, onDisconnect, push, query, orderByKey, startAfter, off } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAxb2s4tzbtD1arG9UAf7UrzhFqbRrrsl8",
@@ -266,6 +271,7 @@
         };
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
+        const storage = getStorage(app);
 
         let currentRoom, nickname, userId, presenceRef, typingTimeout;
         let roomUnsubscribes = [];
@@ -274,6 +280,14 @@
         let roomToDelete = null;
         const userColors = {};
         let previousOnlineUsers = {};
+
+        // Variáveis para a transmissão de áudio
+        let isTransmitting = false;
+        let mediaRecorder;
+        let localAudioStream;
+        let audioContext;
+        let lastPlayedTimestamp = 0;
+
 
         const DOMElements = {
             splash: document.getElementById('splash-screen'),
@@ -300,7 +314,87 @@
             confirmDeleteModal: document.getElementById('confirm-delete-modal'),
             deleteRoomCode: document.getElementById('delete-room-code'),
             toastContainer: document.getElementById('toast-container'),
+            transmitBtn: document.getElementById('transmit-btn'),
+            transmissionIndicator: document.getElementById('transmission-indicator'),
         };
+
+        // --- Funções de Transmissão de Áudio ---
+
+        const startTransmission = async () => {
+            if (isTransmitting) return;
+            try {
+                localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                isTransmitting = true;
+                DOMElements.transmissionIndicator.classList.remove('hidden');
+                DOMElements.transmitBtn.classList.add('bg-red-500', 'animate-pulse');
+
+                mediaRecorder = new MediaRecorder(localAudioStream);
+                mediaRecorder.ondataavailable = handleAudioData;
+                mediaRecorder.start(1500); // Gera um pedaço de áudio a cada 1.5 segundos
+            } catch (err) {
+                console.error("Acesso ao microfone negado:", err);
+                alert("Você precisa permitir o acesso ao microfone para transmitir.");
+            }
+        };
+
+        const stopTransmission = () => {
+            if (!isTransmitting) return;
+            isTransmitting = false;
+            DOMElements.transmissionIndicator.classList.add('hidden');
+            DOMElements.transmitBtn.classList.remove('bg-red-500', 'animate-pulse');
+
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+            if (localAudioStream) {
+                localAudioStream.getTracks().forEach(track => track.stop());
+            }
+            // Limpa o sinal de transmissão no Realtime Database (opcional)
+            set(ref(db, `transmissions/${currentRoom}`), null);
+        };
+
+        const handleAudioData = async (event) => {
+            if (event.data.size === 0) return;
+            const audioBlob = event.data;
+            const timestamp = Date.now();
+            const sRef = storageRef(storage, `transmissions/${currentRoom}/${timestamp}.webm`);
+            
+            try {
+                await uploadBytes(sRef, audioBlob);
+                const url = await getDownloadURL(sRef);
+                
+                // Envia o sinal para os outros usuários com a URL do áudio
+                const transmissionRef = ref(db, `transmissions/${currentRoom}`);
+                set(transmissionRef, {
+                    userId,
+                    nickname,
+                    url,
+                    timestamp
+                });
+            } catch (error) {
+                console.error("Erro ao enviar pedaço de áudio:", error);
+            }
+        };
+
+        const playAudioChunk = async (url) => {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            try {
+                const response = await fetch(url);
+                const arrayBuffer = await response.arrayBuffer();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContext.destination);
+                source.start(0);
+            } catch (error) {
+                console.error("Erro ao tocar pedaço de áudio:", error);
+            }
+        };
+
+        // --- Funções Principais (com modificações) ---
 
         window.onload = async () => {
             let storedUserId = localStorage.getItem('astroUserId');
@@ -342,451 +436,131 @@
                 renderRoomList();
             } else if (screen === 'chat') {
                 previousOnlineUsers = {};
+                lastPlayedTimestamp = Date.now(); // Evita tocar áudios antigos ao entrar na sala
             }
         };
         
-        const saveNicknameAndEnterLobby = () => {
-            nickname = DOMElements.nicknameInput.value.trim();
-            if (!nickname) return;
-            localStorage.setItem('astroNickname', nickname);
-            DOMElements.lobbyNickname.textContent = nickname;
-            setupNotificationListeners();
-            switchScreen('lobby');
-        };
-
-        const renderMessage = (msgData) => {
-            const allBubbles = DOMElements.messagesList.querySelectorAll('.chat-bubble[data-user-id]');
-            const lastBubble = allBubbles.length > 0 ? allBubbles[allBubbles.length - 1] : null;
-            const isConsecutive = lastBubble && lastBubble.dataset.userId === msgData.userId;
-            const isSelf = msgData.userId === userId;
-
-            if (isConsecutive && lastBubble) {
-                const isSelfLast = lastBubble.classList.contains('self-end');
-                lastBubble.classList.remove('rounded-bl-2xl', 'rounded-br-2xl', 'rounded-b-lg');
-                lastBubble.classList.add(isSelfLast ? 'rounded-b-lg' : 'rounded-b-lg');
-            }
-
-            const messageElement = document.createElement('div');
-            messageElement.dataset.userId = msgData.userId;
-            
-            let bubbleClasses = 'chat-bubble flex flex-col max-w-xs md:max-w-md lg:max-w-lg p-3 ';
-            if (isSelf) {
-                bubbleClasses += 'bg-indigo-600 self-end ';
-                bubbleClasses += isConsecutive ? 'rounded-t-lg rounded-bl-lg' : 'rounded-t-2xl rounded-bl-2xl';
-            } else {
-                bubbleClasses += 'bg-slate-700 self-start ';
-                bubbleClasses += isConsecutive ? 'rounded-t-lg rounded-br-lg' : 'rounded-t-2xl rounded-br-2xl';
-            }
-            messageElement.className = bubbleClasses;
-
-            const sanitizedText = msgData.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            const showNickname = !isSelf && !isConsecutive;
-
-            if (!userColors[msgData.userId]) {
-                userColors[msgData.userId] = `hsl(${Math.random() * 360}, 80%, 70%)`;
-            }
-
-            messageElement.innerHTML = `
-                <span class="nickname-header font-bold text-sm ${showNickname ? '' : 'hidden'}" style="color: ${userColors[msgData.userId]};">
-                    ${msgData.nickname}
-                </span>
-                <p class="text-white ${showNickname ? 'mt-1' : ''}">${sanitizedText}</p>
-                <span class="text-xs text-slate-400 self-end mt-1">${new Date(msgData.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-            `;
-            
-            const typingIndicators = DOMElements.messagesList.querySelector('.typing-indicator-container');
-            DOMElements.messagesList.insertBefore(messageElement, typingIndicators);
-            DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
-        };
-        
-        const renderTypingIndicator = (typingUsers) => {
-            let typingContainer = DOMElements.messagesList.querySelector('.typing-indicator-container');
-            if(!typingContainer) {
-                typingContainer = document.createElement('div');
-                typingContainer.className = 'typing-indicator-container w-full';
-                DOMElements.messagesList.appendChild(typingContainer);
-            }
-            typingContainer.innerHTML = '';
-            
-            Object.entries(typingUsers).forEach(([typingUserId, userData]) => {
-                if (!userData || !userData.nickname) return;
-                if (!userColors[typingUserId]) {
-                    userColors[typingUserId] = `hsl(${Math.random() * 360}, 80%, 70%)`;
-                }
-                const userColor = userColors[typingUserId];
-                const typingElement = document.createElement('div');
-                typingElement.className = 'typing-bubble relative chat-bubble flex flex-col max-w-max p-3 rounded-t-2xl rounded-br-2xl bg-slate-700 self-start opacity-50 static-effect';
-                const sanitizedText = userData.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                typingElement.innerHTML = `
-                    <span class="font-bold text-sm" style="color: ${userColor};">${userData.nickname}</span>
-                    <p class="text-white">${sanitizedText}</p>
-                `;
-                typingContainer.appendChild(typingElement);
-            });
-            if (Object.keys(typingUsers).length > 0) {
-                DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
-            }
-        };
-        
-        const createRoom = async () => {
-            const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
-            await set(ref(db, `rooms/${roomCode}`), { createdAt: serverTimestamp() });
-            
-            let createdRooms = JSON.parse(localStorage.getItem("createdRooms") || "[]");
-            createdRooms.unshift(roomCode);
-            localStorage.setItem("createdRooms", JSON.stringify(createdRooms.slice(0, 10)));
-            
-            setupNotificationListeners();
-            joinRoom(roomCode);
-
-            await navigator.clipboard.writeText(roomCode);
-            showToast(`Código #${roomCode} copiado!`);
-
-            const createBtn = document.getElementById('create-room-btn');
-            const originalText = createBtn.innerHTML;
-            createBtn.innerHTML = '<i class="fas fa-check"></i> Copiado!';
-            setTimeout(() => createBtn.innerHTML = originalText, 2000);
-        };
-
-        const cleanupRoomListeners = async () => {
-            if (presenceRef) {
-                await set(presenceRef, { isOnline: false });
-            }
-            roomUnsubscribes.forEach(unsub => unsub());
-            roomUnsubscribes = [];
-            presenceRef = null;
-        };
-
         const joinRoom = async (roomCode) => {
+            // ... (código existente da função joinRoom)
             await cleanupRoomListeners();
-            
             if (!roomCode) return console.error("Código da sala inválido.");
             const roomSnapshot = await get(ref(db, `rooms/${roomCode}`));
             if (!roomSnapshot.exists()) return console.error("Sala não encontrada.");
-            
             localStorage.setItem(`lastEntered-${roomCode}`, Date.now());
-            
             currentRoom = roomCode;
             let recentRooms = JSON.parse(localStorage.getItem("recentRooms") || "[]");
             recentRooms = recentRooms.filter(r => r !== roomCode);
             recentRooms.unshift(roomCode);
             localStorage.setItem("recentRooms", JSON.stringify(recentRooms.slice(0, 10)));
-            
             setupNotificationListeners();
-
             switchScreen('chat');
             DOMElements.roomCodeDisplay.textContent = roomCode;
             DOMElements.messagesList.innerHTML = '';
-            
             presenceRef = ref(db, `presence/${currentRoom}/${userId}`);
             await set(presenceRef, { nickname, isOnline: true });
             onDisconnect(presenceRef).update({ isOnline: false, lastSeen: serverTimestamp() });
-
-            const unsubRoom = onValue(ref(db, `rooms/${currentRoom}`), (snapshot) => {
-                if (!snapshot.exists()) {
-                    leaveRoom();
-                }
-            });
+            const unsubRoom = onValue(ref(db, `rooms/${currentRoom}`), (snapshot) => { if (!snapshot.exists()) { leaveRoom(); } });
             roomUnsubscribes.push(unsubRoom);
-            
             const unsubPresence = onValue(ref(db, `presence/${currentRoom}`), snapshot => {
                 const currentUsers = snapshot.val() || {};
                 const onlineUsersArray = Object.entries(currentUsers).filter(([id, u]) => u.isOnline);
                 const onlineCount = onlineUsersArray.length;
                 DOMElements.userCountDisplay.textContent = `${onlineCount} ${onlineCount > 1 ? 'viajantes' : 'viajante'} online`;
-
                 if (Object.keys(previousOnlineUsers).length > 0) {
                     const currentOnlineIds = new Set(onlineUsersArray.map(([id, u]) => id));
                     const previousOnlineIds = new Set(Object.entries(previousOnlineUsers).filter(([id, u]) => u.isOnline).map(([id, u]) => id));
-                    
                     currentOnlineIds.forEach(id => {
-                        if (!previousOnlineIds.has(id) && id !== userId) {
-                            showToast(`<span class="toast-nickname">${currentUsers[id].nickname}</span> entrou na sala`, 'enter');
-                        }
+                        if (!previousOnlineIds.has(id) && id !== userId) { showToast(`<span class="toast-nickname">${currentUsers[id].nickname}</span> entrou na sala`, 'enter'); }
                     });
-
                     previousOnlineIds.forEach(id => {
-                        if (!currentOnlineIds.has(id) && id !== userId) {
-                            showToast(`<span class="toast-nickname">${previousOnlineUsers[id].nickname}</span> saiu da sala`, 'leave');
-                        }
+                        if (!currentOnlineIds.has(id) && id !== userId) { showToast(`<span class="toast-nickname">${previousOnlineUsers[id].nickname}</span> saiu da sala`, 'leave'); }
                     });
                 }
                 previousOnlineUsers = currentUsers;
             });
             roomUnsubscribes.push(unsubPresence);
-
             const messagesRef = ref(db, `messages/${currentRoom}`);
             let lastKey = null;
-
             const initialMessagesSnapshot = await get(messagesRef);
             if (initialMessagesSnapshot.exists()) {
                 const messages = [];
-                initialMessagesSnapshot.forEach(child => {
-                    messages.push({ ...child.val(), key: child.key });
-                    lastKey = child.key;
-                });
+                initialMessagesSnapshot.forEach(child => { messages.push({ ...child.val(), key: child.key }); lastKey = child.key; });
                 messages.sort((a, b) => a.timestamp - b.timestamp);
                 messages.forEach(msg => renderMessage(msg));
             }
-            
             const newMessagesQuery = lastKey ? query(messagesRef, orderByKey(), startAfter(lastKey)) : messagesRef;
-            const unsubMessages = onChildAdded(newMessagesQuery, (snapshot) => {
-                 renderMessage({...snapshot.val(), key: snapshot.key});
-            });
+            const unsubMessages = onChildAdded(newMessagesQuery, (snapshot) => { renderMessage({...snapshot.val(), key: snapshot.key}); });
             roomUnsubscribes.push(unsubMessages);
-
             const unsubTyping = onValue(ref(db, `typing/${currentRoom}`), snapshot => {
                  const typingUsers = snapshot.val() || {};
                  delete typingUsers[userId];
                  renderTypingIndicator(typingUsers);
             });
             roomUnsubscribes.push(unsubTyping);
-        };
-        
-        const sendMessage = () => {
-            const text = DOMElements.messageInput.value.trim();
-            if (text && currentRoom) {
-                const newMessageRef = push(ref(db, `messages/${currentRoom}`));
-                set(newMessageRef, { userId, nickname, text, timestamp: serverTimestamp() });
-                DOMElements.messageInput.value = '';
-                handleTyping();
-            }
-        };
-
-        const handleTyping = () => {
-            const typingRef = ref(db, `typing/${currentRoom}/${userId}`);
-            const text = DOMElements.messageInput.value;
-            if (text) {
-                set(typingRef, { nickname, text });
-                clearTimeout(typingTimeout);
-                typingTimeout = setTimeout(() => set(typingRef, null), 3000);
-            } else {
-                set(typingRef, null);
-            }
-        };
-        
-        const leaveRoom = async () => {
-            await cleanupRoomListeners();
-            currentRoom = null;
-            switchScreen('lobby');
-        };
-
-        const renderRoomList = async () => {
-            const list = DOMElements.roomListContainer;
-            let skeletonHTML = '';
-            for (let i = 0; i < 3; i++) {
-                skeletonHTML += `
-                    <div class="flex items-center p-3 bg-slate-700/50 rounded-lg">
-                        <div class="w-10 h-10 rounded-full skeleton mr-3"></div>
-                        <div class="flex-1 space-y-2">
-                            <div class="w-1/2 h-4 rounded skeleton"></div>
-                            <div class="w-1/3 h-3 rounded skeleton"></div>
-                        </div>
-                    </div>
-                `;
-            }
-            list.innerHTML = skeletonHTML;
-
-            const createdRooms = new Set(JSON.parse(localStorage.getItem("createdRooms") || "[]"));
-            const recentRooms = JSON.parse(localStorage.getItem("recentRooms") || "[]");
-            const allRooms = [...new Set([...createdRooms, ...recentRooms])];
-
-            if (allRooms.length === 0) {
-                list.innerHTML = `<div class="text-center text-slate-400 mt-10">
-                    <i class="fas fa-ghost text-5xl mb-4"></i>
-                    <p>Nenhuma sala por aqui.</p>
-                    <p class="text-sm">Crie uma ou entre com um código!</p>
-                </div>`;
-                return;
-            }
-
-            list.innerHTML = "";
-            allRooms.forEach(roomCode => {
-                const isCreator = createdRooms.has(roomCode);
-                const roomElement = document.createElement('div');
-                roomElement.className = "flex items-center p-3 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-600/50 transition-colors";
-                roomElement.dataset.roomcode = roomCode;
-                roomElement.innerHTML = `
-                    <div class="flex-1">
-                        <div class="flex items-center gap-2">
-                            ${isCreator ? '<i class="fas fa-rocket text-yellow-400" title="Sala criada por você"></i>' : '<i class="fas fa-satellite-dish text-cyan-400"></i>'}
-                            <span class="font-bold text-indigo-300">${roomCode}</span>
-                        </div>
-                        <p class="text-sm text-slate-400 mt-1 online-count">...</p>
-                    </div>
-                    ${isCreator ? `<button class="btn-delete-room text-slate-500 hover:text-red-500 p-2 rounded-md" data-roomcode="${roomCode}"><i class="fas fa-trash pointer-events-none"></i></button>` : ''}
-                `;
-                list.appendChild(roomElement);
+            
+            // NOVO: Listener para a transmissão de áudio
+            const transmissionRef = ref(db, `transmissions/${currentRoom}`);
+            const unsubTransmission = onValue(transmissionRef, (snapshot) => {
+                if (!snapshot.exists()) return;
+                const data = snapshot.val();
                 
-                const presenceRef = ref(db, `presence/${roomCode}`);
-                const unsub = onValue(presenceRef, (snapshot) => {
-                    const onlineCount = snapshot.exists() ? Object.values(snapshot.val()).filter(u => u.isOnline).length : 0;
-                    const countEl = roomElement.querySelector('.online-count');
-                    if(countEl) countEl.textContent = `${onlineCount} online`;
-                });
-                lobbyUnsubscribes.push(unsub);
+                // Toca o áudio se não for do próprio usuário e se for um pedaço novo
+                if (data.userId !== userId && data.timestamp > lastPlayedTimestamp) {
+                    lastPlayedTimestamp = data.timestamp;
+                    playAudioChunk(data.url);
+                    
+                    // Mostra quem está transmitindo (reutilizando o indicador de "digitando")
+                    const typingRef = ref(db, `typing/${currentRoom}/${data.userId}`);
+                    set(typingRef, { nickname: data.nickname, text: '🎙️ Transmitindo...' });
+                    // Limpa o indicador após um tempo
+                    setTimeout(() => set(typingRef, null), 2000); 
+                }
             });
+            roomUnsubscribes.push(unsubTransmission);
         };
 
-        const showNotification = (roomCode, text) => {
-            if (Notification.permission !== 'granted') {
-                return;
-            }
-            const notification = new Notification(`Nova mensagem em #${roomCode}`, {
-                body: text,
-                icon: `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>`
-            });
-            notification.onclick = () => {
-                window.focus();
-                joinRoom(roomCode);
-            };
-        };
+        // ... (resto das funções: saveNicknameAndEnterLobby, renderMessage, etc. sem alterações)
+        const saveNicknameAndEnterLobby = () => { nickname = DOMElements.nicknameInput.value.trim(); if (!nickname) return; localStorage.setItem('astroNickname', nickname); DOMElements.lobbyNickname.textContent = nickname; setupNotificationListeners(); switchScreen('lobby'); };
+        const renderMessage = (msgData) => { const allBubbles = DOMElements.messagesList.querySelectorAll('.chat-bubble[data-user-id]'); const lastBubble = allBubbles.length > 0 ? allBubbles[allBubbles.length - 1] : null; const isConsecutive = lastBubble && lastBubble.dataset.userId === msgData.userId; const isSelf = msgData.userId === userId; if (isConsecutive && lastBubble) { const isSelfLast = lastBubble.classList.contains('self-end'); lastBubble.classList.remove('rounded-bl-2xl', 'rounded-br-2xl', 'rounded-b-lg'); lastBubble.classList.add(isSelfLast ? 'rounded-b-lg' : 'rounded-b-lg'); } const messageElement = document.createElement('div'); messageElement.dataset.userId = msgData.userId; let bubbleClasses = 'chat-bubble flex flex-col max-w-xs md:max-w-md lg:max-w-lg p-3 '; if (isSelf) { bubbleClasses += 'bg-indigo-600 self-end '; bubbleClasses += isConsecutive ? 'rounded-t-lg rounded-bl-lg' : 'rounded-t-2xl rounded-bl-2xl'; } else { bubbleClasses += 'bg-slate-700 self-start '; bubbleClasses += isConsecutive ? 'rounded-t-lg rounded-br-lg' : 'rounded-t-2xl rounded-br-2xl'; } messageElement.className = bubbleClasses; const sanitizedText = msgData.text.replace(/</g, "&lt;").replace(/>/g, "&gt;"); const showNickname = !isSelf && !isConsecutive; if (!userColors[msgData.userId]) { userColors[msgData.userId] = `hsl(${Math.random() * 360}, 80%, 70%)`; } messageElement.innerHTML = ` <span class="nickname-header font-bold text-sm ${showNickname ? '' : 'hidden'}" style="color: ${userColors[msgData.userId]};"> ${msgData.nickname} </span> <p class="text-white ${showNickname ? 'mt-1' : ''}">${sanitizedText}</p> <span class="text-xs text-slate-400 self-end mt-1">${new Date(msgData.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span> `; const typingIndicators = DOMElements.messagesList.querySelector('.typing-indicator-container'); DOMElements.messagesList.insertBefore(messageElement, typingIndicators); DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight; };
+        const renderTypingIndicator = (typingUsers) => { let typingContainer = DOMElements.messagesList.querySelector('.typing-indicator-container'); if(!typingContainer) { typingContainer = document.createElement('div'); typingContainer.className = 'typing-indicator-container w-full'; DOMElements.messagesList.appendChild(typingContainer); } typingContainer.innerHTML = ''; Object.entries(typingUsers).forEach(([typingUserId, userData]) => { if (!userData || !userData.nickname) return; if (!userColors[typingUserId]) { userColors[typingUserId] = `hsl(${Math.random() * 360}, 80%, 70%)`; } const userColor = userColors[typingUserId]; const typingElement = document.createElement('div'); typingElement.className = 'typing-bubble relative chat-bubble flex flex-col max-w-max p-3 rounded-t-2xl rounded-br-2xl bg-slate-700 self-start opacity-50 static-effect'; const sanitizedText = userData.text.replace(/</g, "&lt;").replace(/>/g, "&gt;"); typingElement.innerHTML = ` <span class="font-bold text-sm" style="color: ${userColor};">${userData.nickname}</span> <p class="text-white">${sanitizedText}</p> `; typingContainer.appendChild(typingElement); }); if (Object.keys(typingUsers).length > 0) { DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight; } };
+        const createRoom = async () => { const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase(); await set(ref(db, `rooms/${roomCode}`), { createdAt: serverTimestamp() }); let createdRooms = JSON.parse(localStorage.getItem("createdRooms") || "[]"); createdRooms.unshift(roomCode); localStorage.setItem("createdRooms", JSON.stringify(createdRooms.slice(0, 10))); setupNotificationListeners(); joinRoom(roomCode); await navigator.clipboard.writeText(roomCode); showToast(`Código #${roomCode} copiado!`); const createBtn = document.getElementById('create-room-btn'); const originalText = createBtn.innerHTML; createBtn.innerHTML = '<i class="fas fa-check"></i> Copiado!'; setTimeout(() => createBtn.innerHTML = originalText, 2000); };
+        const cleanupRoomListeners = async () => { if (presenceRef) { await set(presenceRef, { isOnline: false }); } roomUnsubscribes.forEach(unsub => unsub()); roomUnsubscribes = []; presenceRef = null; };
+        const sendMessage = () => { const text = DOMElements.messageInput.value.trim(); if (text && currentRoom) { const newMessageRef = push(ref(db, `messages/${currentRoom}`)); set(newMessageRef, { userId, nickname, text, timestamp: serverTimestamp() }); DOMElements.messageInput.value = ''; handleTyping(); } };
+        const handleTyping = () => { const typingRef = ref(db, `typing/${currentRoom}/${userId}`); const text = DOMElements.messageInput.value; if (text) { set(typingRef, { nickname, text }); clearTimeout(typingTimeout); typingTimeout = setTimeout(() => set(typingRef, null), 3000); } else { set(typingRef, null); } };
+        const leaveRoom = async () => { await cleanupRoomListeners(); currentRoom = null; switchScreen('lobby'); };
+        const renderRoomList = async () => { const list = DOMElements.roomListContainer; let skeletonHTML = ''; for (let i = 0; i < 3; i++) { skeletonHTML += ` <div class="flex items-center p-3 bg-slate-700/50 rounded-lg"> <div class="w-10 h-10 rounded-full skeleton mr-3"></div> <div class="flex-1 space-y-2"> <div class="w-1/2 h-4 rounded skeleton"></div> <div class="w-1/3 h-3 rounded skeleton"></div> </div> </div> `; } list.innerHTML = skeletonHTML; const createdRooms = new Set(JSON.parse(localStorage.getItem("createdRooms") || "[]")); const recentRooms = JSON.parse(localStorage.getItem("recentRooms") || "[]"); const allRooms = [...new Set([...createdRooms, ...recentRooms])]; if (allRooms.length === 0) { list.innerHTML = `<div class="text-center text-slate-400 mt-10"> <i class="fas fa-ghost text-5xl mb-4"></i> <p>Nenhuma sala por aqui.</p> <p class="text-sm">Crie uma ou entre com um código!</p> </div>`; return; } list.innerHTML = ""; allRooms.forEach(roomCode => { const isCreator = createdRooms.has(roomCode); const roomElement = document.createElement('div'); roomElement.className = "flex items-center p-3 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-600/50 transition-colors"; roomElement.dataset.roomcode = roomCode; roomElement.innerHTML = ` <div class="flex-1"> <div class="flex items-center gap-2"> ${isCreator ? '<i class="fas fa-space-shuttle text-yellow-400" title="Sala criada por você"></i>' : '<i class="fas fa-satellite-dish text-cyan-400"></i>'} <span class="font-bold text-indigo-300">${roomCode}</span> </div> <p class="text-sm text-slate-400 mt-1 online-count">...</p> </div> ${isCreator ? `<button class="btn-delete-room text-slate-500 hover:text-red-500 p-2 rounded-md" data-roomcode="${roomCode}"><i class="fas fa-trash pointer-events-none"></i></button>` : ''} `; list.appendChild(roomElement); const presenceRef = ref(db, `presence/${roomCode}`); const unsub = onValue(presenceRef, (snapshot) => { const onlineCount = snapshot.exists() ? Object.values(snapshot.val()).filter(u => u.isOnline).length : 0; const countEl = roomElement.querySelector('.online-count'); if(countEl) countEl.textContent = `${onlineCount} online`; }); lobbyUnsubscribes.push(unsub); }); };
+        const showNotification = (roomCode, text) => { if (Notification.permission !== 'granted') { return; } const notification = new Notification(`Nova mensagem em #${roomCode}`, { body: text, icon: `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>` }); notification.onclick = () => { window.focus(); joinRoom(roomCode); }; };
+        const clearNotificationListeners = () => { notificationUnsubscribes.forEach(unsub => unsub()); notificationUnsubscribes = []; };
+        const setupNotificationListeners = () => { clearNotificationListeners(); const createdRooms = new Set(JSON.parse(localStorage.getItem("createdRooms") || "[]")); const recentRooms = JSON.parse(localStorage.getItem("recentRooms") || "[]"); const allRooms = [...new Set([...createdRooms, ...recentRooms])]; allRooms.forEach(roomCode => { let lastKey = null; const messagesRef = ref(db, `messages/${roomCode}`); get(query(messagesRef, orderByKey())).then(initialSnapshot => { if (initialSnapshot.exists()) { initialSnapshot.forEach(child => { lastKey = child.key; }); } const newMessagesQuery = lastKey ? query(messagesRef, orderByKey(), startAfter(lastKey)) : messagesRef; const unsub = onChildAdded(newMessagesQuery, (snapshot) => { const msg = snapshot.val(); if(msg && msg.userId !== userId && currentRoom !== roomCode) { showNotification(roomCode, `${msg.nickname}: ${msg.text}`); } }); notificationUnsubscribes.push(unsub); }); }); };
+        const clearLobbyListeners = () => { lobbyUnsubscribes.forEach(unsub => unsub()); lobbyUnsubscribes = []; };
+        const showToast = (message, type = 'info') => { const toast = document.createElement('div'); let iconClass = ''; if (type === 'enter') iconClass = 'fas fa-user-plus text-green-400'; else if (type === 'leave') iconClass = 'fas fa-user-minus text-red-400'; else iconClass = 'fas fa-copy text-indigo-400'; toast.className = 'toast'; toast.innerHTML = `<i class="${iconClass}"></i> <span class="toast-message">${message}</span>`; DOMElements.toastContainer.appendChild(toast); setTimeout(() => toast.remove(), 4000); };
         
-        const clearNotificationListeners = () => {
-            notificationUnsubscribes.forEach(unsub => unsub());
-            notificationUnsubscribes = [];
-        };
+        // --- BIND DE EVENTOS ---
         
-        const setupNotificationListeners = () => {
-            clearNotificationListeners();
-            const createdRooms = new Set(JSON.parse(localStorage.getItem("createdRooms") || "[]"));
-            const recentRooms = JSON.parse(localStorage.getItem("recentRooms") || "[]");
-            const allRooms = [...new Set([...createdRooms, ...recentRooms])];
-
-            allRooms.forEach(roomCode => {
-                let lastKey = null;
-                const messagesRef = ref(db, `messages/${roomCode}`);
-                get(query(messagesRef, orderByKey())).then(initialSnapshot => {
-                    if (initialSnapshot.exists()) {
-                        initialSnapshot.forEach(child => { lastKey = child.key; });
-                    }
-                    const newMessagesQuery = lastKey ? query(messagesRef, orderByKey(), startAfter(lastKey)) : messagesRef;
-                    const unsub = onChildAdded(newMessagesQuery, (snapshot) => {
-                        const msg = snapshot.val();
-                        if(msg && msg.userId !== userId && currentRoom !== roomCode) {
-                            showNotification(roomCode, `${msg.nickname}: ${msg.text}`);
-                        }
-                    });
-                    notificationUnsubscribes.push(unsub);
-                });
-            });
-        };
-
-        const clearLobbyListeners = () => {
-            lobbyUnsubscribes.forEach(unsub => unsub());
-            lobbyUnsubscribes = [];
-        };
-
-        const showToast = (message, type = 'info') => {
-            const toast = document.createElement('div');
-            let iconClass = '';
-
-            if (type === 'enter') iconClass = 'fas fa-user-plus text-green-400';
-            else if (type === 'leave') iconClass = 'fas fa-user-minus text-red-400';
-            else iconClass = 'fas fa-copy text-indigo-400';
-
-            toast.className = 'toast';
-            toast.innerHTML = `<i class="${iconClass}"></i> <span class="toast-message">${message}</span>`;
-            DOMElements.toastContainer.appendChild(toast);
-
-            setTimeout(() => toast.remove(), 4000);
-        };
-        
-        // BIND DE EVENTOS
         document.getElementById('save-nickname-btn').addEventListener('click', saveNicknameAndEnterLobby);
         document.getElementById('create-room-btn').addEventListener('click', createRoom);
         document.getElementById('send-btn').addEventListener('click', sendMessage);
         document.getElementById('leave-btn').addEventListener('click', leaveRoom);
         
-        DOMElements.roomListContainer.addEventListener('click', e => {
-             const roomItem = e.target.closest('[data-roomcode]');
-             if(!roomItem) return;
-             const roomCode = roomItem.dataset.roomcode;
-             if(e.target.closest('.btn-delete-room')) {
-                roomToDelete = roomCode;
-                DOMElements.deleteRoomCode.textContent = roomCode;
-                DOMElements.confirmDeleteModal.classList.remove('hidden');
-                DOMElements.confirmDeleteModal.classList.add('flex');
-             } else {
-                 joinRoom(roomCode);
-             }
-        });
-        
-        document.getElementById('cancel-delete-btn').addEventListener('click', () => {
-            DOMElements.confirmDeleteModal.classList.add('hidden');
-            DOMElements.confirmDeleteModal.classList.remove('flex');
-            roomToDelete = null;
-        });
+        // Eventos para o botão de transmissão (mouse e toque)
+        DOMElements.transmitBtn.addEventListener('mousedown', startTransmission);
+        DOMElements.transmitBtn.addEventListener('mouseup', stopTransmission);
+        DOMElements.transmitBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startTransmission(); });
+        DOMElements.transmitBtn.addEventListener('touchend', (e) => { e.preventDefault(); stopTransmission(); });
 
-        document.getElementById('confirm-delete-btn').addEventListener('click', () => {
-            if (roomToDelete) {
-                set(ref(db, `rooms/${roomToDelete}`), null);
-                let created = JSON.parse(localStorage.getItem("createdRooms") || "[]");
-                localStorage.setItem("createdRooms", JSON.stringify(created.filter(r => r !== roomToDelete)));
-                let recent = JSON.parse(localStorage.getItem("recentRooms") || "[]");
-                localStorage.setItem("recentRooms", JSON.stringify(recent.filter(r => r !== roomToDelete)));
-                renderRoomList();
-                setupNotificationListeners();
-            }
-            DOMElements.confirmDeleteModal.classList.add('hidden');
-            DOMElements.confirmDeleteModal.classList.remove('flex');
-            roomToDelete = null;
-        });
-
-
-        document.getElementById('fab-main-btn').addEventListener('click', () => {
-            DOMElements.fabContainer.classList.toggle('open');
-            DOMElements.fabMenu.classList.toggle('hidden');
-            DOMElements.fabMenu.classList.toggle('flex');
-            DOMElements.fabIcon.classList.toggle('fa-plus');
-            DOMElements.fabIcon.classList.toggle('fa-times');
-            DOMElements.fabIcon.classList.toggle('rotate-45');
-        });
-        document.getElementById('join-room-modal-btn').addEventListener('click', () => {
-            DOMElements.joinRoomModal.classList.remove('hidden');
-            DOMElements.joinRoomModal.classList.add('flex');
-        });
-        document.getElementById('modal-cancel-join-btn').addEventListener('click', () => {
-            DOMElements.joinRoomModal.classList.add('hidden');
-        });
-        document.getElementById('modal-confirm-join-btn').addEventListener('click', () => {
-            const roomCode = DOMElements.modalRoomCodeInput.value.trim().toUpperCase();
-            DOMElements.joinRoomModal.classList.add('hidden');
-            joinRoom(roomCode);
-        });
-
-        document.getElementById('change-nickname-btn').addEventListener('click', () => {
-            DOMElements.confirmResetModal.classList.remove('hidden');
-            DOMElements.confirmResetModal.classList.add('flex');
-        });
-        document.getElementById('cancel-reset-btn').addEventListener('click', () => {
-            DOMElements.confirmResetModal.classList.add('hidden');
-            DOMElements.confirmResetModal.classList.remove('flex');
-        });
-        document.getElementById('confirm-reset-btn').addEventListener('click', () => {
-            localStorage.removeItem('astroNickname');
-            localStorage.removeItem('createdRooms');
-            localStorage.removeItem('recentRooms');
-            DOMElements.confirmResetModal.classList.add('hidden');
-            clearNotificationListeners();
-            switchScreen('nickname');
-        });
-
+        DOMElements.roomListContainer.addEventListener('click', e => { const roomItem = e.target.closest('[data-roomcode]'); if(!roomItem) return; const roomCode = roomItem.dataset.roomcode; if(e.target.closest('.btn-delete-room')) { roomToDelete = roomCode; DOMElements.deleteRoomCode.textContent = roomCode; DOMElements.confirmDeleteModal.classList.remove('hidden'); DOMElements.confirmDeleteModal.classList.add('flex'); } else { joinRoom(roomCode); } });
+        document.getElementById('cancel-delete-btn').addEventListener('click', () => { DOMElements.confirmDeleteModal.classList.add('hidden'); DOMElements.confirmDeleteModal.classList.remove('flex'); roomToDelete = null; });
+        document.getElementById('confirm-delete-btn').addEventListener('click', () => { if (roomToDelete) { set(ref(db, `rooms/${roomToDelete}`), null); let created = JSON.parse(localStorage.getItem("createdRooms") || "[]"); localStorage.setItem("createdRooms", JSON.stringify(created.filter(r => r !== roomToDelete))); let recent = JSON.parse(localStorage.getItem("recentRooms") || "[]"); localStorage.setItem("recentRooms", JSON.stringify(recent.filter(r => r !== roomToDelete))); renderRoomList(); setupNotificationListeners(); } DOMElements.confirmDeleteModal.classList.add('hidden'); DOMElements.confirmDeleteModal.classList.remove('flex'); roomToDelete = null; });
+        document.getElementById('fab-main-btn').addEventListener('click', () => { DOMElements.fabContainer.classList.toggle('open'); DOMElements.fabMenu.classList.toggle('hidden'); DOMElements.fabMenu.classList.toggle('flex'); DOMElements.fabIcon.classList.toggle('fa-plus'); DOMElements.fabIcon.classList.toggle('fa-times'); DOMElements.fabIcon.classList.toggle('rotate-45'); });
+        document.getElementById('join-room-modal-btn').addEventListener('click', () => { DOMElements.joinRoomModal.classList.remove('hidden'); DOMElements.joinRoomModal.classList.add('flex'); });
+        document.getElementById('modal-cancel-join-btn').addEventListener('click', () => { DOMElements.joinRoomModal.classList.add('hidden'); });
+        document.getElementById('modal-confirm-join-btn').addEventListener('click', () => { const roomCode = DOMElements.modalRoomCodeInput.value.trim().toUpperCase(); DOMElements.joinRoomModal.classList.add('hidden'); joinRoom(roomCode); });
+        document.getElementById('change-nickname-btn').addEventListener('click', () => { DOMElements.confirmResetModal.classList.remove('hidden'); DOMElements.confirmResetModal.classList.add('flex'); });
+        document.getElementById('cancel-reset-btn').addEventListener('click', () => { DOMElements.confirmResetModal.classList.add('hidden'); DOMElements.confirmResetModal.classList.remove('flex'); });
+        document.getElementById('confirm-reset-btn').addEventListener('click', () => { localStorage.removeItem('astroNickname'); localStorage.removeItem('createdRooms'); localStorage.removeItem('recentRooms'); DOMElements.confirmResetModal.classList.add('hidden'); clearNotificationListeners(); switchScreen('nickname'); });
         DOMElements.messageInput.addEventListener('keydown', e => e.key === 'Enter' && sendMessage());
         DOMElements.messageInput.addEventListener('input', handleTyping);
-
-        DOMElements.roomCodeWrapper.addEventListener('click', async () => {
-            if (currentRoom) {
-                await navigator.clipboard.writeText(currentRoom);
-                DOMElements.copyFeedback.classList.remove('hidden', 'opacity-0');
-                DOMElements.copyFeedback.classList.add('opacity-100');
-                setTimeout(() => {
-                    DOMElements.copyFeedback.classList.remove('opacity-100');
-                    DOMElements.copyFeedback.classList.add('opacity-0');
-                    setTimeout(() => DOMElements.copyFeedback.classList.add('hidden'), 500);
-                }, 1500);
-            }
-        });
+        DOMElements.roomCodeWrapper.addEventListener('click', async () => { if (currentRoom) { await navigator.clipboard.writeText(currentRoom); DOMElements.copyFeedback.classList.remove('hidden', 'opacity-0'); DOMElements.copyFeedback.classList.add('opacity-100'); setTimeout(() => { DOMElements.copyFeedback.classList.remove('opacity-100'); DOMElements.copyFeedback.classList.add('opacity-0'); setTimeout(() => DOMElements.copyFeedback.classList.add('hidden'), 500); }, 1500); } });
     </script>
 </body>
 </html>
