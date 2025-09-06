@@ -70,14 +70,6 @@
         .glow-on-hover:hover {
             box-shadow: 0 0 15px color-mix(in srgb, var(--primary-color) 60%, transparent);
         }
-        
-        .chat-bubble .message-actions {
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        .chat-bubble:hover .message-actions {
-            opacity: 1;
-        }
 
         .reactions-container {
             display: flex;
@@ -157,6 +149,111 @@
             from { opacity: 0; transform: scale(0.9); }
             to { opacity: 1; transform: scale(1); }
         }
+
+        .typing-indicator {
+            padding: 4px 12px;
+            font-size: 0.8rem;
+            color: var(--text-muted-color);
+            height: 24px;
+            transition: opacity 0.3s;
+        }
+
+        #reply-preview {
+            background-color: color-mix(in srgb, var(--background-color) 50%, transparent);
+            border-left: 3px solid var(--primary-color);
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            margin-bottom: 8px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .message-actions-menu {
+            position: absolute;
+            z-index: 20;
+            background-color: var(--surface-color);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            padding: 4px;
+            min-width: 150px;
+            opacity: 0;
+            transform: scale(0.95);
+            transition: opacity 0.1s ease-out, transform 0.1s ease-out;
+            pointer-events: none;
+        }
+
+        .message-actions-menu.active {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+
+        .message-actions-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .message-actions-menu-item:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .message-actions-menu-item i {
+            width: 16px;
+            text-align: center;
+        }
+
+        .replied-message-block {
+            background-color: rgba(0,0,0,0.15);
+            border-left: 2px solid var(--secondary-color);
+            padding: 6px 8px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+            font-size: 0.8rem;
+            opacity: 0.8;
+            cursor: pointer;
+        }
+
+        [data-theme="light"] .replied-message-block {
+            background-color: rgba(0,0,0,0.05);
+        }
+        
+        .chat-bubble.is-consecutive {
+            margin-top: 2px;
+        }
+        .items-start .chat-bubble.is-consecutive {
+            border-top-left-radius: 8px;
+        }
+        .items-end .chat-bubble.is-consecutive {
+            border-top-right-radius: 8px;
+        }
+        .items-start .chat-bubble.has-consecutive {
+            border-bottom-left-radius: 8px;
+        }
+        .items-end .chat-bubble.has-consecutive {
+            border-bottom-right-radius: 8px;
+        }
+        @keyframes static-flicker {
+            0%, 100% { opacity: 0; }
+            10% { opacity: 0.1; } 20% { opacity: 0.05; } 30% { opacity: 0.2; }
+            40% { opacity: 0.1; } 50% { opacity: 0.25; } 60% { opacity: 0.15; }
+            70% { opacity: 0.05; } 80% { opacity: 0.2; } 90% { opacity: 0.1; }
+        }
+        .static-effect::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuNjUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVlcz0ic3RpdGNoIi8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI25vaXNlKSIvPjwvc3ZnPg==');
+            background-size: cover;
+            opacity: 0.3;
+            animation: static-flicker 0.3s infinite;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body data-theme="dark">
@@ -234,8 +331,10 @@
             </header>
             <main id="messages-container" class="flex-1 p-4 overflow-y-auto flex flex-col scroll-container">
                 <div id="messages-list" class="flex flex-col gap-1"></div>
+                <div id="typing-indicator-container" class="h-8"></div>
             </main>
-            <footer class="p-3 glassmorphism md:rounded-b-2xl">
+            <footer class="p-3 glassmorphism md:rounded-b-2xl">                
+                <div id="reply-preview" class="hidden"></div>
                 <div class="flex items-center gap-3">
                     <input type="text" id="message-input" placeholder="Digite uma mensagem..." class="flex-1 bg-[var(--background-color)] text-[var(--text-color)] rounded-full py-3 px-5 outline-none focus:ring-2 focus:ring-primary-color">
                     <button id="send-btn" class="bg-[var(--primary-color)] hover:opacity-90 w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90 glow-on-hover text-white">
@@ -263,7 +362,7 @@
         </div>
     </div>
 
-    <!-- Outros Modais -->
+    <!-- Other Modals -->
     <div id="room-actions-modal" class="fixed inset-0 bg-black bg-opacity-75 z-40 hidden items-center justify-center p-4">
         <div class="glassmorphism p-6 rounded-2xl max-w-sm w-full flex flex-col gap-5">
             <div class="flex justify-between items-center">
@@ -333,6 +432,8 @@
         let lobbyUnsubscribes = [];
         let notificationUnsubscribes = [];
         let roomToDelete = null;
+        let replyingToMessage = null;
+        let activeMessageMenu = null;
         const userColors = {};
         let onlineUsersInRoom = {};
         let isInitialPresenceLoad = true;
@@ -347,6 +448,8 @@
             messagesContainer: document.getElementById('messages-container'),
             messagesList: document.getElementById('messages-list'),
             messageInput: document.getElementById('message-input'),
+            typingIndicatorContainer: document.getElementById('typing-indicator-container'),
+            replyPreview: document.getElementById('reply-preview'),
             roomCodeDisplay: document.querySelector('#chat-screen .room-code-value'),
             roomCodeWrapper: document.getElementById('room-code-wrapper'),
             copyFeedback: document.getElementById('copy-feedback'),
@@ -409,34 +512,54 @@
             }
 
             const isSelf = msgData.userId === userId;
+            const lastMessageWrapper = DOMElements.messagesList.lastElementChild;
+            const isConsecutive = lastMessageWrapper && lastMessageWrapper.dataset.userId === msgData.userId;
+
             const messageWrapper = document.createElement('div');
             messageWrapper.className = `flex flex-col items-${isSelf ? 'end' : 'start'}`;
             messageWrapper.dataset.msgId = msgId;
             messageWrapper.dataset.userId = msgData.userId;
 
             const bubble = document.createElement('div');
-            bubble.className = `chat-bubble relative group flex flex-col max-w-xs md:max-w-md lg:max-w-lg p-3 rounded-2xl`;
+            bubble.className = `chat-bubble relative group flex flex-col max-w-xs md:max-w-md lg:max-w-lg p-2 rounded-2xl`;
             bubble.style.backgroundColor = isSelf ? 'var(--bubble-self-bg)' : 'var(--bubble-other-bg)';
             bubble.style.color = isSelf ? '#fff' : 'var(--text-color)';
             
+            if (isConsecutive) {
+                bubble.classList.add('is-consecutive');
+                const lastBubble = lastMessageWrapper.querySelector('.chat-bubble');
+                if (lastBubble) lastBubble.classList.add('has-consecutive');
+            }
+
+            const showNickname = !isSelf && !isConsecutive;
             const sanitizedText = msgData.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            
             if (!userColors[msgData.userId]) userColors[msgData.userId] = `hsl(${Math.random() * 360}, 70%, 50%)`;
             
+            let replyHTML = '';
+            if (msgData.repliedTo) {
+                const repliedSanitizedText = msgData.repliedTo.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                replyHTML = `
+                    <div class="replied-message-block" data-replied-id="${msgData.repliedTo.msgId}">
+                        <strong class="font-bold">${msgData.repliedTo.nickname}</strong>
+                        <p class="truncate opacity-80">${repliedSanitizedText}</p>
+                    </div>
+                `;
+            }
+
             bubble.innerHTML = `
+                ${replyHTML}
                 <div class="message-content">
-                    ${!isSelf ? `<span class="font-bold text-sm" style="color: ${userColors[msgData.userId]};">${msgData.nickname}</span>` : ''}
-                    <p class="text-white message-text ${!isSelf ? 'mt-1' : ''}" style="color: inherit;">${sanitizedText}</p>
+                    ${showNickname ? `<span class="font-bold text-sm" style="color: ${userColors[msgData.userId]};">${msgData.nickname}</span>` : ''}
+                    <p class="text-white message-text ${showNickname ? '' : ''}" style="color: inherit;">${sanitizedText}</p>
                 </div>
-                <div class="flex items-center self-end gap-2 mt-1">
-                    <span class="text-xs opacity-70">${new Date(msgData.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                    <span class="read-receipt-status text-xs">${isSelf ? getReadReceiptIcon(msgData) : ''}</span>
+                 <div class="message-actions-trigger cursor-pointer flex items-center self-end gap-2 text-xs opacity-70 hover:opacity-100 transition-opacity mt-1">
+                    <span>${new Date(msgData.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    <span class="read-receipt-status">${isSelf ? getReadReceiptIcon(msgData) : ''}</span>
                 </div>
                 <div class="reactions-container"></div>
             `;
 
             messageWrapper.appendChild(bubble);
-            addMessageActions(messageWrapper, msgId, sanitizedText);
             updateMessage(messageWrapper, msgData);
             
             DOMElements.messagesList.appendChild(messageWrapper);
@@ -454,8 +577,37 @@
             DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
         };
 
+        const renderTypingIndicator = (typingUsers) => {
+            const container = DOMElements.typingIndicatorContainer;
+            container.innerHTML = '';
+            
+            Object.entries(typingUsers).forEach(([typingUserId, userData]) => {
+                if (!userData || !userData.nickname) return;
+                if (!userColors[typingUserId]) userColors[typingUserId] = `hsl(${Math.random() * 360}, 70%, 50%)`;
+                
+                const typingElement = document.createElement('div');
+                typingElement.className = 'flex flex-col items-start';
+                
+                const bubble = document.createElement('div');
+                bubble.className = 'chat-bubble relative flex flex-col max-w-xs p-2 mb-2 mt-2 rounded-2xl bg-[var(--bubble-other-bg)] opacity-60 static-effect';
+                const sanitizedText = userData.text ? userData.text.replace(/</g, "&lt;").replace(/>/g, "&gt;") : '...';
+                
+                bubble.innerHTML = `
+                    <span class="font-bold text-sm" style="color: ${userColors[typingUserId]};">${userData.nickname}</span>
+                    <p class="text-[var(--text-color)] message-text">${sanitizedText}</p>
+                `;
+                
+                typingElement.appendChild(bubble);
+                container.appendChild(typingElement);
+            });
+
+            if (Object.keys(typingUsers).length > 0) {
+                DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
+            }
+        };
+
         const updateMessage = (element, msgData) => {
-            // Atualiza Reações
+            // Update Reactions
             const reactionsContainer = element.querySelector('.reactions-container');
             reactionsContainer.innerHTML = '';
             if (msgData.reactions) {
@@ -471,26 +623,73 @@
                     }
                 });
             }
-            // Atualiza Status de Leitura
+            // Update Read Status
             if (msgData.userId === userId) {
                 const receiptEl = element.querySelector('.read-receipt-status');
                 if (receiptEl) receiptEl.innerHTML = getReadReceiptIcon(msgData);
             }
         };
 
-        const addMessageActions = (wrapper, msgId, text) => {
-            const actions = document.createElement('div');
-            actions.className = 'message-actions absolute -top-4 right-0 flex items-center bg-surface-color p-1 rounded-full shadow-lg border border-white/10';
+        const openActionsMenu = (triggerElement, msgId, msgData) => {
+            if (activeMessageMenu) activeMessageMenu.remove();
             
+            const menu = document.createElement('div');
+            menu.className = 'message-actions-menu';
+
+            const reactionBar = document.createElement('div');
+            reactionBar.className = 'flex justify-around p-1 mb-1 border-b border-white/10';
             EMOJI_LIST.forEach(emoji => {
-                actions.innerHTML += `<button class="reaction-btn p-1 hover:scale-125 transition-transform" data-emoji="${emoji}">${emoji}</button>`;
+                const btn = document.createElement('button');
+                btn.className = 'p-1 text-lg hover:scale-125 transition-transform';
+                btn.textContent = emoji;
+                btn.onclick = () => {
+                    toggleReaction(msgId, emoji);
+                    if (activeMessageMenu) activeMessageMenu.remove();
+                };
+                reactionBar.appendChild(btn);
             });
-            actions.innerHTML += `<button class="copy-btn p-1 text-sm hover:scale-125 transition-transform" data-text="${encodeURIComponent(text)}"><i class="fas fa-copy"></i></button>`;
+            menu.appendChild(reactionBar);
             
-            wrapper.querySelector('.chat-bubble').appendChild(actions);
+            const itemsWrapper = document.createElement('div');
+            itemsWrapper.innerHTML = `
+                <div class="message-actions-menu-item reply-btn"><i class="fas fa-reply"></i><span>Responder</span></div>
+                <div class="message-actions-menu-item copy-btn"><i class="fas fa-copy"></i><span>Copiar</span></div>
+            `;
+            menu.appendChild(itemsWrapper);
+            
+            document.body.appendChild(menu);
+            
+            menu.querySelector('.reply-btn').onclick = () => handleReply(msgId, msgData);
+            menu.querySelector('.copy-btn').onclick = () => {
+                 navigator.clipboard.writeText(msgData.text);
+                 showToast('Texto copiado!');
+            };
+
+            const rect = triggerElement.getBoundingClientRect();
+            const menuRect = menu.getBoundingClientRect();
+
+            let top = rect.bottom + 4;
+            let left = rect.left;
+
+            if (left + menuRect.width > window.innerWidth) {
+                left = window.innerWidth - menuRect.width - 4;
+            }
+            if (left < 0) {
+                left = 4;
+            }
+
+            if (top + menuRect.height > window.innerHeight) {
+                top = rect.top - menuRect.height - 4;
+            }
+
+            menu.style.left = `${left}px`;
+            menu.style.top = `${top}px`;
+            
+            setTimeout(() => menu.classList.add('active'), 10);
+            activeMessageMenu = menu;
         };
         
-        // Lógica do Chat (Firebase)
+        // Chat Logic (Firebase)
         const joinRoom = async (roomCode) => {
             await cleanupRoomListeners();
             if (!roomCode) return;
@@ -514,12 +713,17 @@
             // Listeners
             const unsubRoom = onValue(ref(db, `rooms/${currentRoom}`), s => !s.exists() && leaveRoom());
             const unsubPresence = onValue(ref(db, `presence/${currentRoom}`), updatePresenceUI);
+            const unsubTyping = onValue(ref(db, `typing/${currentRoom}`), snapshot => {
+                const typingUsers = snapshot.val() || {};
+                delete typingUsers[userId]; // Remove self from indicator
+                renderTypingIndicator(typingUsers);
+            });
             
             const messagesRef = ref(db, `messages/${currentRoom}`);
             const unsubMessages = onChildAdded(query(messagesRef, orderByKey()), s => renderMessage(s.val(), s.key));
             const unsubMessageChanges = onChildChanged(query(messagesRef, orderByKey()), s => renderMessage(s.val(), s.key));
             
-            roomUnsubscribes.push(unsubRoom, unsubPresence, unsubMessages, unsubMessageChanges);
+            roomUnsubscribes.push(unsubRoom, unsubPresence, unsubTyping, unsubMessages, unsubMessageChanges);
         };
 
         const sendMessage = () => {
@@ -531,8 +735,13 @@
                 reactions: {},
                 readBy: { [userId]: serverTimestamp() }
             };
+            if(replyingToMessage) {
+                newMessage.repliedTo = replyingToMessage;
+            }
             set(push(ref(db, `messages/${currentRoom}`)), newMessage);
             DOMElements.messageInput.value = '';
+            cancelReply();
+            handleTyping();
         };
 
         const toggleReaction = (msgId, emoji) => {
@@ -547,7 +756,7 @@
             set(readRef, serverTimestamp());
         };
 
-        // UI Helpers & Eventos
+        // UI Helpers & Events
         const getReadReceiptIcon = (msgData) => {
             const readByCount = msgData.readBy ? Object.keys(msgData.readBy).filter(id => id !== userId).length : 0;
             const onlineCount = Object.keys(onlineUsersInRoom).filter(id => id !== userId).length;
@@ -594,6 +803,18 @@
                 avatarsContainer.innerHTML += `<div title="${user.nickname}" class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold border-2 border-[var(--surface-color)] shadow-lg transition-all duration-200 hover:scale-110 hover:z-10 hover:ring-2 hover:ring-offset-2 hover:ring-[var(--primary-color)] hover:ring-offset-[var(--surface-color)]" style="background-color: ${userColors[id]};">${user.nickname.charAt(0).toUpperCase()}</div>`;
             });
             if (onlineCount > 5) avatarsContainer.innerHTML += `<div title="${onlineCount - 5} mais" class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold border-2 bg-slate-600 text-xs shadow-lg border-[var(--surface-color)]">+${onlineCount - 5}</div>`;
+        };
+        
+        const handleTyping = () => {
+            const typingRef = ref(db, `typing/${currentRoom}/${userId}`);
+            const text = DOMElements.messageInput.value;
+            if (text) {
+                set(typingRef, { nickname, text });
+                if (typingTimeout) clearTimeout(typingTimeout);
+                typingTimeout = setTimeout(() => set(typingRef, null), 3000);
+            } else {
+                set(typingRef, null);
+            }
         };
 
         const initializePresence = () => {
@@ -710,19 +931,68 @@
             });
         };
         
-        // Event Listeners Globais
-        DOMElements.messagesList.addEventListener('click', e => {
-            const reactionBtn = e.target.closest('.reaction-btn');
-            const copyBtn = e.target.closest('.copy-btn');
-            const reactionChip = e.target.closest('.reaction-chip');
-            const msgId = e.target.closest('[data-msg-id]')?.dataset.msgId;
+        const handleReply = (msgId, msgData) => {
+            replyingToMessage = { msgId, nickname: msgData.nickname, text: msgData.text };
+            DOMElements.replyPreview.innerHTML = `
+                <div class="flex-1">
+                    <p class="font-bold text-sm">Respondendo a ${msgData.nickname}</p>
+                    <p class="truncate text-muted-color">${msgData.text}</p>
+                </div>
+                <button id="cancel-reply-btn" class="p-2 text-muted-color hover:text-text-color"><i class="fas fa-times"></i></button>
+            `;
+            DOMElements.replyPreview.classList.remove('hidden');
+            DOMElements.replyPreview.classList.add('flex', 'items-center', 'justify-between');
+            DOMElements.messageInput.focus();
+        };
 
-            if (!msgId) return;
-            if (reactionBtn) toggleReaction(msgId, reactionBtn.dataset.emoji);
-            if (reactionChip) toggleReaction(msgId, reactionChip.dataset.emoji);
-            if (copyBtn) {
-                navigator.clipboard.writeText(decodeURIComponent(copyBtn.dataset.text));
-                showToast('Texto copiado!');
+        const cancelReply = () => {
+            replyingToMessage = null;
+            DOMElements.replyPreview.classList.add('hidden');
+            DOMElements.replyPreview.classList.remove('flex', 'items-center', 'justify-between');
+            DOMElements.replyPreview.innerHTML = '';
+        };
+
+        // Event Listeners
+        document.body.addEventListener('click', (e) => {
+            if (activeMessageMenu && !activeMessageMenu.contains(e.target)) {
+                activeMessageMenu.remove();
+                activeMessageMenu = null;
+            }
+            if(e.target.id === 'cancel-reply-btn' || e.target.closest('#cancel-reply-btn')) {
+                cancelReply();
+            }
+        });
+
+        DOMElements.messagesList.addEventListener('click', async e => {
+            const reactionChip = e.target.closest('.reaction-chip');
+            const replyBlock = e.target.closest('.replied-message-block');
+            const actionsTrigger = e.target.closest('.message-actions-trigger');
+            const msgWrapper = e.target.closest('[data-msg-id]');
+            
+            if (!msgWrapper) return;
+            const msgId = msgWrapper.dataset.msgId;
+
+            if (actionsTrigger) {
+                e.stopPropagation();
+                const msgSnapshot = await get(ref(db, `messages/${currentRoom}/${msgId}`));
+                if (msgSnapshot.exists()) {
+                    openActionsMenu(actionsTrigger, msgId, msgSnapshot.val());
+                }
+                return;
+            }
+
+            if (replyBlock) {
+                const repliedId = replyBlock.dataset.repliedId;
+                const originalMsgEl = DOMElements.messagesList.querySelector(`[data-msg-id="${repliedId}"]`);
+                if (originalMsgEl) {
+                    originalMsgEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    originalMsgEl.querySelector('.chat-bubble').classList.add('animate-pulse');
+                    setTimeout(() => originalMsgEl.querySelector('.chat-bubble').classList.remove('animate-pulse'), 1500);
+                }
+            }
+
+            if (reactionChip) {
+                toggleReaction(msgId, reactionChip.dataset.emoji);
             }
         });
         
@@ -753,7 +1023,7 @@
             switchScreen('lobby');
         };
         const cleanupRoomListeners = async () => {
-            if (presenceRef) await set(presenceRef, { isOnline: false });
+            if (presenceRef) await set(ref(db, `presence/${currentRoom}/${userId}`), { isOnline: false });
             roomUnsubscribes.forEach(unsub => unsub());
             roomUnsubscribes = [];
             presenceRef = null;
@@ -851,7 +1121,6 @@
             DOMElements.roomActionsModal.classList.remove('hidden');
             DOMElements.roomActionsModal.classList.add('flex');
         });
-        document.getElementById('close-room-actions-modal-btn').addEventListener('click', closeActionsModal);
         document.getElementById('modal-create-room-btn').addEventListener('click', () => { createRoom(); closeActionsModal(); });
         document.getElementById('modal-confirm-join-btn').addEventListener('click', () => {
             const roomCode = DOMElements.modalRoomCodeInput.value.trim().toUpperCase();
@@ -883,7 +1152,14 @@
             renderRoomList();
         });
 
-        DOMElements.messageInput.addEventListener('keydown', e => e.key === 'Enter' && sendMessage());
+        DOMElements.messageInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        DOMElements.messageInput.addEventListener('input', handleTyping);
+
         const clearNotificationListeners = () => {
             notificationUnsubscribes.forEach(unsub => unsub());
             notificationUnsubscribes = [];
@@ -912,3 +1188,4 @@
     </script>
 </body>
 </html>
+
