@@ -14,6 +14,7 @@
             --surface-color: #1e293b; /* Slate-800 */
             --text-color: #e2e8f0; /* Slate-200 */
             --text-muted-color: #94a3b8; /* Slate-400 */
+            --app-height: 100vh; /* Fallback */
         }
         @keyframes stars {
             from { background-position: 0 0; }
@@ -26,6 +27,7 @@
             overscroll-behavior: none;
             background-image: url('https://www.transparenttextures.com/patterns/stardust.png');
             animation: stars 180s linear infinite;
+            height: var(--app-height);
         }
         .splash-loader {
             border-top-color: var(--primary-color);
@@ -71,7 +73,7 @@
             position: absolute;
             inset: 0;
             border-radius: inherit;
-            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuNjUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2UpIi8+PC9zdmc+');
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuNjUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVlcz0ic3RpdGNoIi8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI25vaXNlKSIvPjwvc3ZnPg==');
             background-size: cover;
             opacity: 0.3;
             animation: static-flicker 0.3s infinite;
@@ -88,9 +90,60 @@
             background-size: 800px 104px;
         }
 
+        /* Toast Notifications (Minimalist & Centered) */
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toast {
+            background-color: rgba(15, 23, 42, 0.8); /* slate-900 com transparência */
+            color: var(--text-color);
+            padding: 10px 16px;
+            border-radius: 9999px; /* pill shape */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transform: translateY(-20px);
+            animation: fadeInOutTop 4s forwards cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        .toast i { font-size: 1rem; }
+        .toast .toast-message { font-weight: 500; }
+        .toast .toast-nickname { font-weight: 700; }
+
+        @keyframes fadeInOutTop {
+            0% { opacity: 0; transform: translateY(-20px); }
+            15% { opacity: 1; transform: translateY(0); }
+            85% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
     </style>
 </head>
-<body class="w-screen h-screen overflow-hidden">
+<body class="w-screen overflow-hidden">
+    
+    <script>
+        // Corrige a altura da tela em dispositivos móveis para evitar cortes pela UI do navegador
+        const setAppHeight = () => {
+            const doc = document.documentElement;
+            doc.style.setProperty('--app-height', `${window.innerHeight}px`);
+        };
+        window.addEventListener('resize', setAppHeight);
+        setAppHeight(); // Define na carga inicial
+    </script>
 
     <div id="splash-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900 transition-opacity duration-500">
         <div class="flex items-center text-5xl font-bold text-slate-200 z-10">
@@ -101,7 +154,7 @@
         <p class="absolute bottom-10 text-slate-500 text-center px-4 z-10">Conectando galáxias, uma mensagem de cada vez.</p>
     </div>
 
-    <div id="app-container" class="w-full h-full flex items-center justify-center opacity-0 transition-opacity duration-500">
+    <div id="app-container" class="w-full h-full flex items-center justify-center opacity-0 transition-opacity duration-500" style="height: var(--app-height);">
         
         <div id="nickname-screen" class="w-full max-w-sm p-6 glassmorphism rounded-2xl shadow-lg flex-col gap-5 hidden sm:max-w-md md:max-w-lg">
              <h2 class="text-2xl font-bold text-center text-slate-100 flex items-center justify-center gap-3"><i class="fas fa-user-astronaut text-indigo-400"></i>Identificação Cósmica</h2>
@@ -134,11 +187,18 @@
         </div>
 
         <div id="chat-screen" class="w-full h-full flex-col hidden bg-slate-900/80 md:max-w-4xl md:h-5/6 md:rounded-2xl md:shadow-2xl">
-            <header class="flex items-center p-3 bg-slate-800/80 shadow-md z-10 glassmorphism md:rounded-t-2xl">
-                <button id="leave-btn" class="p-2 rounded-full hover:bg-slate-700"><i class="fas fa-arrow-left"></i></button>
-                <div class="flex-1 text-center">
-                    <h2 id="room-code-display" class="font-bold text-lg tracking-widest"></h2>
-                    <p id="user-count-display" class="text-xs text-green-400 font-medium"></p>
+            <header class="flex items-center justify-between p-3 bg-slate-800/80 shadow-md z-10 glassmorphism md:rounded-t-2xl">
+                <button id="leave-btn" class="p-2 rounded-full hover:bg-slate-700 text-xl"><i class="fas fa-arrow-left"></i></button>
+                <div class="flex-1 flex flex-col items-center">
+                    <div class="relative group cursor-pointer" id="room-code-wrapper">
+                        <h2 id="room-code-display" class="font-bold text-xl tracking-widest text-indigo-300 flex items-center gap-2">
+                            <span class="room-code-value"></span>
+                            <i class="fas fa-copy text-sm text-slate-400 group-hover:text-indigo-200 transition-colors"></i>
+                        </h2>
+                        <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1 bg-slate-700 text-slate-200 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">Copiar</span>
+                        <span id="copy-feedback" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1 bg-green-500 text-white text-xs rounded-md opacity-0 transition-opacity duration-500 whitespace-nowrap hidden">Copiado!</span>
+                    </div>
+                    <p id="user-count-display" class="text-sm text-green-400 font-medium mt-1"></p>
                 </div>
                 <div class="w-8"></div>
             </header>
@@ -189,8 +249,9 @@
         </div>
     </div>
 
+    <div id="toast-container"></div>
+
     <script type="module">
-        // O CÓDIGO JAVASCRIPT PERMANECE O MESMO
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getDatabase, ref, set, get, onValue, onChildAdded, serverTimestamp, onDisconnect, push, query, orderByKey, startAfter, off } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
@@ -212,6 +273,7 @@
         let notificationUnsubscribes = [];
         let roomToDelete = null;
         const userColors = {};
+        let previousOnlineUsers = {};
 
         const DOMElements = {
             splash: document.getElementById('splash-screen'),
@@ -223,7 +285,9 @@
             messagesContainer: document.getElementById('messages-container'),
             messagesList: document.getElementById('messages-list'),
             messageInput: document.getElementById('message-input'),
-            roomCodeDisplay: document.getElementById('room-code-display'),
+            roomCodeDisplay: document.querySelector('#room-code-display .room-code-value'),
+            roomCodeWrapper: document.getElementById('room-code-wrapper'),
+            copyFeedback: document.getElementById('copy-feedback'),
             userCountDisplay: document.getElementById('user-count-display'),
             roomListContainer: document.getElementById('room-list-container'),
             lobbyNickname: document.getElementById('lobby-nickname'),
@@ -235,6 +299,7 @@
             modalRoomCodeInput: document.getElementById('modal-room-code-input'),
             confirmDeleteModal: document.getElementById('confirm-delete-modal'),
             deleteRoomCode: document.getElementById('delete-room-code'),
+            toastContainer: document.getElementById('toast-container'),
         };
 
         window.onload = async () => {
@@ -275,6 +340,8 @@
                     Notification.requestPermission();
                 }
                 renderRoomList();
+            } else if (screen === 'chat') {
+                previousOnlineUsers = {};
             }
         };
         
@@ -295,7 +362,7 @@
 
             if (isConsecutive && lastBubble) {
                 const isSelfLast = lastBubble.classList.contains('self-end');
-                lastBubble.classList.remove('rounded-bl-2xl', 'rounded-br-2xl');
+                lastBubble.classList.remove('rounded-bl-2xl', 'rounded-br-2xl', 'rounded-b-lg');
                 lastBubble.classList.add(isSelfLast ? 'rounded-b-lg' : 'rounded-b-lg');
             }
 
@@ -314,6 +381,10 @@
 
             const sanitizedText = msgData.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
             const showNickname = !isSelf && !isConsecutive;
+
+            if (!userColors[msgData.userId]) {
+                userColors[msgData.userId] = `hsl(${Math.random() * 360}, 80%, 70%)`;
+            }
 
             messageElement.innerHTML = `
                 <span class="nickname-header font-bold text-sm ${showNickname ? '' : 'hidden'}" style="color: ${userColors[msgData.userId]};">
@@ -339,7 +410,10 @@
             
             Object.entries(typingUsers).forEach(([typingUserId, userData]) => {
                 if (!userData || !userData.nickname) return;
-                const userColor = userColors[typingUserId] || (userColors[typingUserId] = `hsl(${Math.random() * 360}, 80%, 70%)`);
+                if (!userColors[typingUserId]) {
+                    userColors[typingUserId] = `hsl(${Math.random() * 360}, 80%, 70%)`;
+                }
+                const userColor = userColors[typingUserId];
                 const typingElement = document.createElement('div');
                 typingElement.className = 'typing-bubble relative chat-bubble flex flex-col max-w-max p-3 rounded-t-2xl rounded-br-2xl bg-slate-700 self-start opacity-50 static-effect';
                 const sanitizedText = userData.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -357,11 +431,21 @@
         const createRoom = async () => {
             const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
             await set(ref(db, `rooms/${roomCode}`), { createdAt: serverTimestamp() });
+            
             let createdRooms = JSON.parse(localStorage.getItem("createdRooms") || "[]");
             createdRooms.unshift(roomCode);
             localStorage.setItem("createdRooms", JSON.stringify(createdRooms.slice(0, 10)));
+            
             setupNotificationListeners();
             joinRoom(roomCode);
+
+            await navigator.clipboard.writeText(roomCode);
+            showToast(`Código #${roomCode} copiado!`);
+
+            const createBtn = document.getElementById('create-room-btn');
+            const originalText = createBtn.innerHTML;
+            createBtn.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+            setTimeout(() => createBtn.innerHTML = originalText, 2000);
         };
 
         const cleanupRoomListeners = async () => {
@@ -391,11 +475,12 @@
             setupNotificationListeners();
 
             switchScreen('chat');
-            DOMElements.roomCodeDisplay.textContent = `Sala #${currentRoom}`;
+            DOMElements.roomCodeDisplay.textContent = roomCode;
             DOMElements.messagesList.innerHTML = '';
+            
             presenceRef = ref(db, `presence/${currentRoom}/${userId}`);
             await set(presenceRef, { nickname, isOnline: true });
-            onDisconnect(presenceRef).update({ isOnline: false });
+            onDisconnect(presenceRef).update({ isOnline: false, lastSeen: serverTimestamp() });
 
             const unsubRoom = onValue(ref(db, `rooms/${currentRoom}`), (snapshot) => {
                 if (!snapshot.exists()) {
@@ -405,9 +490,28 @@
             roomUnsubscribes.push(unsubRoom);
             
             const unsubPresence = onValue(ref(db, `presence/${currentRoom}`), snapshot => {
-                const users = snapshot.val() || {};
-                const onlineCount = Object.values(users).filter(u => u.isOnline).length;
+                const currentUsers = snapshot.val() || {};
+                const onlineUsersArray = Object.entries(currentUsers).filter(([id, u]) => u.isOnline);
+                const onlineCount = onlineUsersArray.length;
                 DOMElements.userCountDisplay.textContent = `${onlineCount} ${onlineCount > 1 ? 'viajantes' : 'viajante'} online`;
+
+                if (Object.keys(previousOnlineUsers).length > 0) {
+                    const currentOnlineIds = new Set(onlineUsersArray.map(([id, u]) => id));
+                    const previousOnlineIds = new Set(Object.entries(previousOnlineUsers).filter(([id, u]) => u.isOnline).map(([id, u]) => id));
+                    
+                    currentOnlineIds.forEach(id => {
+                        if (!previousOnlineIds.has(id) && id !== userId) {
+                            showToast(`<span class="toast-nickname">${currentUsers[id].nickname}</span> entrou na sala`, 'enter');
+                        }
+                    });
+
+                    previousOnlineIds.forEach(id => {
+                        if (!currentOnlineIds.has(id) && id !== userId) {
+                            showToast(`<span class="toast-nickname">${previousOnlineUsers[id].nickname}</span> saiu da sala`, 'leave');
+                        }
+                    });
+                }
+                previousOnlineUsers = currentUsers;
             });
             roomUnsubscribes.push(unsubPresence);
 
@@ -505,7 +609,7 @@
                 roomElement.innerHTML = `
                     <div class="flex-1">
                         <div class="flex items-center gap-2">
-                            ${isCreator ? '<i class="fas fa-space-shuttle text-yellow-400" title="Sala criada por você"></i>' : '<i class="fas fa-satellite-dish text-cyan-400"></i>'}
+                            ${isCreator ? '<i class="fas fa-rocket text-yellow-400" title="Sala criada por você"></i>' : '<i class="fas fa-satellite-dish text-cyan-400"></i>'}
                             <span class="font-bold text-indigo-300">${roomCode}</span>
                         </div>
                         <p class="text-sm text-slate-400 mt-1 online-count">...</p>
@@ -572,6 +676,21 @@
             lobbyUnsubscribes.forEach(unsub => unsub());
             lobbyUnsubscribes = [];
         };
+
+        const showToast = (message, type = 'info') => {
+            const toast = document.createElement('div');
+            let iconClass = '';
+
+            if (type === 'enter') iconClass = 'fas fa-user-plus text-green-400';
+            else if (type === 'leave') iconClass = 'fas fa-user-minus text-red-400';
+            else iconClass = 'fas fa-copy text-indigo-400';
+
+            toast.className = 'toast';
+            toast.innerHTML = `<i class="${iconClass}"></i> <span class="toast-message">${message}</span>`;
+            DOMElements.toastContainer.appendChild(toast);
+
+            setTimeout(() => toast.remove(), 4000);
+        };
         
         // BIND DE EVENTOS
         document.getElementById('save-nickname-btn').addEventListener('click', saveNicknameAndEnterLobby);
@@ -636,8 +755,14 @@
             joinRoom(roomCode);
         });
 
-        document.getElementById('change-nickname-btn').addEventListener('click', () => DOMElements.confirmResetModal.classList.remove('hidden'));
-        document.getElementById('cancel-reset-btn').addEventListener('click', () => DOMElements.confirmResetModal.classList.add('hidden'));
+        document.getElementById('change-nickname-btn').addEventListener('click', () => {
+            DOMElements.confirmResetModal.classList.remove('hidden');
+            DOMElements.confirmResetModal.classList.add('flex');
+        });
+        document.getElementById('cancel-reset-btn').addEventListener('click', () => {
+            DOMElements.confirmResetModal.classList.add('hidden');
+            DOMElements.confirmResetModal.classList.remove('flex');
+        });
         document.getElementById('confirm-reset-btn').addEventListener('click', () => {
             localStorage.removeItem('astroNickname');
             localStorage.removeItem('createdRooms');
@@ -649,6 +774,19 @@
 
         DOMElements.messageInput.addEventListener('keydown', e => e.key === 'Enter' && sendMessage());
         DOMElements.messageInput.addEventListener('input', handleTyping);
+
+        DOMElements.roomCodeWrapper.addEventListener('click', async () => {
+            if (currentRoom) {
+                await navigator.clipboard.writeText(currentRoom);
+                DOMElements.copyFeedback.classList.remove('hidden', 'opacity-0');
+                DOMElements.copyFeedback.classList.add('opacity-100');
+                setTimeout(() => {
+                    DOMElements.copyFeedback.classList.remove('opacity-100');
+                    DOMElements.copyFeedback.classList.add('opacity-0');
+                    setTimeout(() => DOMElements.copyFeedback.classList.add('hidden'), 500);
+                }, 1500);
+            }
+        });
     </script>
 </body>
 </html>
