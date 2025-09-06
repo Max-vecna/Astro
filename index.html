@@ -3,19 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Astro Chat V3</title>
+    <title>Astro Chat V4</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
         :root {
-            --primary-color: #4f46e5; /* Indigo-600 */
-            --secondary-color: #7c3aed; /* Violet-600 */
-            --background-color: #0f172a; /* Slate-900 */
-            --surface-color: #1e293b; /* Slate-800 */
-            --text-color: #e2e8f0; /* Slate-200 */
-            --text-muted-color: #94a3b8; /* Slate-400 */
-            --app-height: 100vh; /* Fallback */
+            --primary-color: #4f46e5;
+            --secondary-color: #7c3aed;
+            --background-color: #0f172a;
+            --surface-color: #1e293b;
+            --text-color: #e2e8f0;
+            --text-muted-color: #94a3b8;
+            --bubble-self-bg: #4f46e5;
+            --bubble-other-bg: #334155;
+            --app-height: 100vh;
         }
+
+        [data-theme="light"] {
+            --primary-color: #6366f1;
+            --secondary-color: #8b5cf6;
+            --background-color: #e2e8f0; /* Fundo off-white */
+            --surface-color: #f8fafc;    /* Superfície um pouco mais clara */
+            --text-color: #0f172a;
+            --text-muted-color: #64748b;
+            --bubble-self-bg: #6366f1;
+            --bubble-other-bg: #ffffff; /* Bolha branca para contraste */
+        }
+
         @keyframes stars {
             from { background-position: 0 0; }
             to { background-position: -10000px 5000px; }
@@ -28,6 +42,7 @@
             background-image: url('https://www.transparenttextures.com/patterns/stardust.png');
             animation: stars 180s linear infinite;
             height: var(--app-height);
+            transition: background-color 0.3s, color 0.3s;
         }
         .splash-loader {
             border-top-color: var(--primary-color);
@@ -45,38 +60,48 @@
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: background-color 0.3s, border-color 0.3s;
         }
-        .glow-on-hover:hover {
-            box-shadow: 0 0 15px rgba(79, 70, 229, 0.6);
-        }
-        
-        @keyframes static-flicker {
-            0%, 100% { opacity: 0; }
-            10% { opacity: 0.1; } 20% { opacity: 0.05; } 30% { opacity: 0.2; }
-            40% { opacity: 0.1; } 50% { opacity: 0.25; } 60% { opacity: 0.15; }
-            70% { opacity: 0.05; } 80% { opacity: 0.2; } 90% { opacity: 0.1; }
+        [data-theme="light"] .glassmorphism {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(0, 0, 0, 0.1);
         }
 
-        .static-effect::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: inherit;
-            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuNjUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVlcz0ic3RpdGNoIi8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI25vaXNlKSIvPjwvc3ZnPg==');
-            background-size: cover;
-            opacity: 0.3;
-            animation: static-flicker 0.3s infinite;
-            pointer-events: none;
+        .glow-on-hover:hover {
+            box-shadow: 0 0 15px color-mix(in srgb, var(--primary-color) 60%, transparent);
         }
         
-        @keyframes shimmer {
-            0% { background-position: -468px 0; }
-            100% { background-position: 468px 0; }
+        .chat-bubble .message-actions {
+            opacity: 0;
+            transition: opacity 0.2s;
         }
-        .skeleton {
-            animation: shimmer 1.5s linear infinite;
-            background: linear-gradient(to right, #2c3e50 8%, #46607e 18%, #2c3e50 33%);
-            background-size: 800px 104px;
+        .chat-bubble:hover .message-actions {
+            opacity: 1;
+        }
+
+        .reactions-container {
+            display: flex;
+            gap: 4px;
+            margin-top: 6px;
+        }
+        .reaction-chip {
+            display: flex;
+            align-items: center;
+            background-color: color-mix(in srgb, var(--surface-color) 50%, transparent);
+            border: 1px solid color-mix(in srgb, var(--primary-color) 30%, transparent);
+            border-radius: 9999px;
+            padding: 2px 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        .reaction-chip.reacted {
+             background-color: var(--primary-color);
+             color: white;
+             border-color: var(--primary-color);
+        }
+        .reaction-chip .reaction-count {
+            font-weight: bold;
+            margin-left: 4px;
         }
 
         #toast-container {
@@ -109,28 +134,39 @@
             -webkit-backdrop-filter: blur(8px);
         }
 
-        .toast i { font-size: 1rem; }
-        .toast .toast-message { font-weight: 500; }
-        .toast .toast-nickname { font-weight: 700; }
-
         @keyframes fadeInOutTop {
             0% { opacity: 0; transform: translateY(-20px); }
             15% { opacity: 1; transform: translateY(0); }
             85% { opacity: 1; transform: translateY(0); }
             100% { opacity: 0; transform: translateY(-20px); }
         }
+
+        .notification-bubble {
+            text-align: center;
+            padding: 4px 12px;
+            background-color: color-mix(in srgb, var(--surface-color) 50%, transparent);
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            color: var(--text-muted-color);
+            margin: 8px auto;
+            max-width: fit-content;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
     </style>
 </head>
-<body class="w-screen overflow-hidden">
+<body data-theme="dark">
     
     <script>
-        // Corrige a altura da tela em dispositivos móveis para evitar cortes pela UI do navegador
         const setAppHeight = () => {
-            const doc = document.documentElement;
-            doc.style.setProperty('--app-height', `${window.innerHeight}px`);
+            document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
         };
         window.addEventListener('resize', setAppHeight);
-        setAppHeight(); // Define na carga inicial
+        setAppHeight();
     </script>
 
     <div id="splash-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900 transition-opacity duration-500">
@@ -145,55 +181,64 @@
     <div id="app-container" class="w-full h-full flex items-center justify-center opacity-0 transition-opacity duration-500" style="height: var(--app-height);">
         
         <div id="nickname-screen" class="w-full max-w-sm p-6 glassmorphism rounded-2xl shadow-lg flex-col gap-5 hidden sm:max-w-md md:max-w-lg">
-             <h2 class="text-2xl font-bold text-center text-slate-100 flex items-center justify-center gap-3"><i class="fas fa-user-astronaut text-indigo-400"></i>Identificação Cósmica</h2>
+             <h2 class="text-2xl font-bold text-center flex items-center justify-center gap-3"><i class="fas fa-user-astronaut text-indigo-400"></i>Identificação Cósmica</h2>
             <div>
-                <label for="nickname-input" class="text-sm font-medium text-slate-400">Crie seu apelido de viajante</label>
+                <label for="nickname-input" class="text-sm font-medium text-muted-color">Crie seu apelido de viajante</label>
                 <input type="text" id="nickname-input" placeholder="Viajante Estelar" class="w-full mt-1 p-3 bg-slate-900/80 border border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-indigo-500">
             </div>
-            <button id="save-nickname-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 font-bold p-3 rounded-md transition-colors glow-on-hover text-lg">Entrar no Universo</button>
+            <button id="save-nickname-btn" class="w-full bg-[var(--primary-color)] hover:opacity-90 font-bold p-3 rounded-md transition-all glow-on-hover text-lg text-white">Entrar no Universo</button>
         </div>
 
-        <div id="lobby-screen" class="w-full h-full max-w-md flex-col hidden relative sm:max-w-lg md:max-w-2xl">
-             <header class="flex items-center justify-between p-4 bg-slate-800/80 glassmorphism rounded-b-2xl">
-                <h2 class="text-xl font-bold text-slate-100">Conversas</h2>
-                <div class="flex items-center gap-2">
-                    <p class="text-slate-300 text-sm">Olá, <span id="lobby-nickname" class="font-bold text-indigo-400"></span>!</p>
-                    <button id="change-nickname-btn" class="text-slate-400 hover:text-white transition-colors"><i class="fas fa-edit"></i></button>
+        <div id="lobby-screen" class="w-full h-full max-w-md flex-col hidden relative sm:max-w-lg md:max-w-2xl bg-surface-color md:h-5/6 md:rounded-2xl">
+             <header class="flex items-center justify-between p-4 glassmorphism md:rounded-t-2xl">
+                <h2 class="text-xl font-bold">Conversas</h2>
+                <div class="flex items-center gap-3">
+                    <p class="text-sm">Olá, <span id="lobby-nickname" class="font-bold text-primary-color"></span>!</p>
+                    <button id="change-nickname-btn" class="text-muted-color hover:text-text-color transition-colors"><i class="fas fa-edit"></i></button>
                 </div>
             </header>
             <main id="room-list-container" class="flex-1 overflow-y-auto p-4 space-y-3 scroll-container"></main>
 
-            <!-- Botão de Ação Principal Melhorado -->
+            <div class="absolute bottom-6 left-6">
+                 <button id="settings-btn" class="w-14 h-14 bg-[var(--background-color)] hover:bg-surface-color/80 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 glow-on-hover transform hover:scale-110">
+                    <i class="fas fa-cog text-xl"></i>
+                </button>
+            </div>
+
             <div id="new-conversation-container" class="absolute bottom-6 right-6">
-                 <button id="new-conversation-btn" class="w-16 h-16 bg-violet-600 hover:bg-violet-700 rounded-full flex items-center justify-center shadow-lg transition-transform duration-300 glow-on-hover transform hover:scale-110">
-                    <i class="fas fa-plus text-2xl"></i>
+                 <button id="new-conversation-btn" class="w-16 h-16 bg-[var(--secondary-color)] hover:opacity-90 rounded-full flex items-center justify-center shadow-lg transition-transform duration-300 glow-on-hover transform hover:scale-110">
+                    <i class="fas fa-plus text-2xl text-white"></i>
                 </button>
             </div>
         </div>
 
-        <div id="chat-screen" class="w-full h-full flex-col hidden bg-slate-900/80 md:max-w-4xl md:h-5/6 md:rounded-2xl md:shadow-2xl">
-            <header class="flex items-center justify-between p-3 bg-slate-800/80 shadow-md z-10 glassmorphism md:rounded-t-2xl">
-                <button id="leave-btn" class="p-2 rounded-full hover:bg-slate-700 text-xl"><i class="fas fa-arrow-left"></i></button>
-                <div class="flex-1 flex flex-col items-center">
-                    <div class="relative group cursor-pointer" id="room-code-wrapper">
-                        <h2 id="room-code-display" class="font-bold text-xl tracking-widest text-indigo-300 flex items-center gap-2">
-                            <span class="room-code-value"></span>
-                            <i class="fas fa-copy text-sm text-slate-400 group-hover:text-indigo-200 transition-colors"></i>
-                        </h2>
-                        <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1 bg-slate-700 text-slate-200 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">Copiar</span>
-                        <span id="copy-feedback" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1 bg-green-500 text-white text-xs rounded-md opacity-0 transition-opacity duration-500 whitespace-nowrap hidden">Copiado!</span>
+        <div id="chat-screen" class="w-full h-full flex-col hidden bg-surface-color/80 md:max-w-4xl md:h-5/6 md:rounded-2xl md:shadow-2xl">
+            <header class="flex items-center justify-between p-4 glassmorphism md:rounded-t-2xl">
+                <div class="flex items-center gap-4">
+                    <button id="leave-btn" class="p-2 rounded-full hover:bg-black/10 text-xl transition-colors">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <div>
+                        <div class="relative group cursor-pointer" id="room-code-wrapper">
+                            <h2 class="font-bold text-lg text-primary-color flex items-center gap-2">
+                                #<span class="room-code-value"></span>
+                                <i class="fas fa-copy text-xs text-muted-color group-hover:text-primary-color transition-colors"></i>
+                            </h2>
+                            <span class="absolute top-full left-0 mt-2 px-3 py-1 bg-surface-color text-text-color text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10 shadow-lg">Copiar Código</span>
+                            <span id="copy-feedback" class="absolute top-full left-0 mt-2 px-3 py-1 bg-green-500 text-white text-xs rounded-md opacity-0 transition-opacity duration-500 whitespace-nowrap hidden z-10">Copiado!</span>
+                        </div>
+                        <p id="user-count-display" class="text-xs text-green-400 font-medium"></p>
                     </div>
-                    <p id="user-count-display" class="text-sm text-green-400 font-medium mt-1"></p>
                 </div>
-                <div class="w-8"></div>
+                <div class="flex items-center -space-x-4" id="user-avatars-container"></div>
             </header>
             <main id="messages-container" class="flex-1 p-4 overflow-y-auto flex flex-col scroll-container">
                 <div id="messages-list" class="flex flex-col gap-1"></div>
             </main>
-            <footer class="p-3 bg-slate-800/80 glassmorphism md:rounded-b-2xl">
+            <footer class="p-3 glassmorphism md:rounded-b-2xl">
                 <div class="flex items-center gap-3">
-                    <input type="text" id="message-input" placeholder="Digite uma mensagem..." class="flex-1 bg-slate-700 rounded-full py-3 px-5 outline-none focus:ring-2 focus:ring-indigo-500">
-                    <button id="send-btn" class="bg-indigo-600 hover:bg-indigo-700 w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90 glow-on-hover">
+                    <input type="text" id="message-input" placeholder="Digite uma mensagem..." class="flex-1 bg-[var(--background-color)] text-[var(--text-color)] rounded-full py-3 px-5 outline-none focus:ring-2 focus:ring-primary-color">
+                    <button id="send-btn" class="bg-[var(--primary-color)] hover:opacity-90 w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90 glow-on-hover text-white">
                         <i class="fas fa-paper-plane"></i>
                     </button>
                 </div>
@@ -201,56 +246,65 @@
         </div>
     </div>
     
-    <!-- Modal Unificado para Criar/Entrar em Salas -->
+    <!-- Modals -->
+    <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-75 z-40 hidden items-center justify-center p-4">
+        <div class="glassmorphism p-6 rounded-2xl max-w-sm w-full flex flex-col gap-5">
+            <div class="flex justify-between items-center">
+                 <h3 class="text-xl font-bold">Configurações</h3>
+                 <button id="close-settings-modal-btn" class="text-2xl text-muted-color hover:text-text-color">&times;</button>
+            </div>
+            <div>
+                <label class="text-sm font-medium text-muted-color mb-2 block">Tema da Interface</label>
+                <div class="flex gap-2">
+                    <button data-theme="dark" class="theme-btn flex-1 p-3 rounded-lg border-2 border-transparent bg-slate-800 text-white">Astro (Escuro)</button>
+                    <button data-theme="light" class="theme-btn flex-1 p-3 rounded-lg border-2 border-transparent bg-slate-200 text-black">Nebula (Claro)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Outros Modais -->
     <div id="room-actions-modal" class="fixed inset-0 bg-black bg-opacity-75 z-40 hidden items-center justify-center p-4">
         <div class="glassmorphism p-6 rounded-2xl max-w-sm w-full flex flex-col gap-5">
             <div class="flex justify-between items-center">
                  <h3 class="text-xl font-bold">Nova Conversa</h3>
-                 <button id="close-room-actions-modal-btn" class="text-2xl text-slate-400 hover:text-white">&times;</button>
+                 <button id="close-room-actions-modal-btn" class="text-2xl text-muted-color hover:text-text-color">&times;</button>
             </div>
-           
-            <button id="modal-create-room-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 font-bold p-4 rounded-lg transition-colors glow-on-hover flex items-center justify-center gap-3 text-lg">
-                <i class="fas fa-meteor"></i>Criar Sala Privada
-            </button>
-
-            <div class="relative flex py-2 items-center">
-                <div class="flex-grow border-t border-slate-600"></div>
-                <span class="flex-shrink mx-4 text-slate-400 text-sm">OU</span>
-                <div class="flex-grow border-t border-slate-600"></div>
-            </div>
-
+            <button id="modal-create-room-btn" class="w-full bg-[var(--primary-color)] text-white hover:opacity-90 font-bold p-4 rounded-lg transition-all glow-on-hover flex items-center justify-center gap-3 text-lg"><i class="fas fa-meteor"></i>Criar Sala Privada</button>
+            <div class="relative flex py-2 items-center"><div class="flex-grow border-t border-slate-600"></div><span class="flex-shrink mx-4 text-muted-color text-sm">OU</span><div class="flex-grow border-t border-slate-600"></div></div>
             <div>
-                 <label for="modal-room-code-input" class="text-sm font-medium text-slate-400 mb-2 block">Já tem um código?</label>
+                 <label for="modal-room-code-input" class="text-sm font-medium text-muted-color mb-2 block">Já tem um código?</label>
                  <div class="flex gap-2">
-                    <input type="text" id="modal-room-code-input" placeholder="CÓDIGO" class="flex-1 p-3 bg-slate-900/80 border border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 text-center uppercase tracking-widest font-bold">
-                    <button id="modal-confirm-join-btn" class="bg-green-600 hover:bg-green-700 p-3 rounded-md font-bold aspect-square flex items-center justify-center transition-colors">
-                        <i class="fas fa-arrow-right"></i>
-                    </button>
+                    <input type="text" id="modal-room-code-input" placeholder="CÓDIGO" class="flex-1 p-3 bg-background-color border border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-primary-color text-center uppercase tracking-widest font-bold">
+                    <button id="modal-confirm-join-btn" class="bg-green-600 hover:bg-green-700 p-3 rounded-md font-bold aspect-square flex items-center justify-center transition-colors text-white"><i class="fas fa-arrow-right"></i></button>
                  </div>
             </div>
         </div>
     </div>
-
     <div id="confirm-reset-modal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden items-center justify-center p-4">
-        <div class="glassmorphism p-6 rounded-2xl max-w-sm w-full text-center">
-            <i class="fas fa-exclamation-triangle text-4xl text-yellow-400 mb-4"></i>
-            <h3 class="text-xl font-bold mb-2">Mudar de Apelido?</h3>
-            <p class="text-slate-300 mb-6">Isso irá apagar seu histórico de salas criadas e recentes. Deseja continuar?</p>
-            <div class="flex justify-center gap-4">
-                <button id="cancel-reset-btn" class="bg-slate-600 hover:bg-slate-700 font-bold rounded-lg py-2 px-6 transition-colors">Cancelar</button>
-                <button id="confirm-reset-btn" class="bg-red-600 hover:bg-red-700 font-bold rounded-lg py-2 px-6 transition-colors">Sim, apagar tudo</button>
+        <div class="glassmorphism p-6 rounded-2xl max-w-sm w-full text-center flex flex-col gap-4">
+            <div class="flex justify-between items-start">
+                 <i class="fas fa-user-cog text-4xl text-yellow-400"></i>
+                 <button id="cancel-reset-btn" class="text-2xl text-muted-color hover:text-text-color -mt-2 -mr-2">&times;</button>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold mb-2">Opções de Usuário</h3>
+                <p class="text-muted-color text-sm">O que você gostaria de fazer?</p>
+            </div>
+            <div class="flex flex-col gap-3 mt-2">
+                <button id="confirm-change-nickname-btn" class="w-full bg-slate-600 hover:bg-slate-700 font-bold rounded-lg py-3 px-6 transition-colors text-white">Alterar Apelido</button>
+                <button id="confirm-delete-all-rooms-btn" class="w-full bg-red-600 hover:bg-red-700 font-bold rounded-lg py-3 px-6 transition-colors text-white">Apagar Histórico de Salas</button>
             </div>
         </div>
     </div>
-
      <div id="confirm-delete-modal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden items-center justify-center p-4">
         <div class="glassmorphism p-6 rounded-2xl max-w-sm w-full text-center">
             <i class="fas fa-trash-alt text-4xl text-red-500 mb-4"></i>
             <h3 class="text-xl font-bold mb-2">Apagar Sala?</h3>
-            <p class="text-slate-300 mb-6">Esta ação é irreversível e irá apagar a sala <strong id="delete-room-code" class="text-indigo-300"></strong> para todos. Deseja continuar?</p>
+            <p class="text-muted-color mb-6">Esta ação é irreversível e irá apagar a sala <strong id="delete-room-code" class="text-primary-color"></strong> para todos. Deseja continuar?</p>
             <div class="flex justify-center gap-4">
-                <button id="cancel-delete-btn" class="bg-slate-600 hover:bg-slate-700 font-bold rounded-lg py-2 px-6 transition-colors">Cancelar</button>
-                <button id="confirm-delete-btn" class="bg-red-600 hover:bg-red-700 font-bold rounded-lg py-2 px-6 transition-colors">Sim, apagar</button>
+                <button id="cancel-delete-btn" class="bg-slate-600 hover:bg-slate-700 font-bold rounded-lg py-2 px-6 transition-colors text-white">Cancelar</button>
+                <button id="confirm-delete-btn" class="bg-red-600 hover:bg-red-700 font-bold rounded-lg py-2 px-6 transition-colors text-white">Sim, apagar</button>
             </div>
         </div>
     </div>
@@ -259,7 +313,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getDatabase, ref, set, get, onValue, onChildAdded, serverTimestamp, onDisconnect, push, query, orderByKey, startAfter, off } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        import { getDatabase, ref, set, get, onValue, onChildAdded, onChildChanged, serverTimestamp, onDisconnect, push, query, orderByKey, startAfter } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
         // Cole aqui sua configuração do Firebase
         const firebaseConfig = {
@@ -274,13 +328,14 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        let currentRoom, nickname, userId, presenceRef, typingTimeout;
+        let currentRoom, nickname, userId, presenceRef, typingTimeout, messageObserver;
         let roomUnsubscribes = [];
         let lobbyUnsubscribes = [];
         let notificationUnsubscribes = [];
         let roomToDelete = null;
         const userColors = {};
-        let previousOnlineUsers = {};
+        let onlineUsersInRoom = {};
+        let isInitialPresenceLoad = true;
 
         const DOMElements = {
             splash: document.getElementById('splash-screen'),
@@ -292,10 +347,11 @@
             messagesContainer: document.getElementById('messages-container'),
             messagesList: document.getElementById('messages-list'),
             messageInput: document.getElementById('message-input'),
-            roomCodeDisplay: document.querySelector('#room-code-display .room-code-value'),
+            roomCodeDisplay: document.querySelector('#chat-screen .room-code-value'),
             roomCodeWrapper: document.getElementById('room-code-wrapper'),
             copyFeedback: document.getElementById('copy-feedback'),
             userCountDisplay: document.getElementById('user-count-display'),
+            userAvatarsContainer: document.getElementById('user-avatars-container'),
             roomListContainer: document.getElementById('room-list-container'),
             lobbyNickname: document.getElementById('lobby-nickname'),
             confirmResetModal: document.getElementById('confirm-reset-modal'),
@@ -303,19 +359,16 @@
             modalRoomCodeInput: document.getElementById('modal-room-code-input'),
             confirmDeleteModal: document.getElementById('confirm-delete-modal'),
             deleteRoomCode: document.getElementById('delete-room-code'),
+            settingsModal: document.getElementById('settings-modal'),
             toastContainer: document.getElementById('toast-container'),
         };
 
-        window.onload = async () => {
-            let storedUserId = localStorage.getItem('astroUserId');
-            const invalidCharRegex = /[\.\#\$\[\]]/;
-            if (storedUserId && invalidCharRegex.test(storedUserId)) {
-                storedUserId = null;
-                localStorage.removeItem('astroUserId');
-            }
-            userId = storedUserId || `user_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-            localStorage.setItem('astroUserId', userId);
+        const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
+        // Lógica de Inicialização e Telas
+        window.onload = async () => {
+            initializeUser();
+            initializeTheme();
             await new Promise(res => setTimeout(res, 2500));
             DOMElements.splash.style.opacity = 0;
             DOMElements.app.style.opacity = 1;
@@ -331,353 +384,316 @@
                 switchScreen('nickname');
             }
         };
-        
+
         const switchScreen = (screen) => {
             ['nickname', 'lobby', 'chat'].forEach(s => {
-                const el = DOMElements[`${s}Screen`] || DOMElements[s];
+                const el = DOMElements[s === 'chat' ? 'chat' : `${s}Screen`];
                 el.classList.toggle('hidden', s !== screen);
                 el.classList.toggle('flex', s === screen);
             });
             clearLobbyListeners();
             if (screen === 'lobby') {
-                if (Notification.permission === 'default') {
-                    Notification.requestPermission();
-                }
+                if (Notification.permission === 'default') Notification.requestPermission();
                 renderRoomList();
             } else if (screen === 'chat') {
-                previousOnlineUsers = {};
+                onlineUsersInRoom = {};
             }
         };
         
-        const saveNicknameAndEnterLobby = () => {
-            nickname = DOMElements.nicknameInput.value.trim();
-            if (!nickname) return;
-            localStorage.setItem('astroNickname', nickname);
-            DOMElements.lobbyNickname.textContent = nickname;
-            setupNotificationListeners();
-            switchScreen('lobby');
-        };
+        // Lógica de Renderização
+        const renderMessage = (msgData, msgId) => {
+            const existingMsg = DOMElements.messagesList.querySelector(`[data-msg-id="${msgId}"]`);
+            if (existingMsg) {
+                updateMessage(existingMsg, msgData);
+                return;
+            }
 
-        const renderMessage = (msgData) => {
-            const allBubbles = DOMElements.messagesList.querySelectorAll('.chat-bubble[data-user-id]');
-            const lastBubble = allBubbles.length > 0 ? allBubbles[allBubbles.length - 1] : null;
-            const isConsecutive = lastBubble && lastBubble.dataset.userId === msgData.userId;
             const isSelf = msgData.userId === userId;
+            const messageWrapper = document.createElement('div');
+            messageWrapper.className = `flex flex-col items-${isSelf ? 'end' : 'start'}`;
+            messageWrapper.dataset.msgId = msgId;
+            messageWrapper.dataset.userId = msgData.userId;
 
-            if (isConsecutive && lastBubble) {
-                const isSelfLast = lastBubble.classList.contains('self-end');
-                lastBubble.classList.remove('rounded-bl-2xl', 'rounded-br-2xl', 'rounded-b-lg');
-                lastBubble.classList.add(isSelfLast ? 'rounded-b-lg' : 'rounded-b-lg');
-            }
-
-            const messageElement = document.createElement('div');
-            messageElement.dataset.userId = msgData.userId;
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble relative group flex flex-col max-w-xs md:max-w-md lg:max-w-lg p-3 rounded-2xl`;
+            bubble.style.backgroundColor = isSelf ? 'var(--bubble-self-bg)' : 'var(--bubble-other-bg)';
+            bubble.style.color = isSelf ? '#fff' : 'var(--text-color)';
             
-            let bubbleClasses = 'chat-bubble flex flex-col max-w-xs md:max-w-md lg:max-w-lg p-3 ';
-            if (isSelf) {
-                bubbleClasses += 'bg-indigo-600 self-end ';
-                bubbleClasses += isConsecutive ? 'rounded-t-lg rounded-bl-lg' : 'rounded-t-2xl rounded-bl-2xl';
-            } else {
-                bubbleClasses += 'bg-slate-700 self-start ';
-                bubbleClasses += isConsecutive ? 'rounded-t-lg rounded-br-lg' : 'rounded-t-2xl rounded-br-2xl';
-            }
-            messageElement.className = bubbleClasses;
-
             const sanitizedText = msgData.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            const showNickname = !isSelf && !isConsecutive;
-
-            if (!userColors[msgData.userId]) {
-                userColors[msgData.userId] = `hsl(${Math.random() * 360}, 80%, 70%)`;
-            }
-
-            messageElement.innerHTML = `
-                <span class="nickname-header font-bold text-sm ${showNickname ? '' : 'hidden'}" style="color: ${userColors[msgData.userId]};">
-                    ${msgData.nickname}
-                </span>
-                <p class="text-white ${showNickname ? 'mt-1' : ''}">${sanitizedText}</p>
-                <span class="text-xs text-slate-400 self-end mt-1">${new Date(msgData.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-            `;
             
-            const typingIndicators = DOMElements.messagesList.querySelector('.typing-indicator-container');
-            DOMElements.messagesList.insertBefore(messageElement, typingIndicators);
+            if (!userColors[msgData.userId]) userColors[msgData.userId] = `hsl(${Math.random() * 360}, 70%, 50%)`;
+            
+            bubble.innerHTML = `
+                <div class="message-content">
+                    ${!isSelf ? `<span class="font-bold text-sm" style="color: ${userColors[msgData.userId]};">${msgData.nickname}</span>` : ''}
+                    <p class="text-white message-text ${!isSelf ? 'mt-1' : ''}" style="color: inherit;">${sanitizedText}</p>
+                </div>
+                <div class="flex items-center self-end gap-2 mt-1">
+                    <span class="text-xs opacity-70">${new Date(msgData.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    <span class="read-receipt-status text-xs">${isSelf ? getReadReceiptIcon(msgData) : ''}</span>
+                </div>
+                <div class="reactions-container"></div>
+            `;
+
+            messageWrapper.appendChild(bubble);
+            addMessageActions(messageWrapper, msgId, sanitizedText);
+            updateMessage(messageWrapper, msgData);
+            
+            DOMElements.messagesList.appendChild(messageWrapper);
+            if(msgData.userId !== userId && !msgData.readBy?.[userId]) {
+                messageObserver.observe(messageWrapper);
+            }
             DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
         };
         
-        const renderTypingIndicator = (typingUsers) => {
-            let typingContainer = DOMElements.messagesList.querySelector('.typing-indicator-container');
-            if(!typingContainer) {
-                typingContainer = document.createElement('div');
-                typingContainer.className = 'typing-indicator-container w-full';
-                DOMElements.messagesList.appendChild(typingContainer);
+        const renderNotification = (text) => {
+            const notification = document.createElement('div');
+            notification.className = 'notification-bubble';
+            notification.textContent = text;
+            DOMElements.messagesList.appendChild(notification);
+            DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
+        };
+
+        const updateMessage = (element, msgData) => {
+            // Atualiza Reações
+            const reactionsContainer = element.querySelector('.reactions-container');
+            reactionsContainer.innerHTML = '';
+            if (msgData.reactions) {
+                Object.entries(msgData.reactions).forEach(([emoji, users]) => {
+                    const userCount = Object.keys(users).length;
+                    if (userCount > 0) {
+                        const chip = document.createElement('div');
+                        chip.className = 'reaction-chip';
+                        if (users[userId]) chip.classList.add('reacted');
+                        chip.dataset.emoji = emoji;
+                        chip.innerHTML = `<span>${emoji}</span><span class="reaction-count">${userCount}</span>`;
+                        reactionsContainer.appendChild(chip);
+                    }
+                });
             }
-            typingContainer.innerHTML = '';
+            // Atualiza Status de Leitura
+            if (msgData.userId === userId) {
+                const receiptEl = element.querySelector('.read-receipt-status');
+                if (receiptEl) receiptEl.innerHTML = getReadReceiptIcon(msgData);
+            }
+        };
+
+        const addMessageActions = (wrapper, msgId, text) => {
+            const actions = document.createElement('div');
+            actions.className = 'message-actions absolute -top-4 right-0 flex items-center bg-surface-color p-1 rounded-full shadow-lg border border-white/10';
             
-            Object.entries(typingUsers).forEach(([typingUserId, userData]) => {
-                if (!userData || !userData.nickname) return;
-                if (!userColors[typingUserId]) {
-                    userColors[typingUserId] = `hsl(${Math.random() * 360}, 80%, 70%)`;
-                }
-                const userColor = userColors[typingUserId];
-                const typingElement = document.createElement('div');
-                typingElement.className = 'typing-bubble relative chat-bubble flex flex-col max-w-max p-3 rounded-t-2xl rounded-br-2xl bg-slate-700 self-start opacity-50 static-effect';
-                const sanitizedText = userData.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                typingElement.innerHTML = `
-                    <span class="font-bold text-sm" style="color: ${userColor};">${userData.nickname}</span>
-                    <p class="text-white">${sanitizedText}</p>
-                `;
-                typingContainer.appendChild(typingElement);
+            EMOJI_LIST.forEach(emoji => {
+                actions.innerHTML += `<button class="reaction-btn p-1 hover:scale-125 transition-transform" data-emoji="${emoji}">${emoji}</button>`;
             });
-            if (Object.keys(typingUsers).length > 0) {
-                DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
-            }
+            actions.innerHTML += `<button class="copy-btn p-1 text-sm hover:scale-125 transition-transform" data-text="${encodeURIComponent(text)}"><i class="fas fa-copy"></i></button>`;
+            
+            wrapper.querySelector('.chat-bubble').appendChild(actions);
         };
         
-        const createRoom = async () => {
-            const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
-            await set(ref(db, `rooms/${roomCode}`), { createdAt: serverTimestamp() });
-            
-            let createdRooms = JSON.parse(localStorage.getItem("createdRooms") || "[]");
-            createdRooms.unshift(roomCode);
-            localStorage.setItem("createdRooms", JSON.stringify(createdRooms.slice(0, 10)));
-            
-            setupNotificationListeners();
-            joinRoom(roomCode);
-
-            await navigator.clipboard.writeText(roomCode);
-            showToast(`Sala #${roomCode} criada e código copiado!`);
-        };
-
-        const cleanupRoomListeners = async () => {
-            if (presenceRef) {
-                await set(presenceRef, { isOnline: false });
-            }
-            roomUnsubscribes.forEach(unsub => unsub());
-            roomUnsubscribes = [];
-            presenceRef = null;
-        };
-
-        const updateLastViewedTimestamp = (roomCode) => {
-            if (!roomCode) return;
-            const timestamps = JSON.parse(localStorage.getItem('lastViewedTimestamps') || '{}');
-            timestamps[roomCode] = Date.now();
-            localStorage.setItem('lastViewedTimestamps', JSON.stringify(timestamps));
-        };
-
+        // Lógica do Chat (Firebase)
         const joinRoom = async (roomCode) => {
             await cleanupRoomListeners();
-            
-            if (!roomCode) return console.error("Código da sala inválido.");
+            if (!roomCode) return;
             const roomSnapshot = await get(ref(db, `rooms/${roomCode}`));
-            if (!roomSnapshot.exists()) {
-                showToast("Essa sala não existe.", "leave");
-                return;
-            };
+            if (!roomSnapshot.exists()) return showToast("Essa sala não existe.", "leave");
             
             updateLastViewedTimestamp(roomCode);
-            
             currentRoom = roomCode;
-            let recentRooms = JSON.parse(localStorage.getItem("recentRooms") || "[]");
-            recentRooms = recentRooms.filter(r => r !== roomCode);
-            recentRooms.unshift(roomCode);
-            localStorage.setItem("recentRooms", JSON.stringify(recentRooms.slice(0, 10)));
-            
+            updateRecentRooms(roomCode);
             setupNotificationListeners();
 
             switchScreen('chat');
             DOMElements.roomCodeDisplay.textContent = roomCode;
             DOMElements.messagesList.innerHTML = '';
             
-            presenceRef = ref(db, `presence/${currentRoom}/${userId}`);
-            await set(presenceRef, { nickname, isOnline: true });
-            onDisconnect(presenceRef).update({ isOnline: false, lastSeen: serverTimestamp() });
+            isInitialPresenceLoad = true;
 
-            const unsubRoom = onValue(ref(db, `rooms/${currentRoom}`), (snapshot) => {
-                if (!snapshot.exists()) {
-                    leaveRoom();
-                }
-            });
-            roomUnsubscribes.push(unsubRoom);
+            initializePresence();
+            initializeMessageObserver();
             
-            const unsubPresence = onValue(ref(db, `presence/${currentRoom}`), snapshot => {
-                const currentUsers = snapshot.val() || {};
-                const onlineUsersArray = Object.entries(currentUsers).filter(([id, u]) => u.isOnline);
-                const onlineCount = onlineUsersArray.length;
-                DOMElements.userCountDisplay.textContent = `${onlineCount} ${onlineCount > 1 ? 'viajantes' : 'viajante'} online`;
-
-                if (Object.keys(previousOnlineUsers).length > 0) {
-                    const currentOnlineIds = new Set(onlineUsersArray.map(([id, u]) => id));
-                    const previousOnlineIds = new Set(Object.entries(previousOnlineUsers).filter(([id, u]) => u.isOnline).map(([id, u]) => id));
-                    
-                    currentOnlineIds.forEach(id => {
-                        if (!previousOnlineIds.has(id) && id !== userId) {
-                            showToast(`<span class="toast-nickname">${currentUsers[id].nickname}</span> entrou na sala`, 'enter');
-                        }
-                    });
-
-                    previousOnlineIds.forEach(id => {
-                        if (!currentOnlineIds.has(id) && id !== userId) {
-                            showToast(`<span class="toast-nickname">${previousOnlineUsers[id].nickname}</span> saiu da sala`, 'leave');
-                        }
-                    });
-                }
-                previousOnlineUsers = currentUsers;
-            });
-            roomUnsubscribes.push(unsubPresence);
-
+            // Listeners
+            const unsubRoom = onValue(ref(db, `rooms/${currentRoom}`), s => !s.exists() && leaveRoom());
+            const unsubPresence = onValue(ref(db, `presence/${currentRoom}`), updatePresenceUI);
+            
             const messagesRef = ref(db, `messages/${currentRoom}`);
-            let lastKey = null;
-
-            const initialMessagesSnapshot = await get(messagesRef);
-            if (initialMessagesSnapshot.exists()) {
-                const messages = [];
-                initialMessagesSnapshot.forEach(child => {
-                    messages.push({ ...child.val(), key: child.key });
-                    lastKey = child.key;
-                });
-                messages.sort((a, b) => a.timestamp - b.timestamp);
-                messages.forEach(msg => renderMessage(msg));
-            }
+            const unsubMessages = onChildAdded(query(messagesRef, orderByKey()), s => renderMessage(s.val(), s.key));
+            const unsubMessageChanges = onChildChanged(query(messagesRef, orderByKey()), s => renderMessage(s.val(), s.key));
             
-            const newMessagesQuery = lastKey ? query(messagesRef, orderByKey(), startAfter(lastKey)) : messagesRef;
-            const unsubMessages = onChildAdded(newMessagesQuery, (snapshot) => {
-                 renderMessage({...snapshot.val(), key: snapshot.key});
-            });
-            roomUnsubscribes.push(unsubMessages);
-
-            const unsubTyping = onValue(ref(db, `typing/${currentRoom}`), snapshot => {
-                 const typingUsers = snapshot.val() || {};
-                 delete typingUsers[userId];
-                 renderTypingIndicator(typingUsers);
-            });
-            roomUnsubscribes.push(unsubTyping);
+            roomUnsubscribes.push(unsubRoom, unsubPresence, unsubMessages, unsubMessageChanges);
         };
-        
+
         const sendMessage = () => {
             const text = DOMElements.messageInput.value.trim();
-            if (text && currentRoom) {
-                const newMessageRef = push(ref(db, `messages/${currentRoom}`));
-                set(newMessageRef, { userId, nickname, text, timestamp: serverTimestamp() });
-                DOMElements.messageInput.value = '';
-                updateLastViewedTimestamp(currentRoom);
-                handleTyping();
-            }
+            if (!text || !currentRoom) return;
+            const newMessage = {
+                userId, nickname, text, 
+                timestamp: serverTimestamp(),
+                reactions: {},
+                readBy: { [userId]: serverTimestamp() }
+            };
+            set(push(ref(db, `messages/${currentRoom}`)), newMessage);
+            DOMElements.messageInput.value = '';
         };
 
-        const handleTyping = () => {
-            const typingRef = ref(db, `typing/${currentRoom}/${userId}`);
-            const text = DOMElements.messageInput.value;
-            if (text) {
-                set(typingRef, { nickname, text });
-                clearTimeout(typingTimeout);
-                typingTimeout = setTimeout(() => set(typingRef, null), 3000);
-            } else {
-                set(typingRef, null);
-            }
+        const toggleReaction = (msgId, emoji) => {
+            const reactionRef = ref(db, `messages/${currentRoom}/${msgId}/reactions/${emoji}/${userId}`);
+            get(reactionRef).then(snapshot => {
+                set(reactionRef, snapshot.exists() ? null : true);
+            });
+        };
+
+        const markMessageAsRead = (msgId) => {
+            const readRef = ref(db, `messages/${currentRoom}/${msgId}/readBy/${userId}`);
+            set(readRef, serverTimestamp());
+        };
+
+        // UI Helpers & Eventos
+        const getReadReceiptIcon = (msgData) => {
+            const readByCount = msgData.readBy ? Object.keys(msgData.readBy).filter(id => id !== userId).length : 0;
+            const onlineCount = Object.keys(onlineUsersInRoom).filter(id => id !== userId).length;
+
+            if (readByCount >= onlineCount && onlineCount > 0) return `<i class="fas fa-check-double text-blue-400"></i>`;
+            if (readByCount > 0) return `<i class="fas fa-check-double text-muted-color"></i>`;
+            return `<i class="fas fa-check text-muted-color"></i>`;
         };
         
-        const leaveRoom = async () => {
-            if(currentRoom) {
-                updateLastViewedTimestamp(currentRoom);
+        const updatePresenceUI = (snapshot) => {
+            const newOnlineUsers = snapshot.val() || {};
+            
+            if (isInitialPresenceLoad) {
+                isInitialPresenceLoad = false;
+            } else {
+                Object.keys(newOnlineUsers).forEach(uid => {
+                    const newUser = newOnlineUsers[uid];
+                    const oldUser = onlineUsersInRoom[uid];
+                    if (newUser.isOnline && (!oldUser || !oldUser.isOnline) && uid !== userId) {
+                         renderNotification(`${newUser.nickname} entrou na sala.`);
+                    }
+                });
+
+                Object.keys(onlineUsersInRoom).forEach(uid => {
+                    const oldUser = onlineUsersInRoom[uid];
+                    const newUser = newOnlineUsers[uid];
+                    if (oldUser.isOnline && (!newUser || !newUser.isOnline)) {
+                        renderNotification(`${oldUser.nickname} saiu da sala.`);
+                    }
+                });
             }
-            await cleanupRoomListeners();
-            currentRoom = null;
-            switchScreen('lobby');
+            
+            onlineUsersInRoom = newOnlineUsers;
+
+            const onlineUsersArray = Object.entries(onlineUsersInRoom).filter(([, u]) => u && u.isOnline);
+            const onlineCount = onlineUsersArray.length;
+            DOMElements.userCountDisplay.textContent = `${onlineCount} ${onlineCount !== 1 ? 'viajantes' : 'viajante'} online`;
+            
+            const avatarsContainer = DOMElements.userAvatarsContainer;
+            avatarsContainer.innerHTML = ''; 
+            onlineUsersArray.slice(0, 5).forEach(([id, user]) => {
+                if (!user.nickname) return;
+                if (!userColors[id]) userColors[id] = `hsl(${Math.random() * 360}, 70%, 50%)`;
+                avatarsContainer.innerHTML += `<div title="${user.nickname}" class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold border-2 border-[var(--surface-color)] shadow-lg transition-all duration-200 hover:scale-110 hover:z-10 hover:ring-2 hover:ring-offset-2 hover:ring-[var(--primary-color)] hover:ring-offset-[var(--surface-color)]" style="background-color: ${userColors[id]};">${user.nickname.charAt(0).toUpperCase()}</div>`;
+            });
+            if (onlineCount > 5) avatarsContainer.innerHTML += `<div title="${onlineCount - 5} mais" class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold border-2 bg-slate-600 text-xs shadow-lg border-[var(--surface-color)]">+${onlineCount - 5}</div>`;
         };
 
+        const initializePresence = () => {
+            presenceRef = ref(db, `presence/${currentRoom}/${userId}`);
+            set(presenceRef, { nickname, isOnline: true });
+            onDisconnect(presenceRef).update({ isOnline: false, lastSeen: serverTimestamp() });
+        };
+        
+        const initializeMessageObserver = () => {
+            if(messageObserver) messageObserver.disconnect();
+            messageObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const msgId = entry.target.dataset.msgId;
+                        markMessageAsRead(msgId);
+                        messageObserver.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.8 });
+        };
+
+        const initializeUser = () => {
+            let storedUserId = localStorage.getItem('astroUserId');
+            if (!storedUserId || /[\.\#\$\[\]]/.test(storedUserId)) {
+                storedUserId = `user_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+                localStorage.setItem('astroUserId', storedUserId);
+            }
+            userId = storedUserId;
+        };
+        
+        const initializeTheme = () => {
+            const savedTheme = localStorage.getItem('astroTheme') || 'dark';
+            document.body.dataset.theme = savedTheme;
+            document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.toggle('border-primary-color', btn.dataset.theme === savedTheme));
+        };
+        
         const renderRoomList = async () => {
             const list = DOMElements.roomListContainer;
-            let skeletonHTML = '';
-            for (let i = 0; i < 3; i++) {
-                skeletonHTML += `
-                    <div class="flex items-center p-3 bg-slate-700/50 rounded-lg">
-                        <div class="w-10 h-10 rounded-full skeleton mr-3"></div>
-                        <div class="flex-1 space-y-2">
-                            <div class="w-1/2 h-4 rounded skeleton"></div>
-                            <div class="w-1/3 h-3 rounded skeleton"></div>
-                        </div>
-                    </div>
-                `;
-            }
-            list.innerHTML = skeletonHTML;
-
+            list.innerHTML = Array(3).fill('').map(() => `<div class="flex items-center p-3 bg-[var(--surface-color)] rounded-lg"><div class="w-10 h-10 rounded-full skeleton mr-3"></div><div class="flex-1 space-y-2"><div class="w-1/2 h-4 rounded skeleton"></div><div class="w-1/3 h-3 rounded skeleton"></div></div></div>`).join('');
+            
             const createdRooms = new Set(JSON.parse(localStorage.getItem("createdRooms") || "[]"));
             const recentRooms = JSON.parse(localStorage.getItem("recentRooms") || "[]");
             const allRooms = [...new Set([...createdRooms, ...recentRooms])];
 
             if (allRooms.length === 0) {
-                list.innerHTML = `<div class="text-center text-slate-400 mt-10">
-                    <i class="fas fa-ghost text-5xl mb-4"></i>
-                    <p>Nenhuma sala por aqui.</p>
-                    <p class="text-sm">Crie uma ou entre com um código!</p>
-                </div>`;
+                list.innerHTML = `<div class="text-center text-muted-color mt-10"><i class="fas fa-ghost text-5xl mb-4"></i><p>Nenhuma sala por aqui.</p><p class="text-sm">Crie uma ou entre com um código!</p></div>`;
                 return;
             }
-
             list.innerHTML = "";
             const lastViewedTimestamps = JSON.parse(localStorage.getItem('lastViewedTimestamps') || '{}');
-
             allRooms.forEach(roomCode => {
                 const isCreator = createdRooms.has(roomCode);
                 const roomElement = document.createElement('div');
-                roomElement.className = "flex items-center p-3 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-600/50 transition-colors";
+                roomElement.className = "flex items-center p-3 bg-[var(--surface-color)] rounded-lg cursor-pointer hover:bg-primary-color/10 transition-colors";
                 roomElement.dataset.roomcode = roomCode;
                 roomElement.innerHTML = `
                     <div class="flex-1">
                         <div class="flex items-center gap-2">
-                            ${isCreator ? '<i class="fas fa-rocket text-yellow-400" title="Sala criada por você"></i>' : '<i class="fas fa-satellite-dish text-cyan-400"></i>'}
-                            <span class="font-bold text-indigo-300">${roomCode}</span>
+                            ${isCreator ? 
+                            '<i class="fas fa-rocket text-yellow-400" title="Sala criada por você"></i>' : 
+                            '<i class="fas fa-satellite-dish text-cyan-400"></i>'
+                            }
+                            <span class="font-bold text-primary-color">${roomCode}</span>
                         </div>
-                         <p class="unread-badge text-sm text-slate-400 mt-1">0</p>
+                        <p class="text-sm text-muted-color mt-1 unread-badge">Sem novas mensagens...</p>
                     </div>
                     <div class="flex flex-col items-center justify-center gap-2">
-                        <p class="text-sm mt-1 online-count text-green-400">...</p>
-                        ${isCreator ? `<button class="btn-delete-room text-slate-500 hover:text-red-500 p-2 rounded-md" data-roomcode="${roomCode}"><i class="fas fa-trash pointer-events-none"></i></button>` : '<div class="w-10 h-10"></div>'}
-                    </div>
-                `;
+                        <p class="text-sm text-muted-color mt-1 online-count text-green-400">...</p>
+                        ${isCreator ? 
+                        `<button class="btn-delete-room text-muted-color hover:text-red-500 p-2 rounded-md" title="Apagar sala para todos" data-roomcode="${roomCode}">
+                            <i class="fas fa-trash pointer-events-none"></i>
+                        </button>` : 
+                        `<button class="btn-remove-room text-muted-color hover:text-yellow-500 p-2 rounded-md" title="Remover da sua lista" data-roomcode="${roomCode}">
+                            <i class="fas fa-times-circle pointer-events-none"></i>
+                        </button>`
+                        }
+                    </div>`;
                 list.appendChild(roomElement);
                 
                 const unsubRoomDeletion = onValue(ref(db, `rooms/${roomCode}`), (snapshot) => {
                     if (!snapshot.exists()) {
-                        const roomElToRemove = list.querySelector(`[data-roomcode="${roomCode}"]`);
-                        if (roomElToRemove) roomElToRemove.remove();
-                        
-                        let created = JSON.parse(localStorage.getItem("createdRooms") || "[]");
-                        localStorage.setItem("createdRooms", JSON.stringify(created.filter(r => r !== roomCode)));
-                        let recent = JSON.parse(localStorage.getItem("recentRooms") || "[]");
-                        localStorage.setItem("recentRooms", JSON.stringify(recent.filter(r => r !== roomCode)));
-
-                        if (list.childElementCount === 0) {
-                            list.innerHTML = `<div class="text-center text-slate-400 mt-10">
-                                <i class="fas fa-ghost text-5xl mb-4"></i>
-                                <p>Nenhuma sala por aqui.</p>
-                                <p class="text-sm">Crie uma ou entre com um código!</p>
-                            </div>`;
-                        }
+                        roomElement.remove();
+                        let created = JSON.parse(localStorage.getItem("createdRooms") || "[]").filter(r => r !== roomCode);
+                        localStorage.setItem("createdRooms", JSON.stringify(created));
+                        let recent = JSON.parse(localStorage.getItem("recentRooms") || "[]").filter(r => r !== roomCode);
+                        localStorage.setItem("recentRooms", JSON.stringify(recent));
+                        if (list.childElementCount === 0) list.innerHTML = `<div class="text-center text-muted-color mt-10"><i class="fas fa-ghost text-5xl mb-4"></i><p>Nenhuma sala por aqui.</p></div>`;
                     }
                 });
-                lobbyUnsubscribes.push(unsubRoomDeletion);
-
-                const presenceRef = ref(db, `presence/${roomCode}`);
-                const unsubPresence = onValue(presenceRef, (snapshot) => {
-                    const onlineCount = snapshot.exists() ? Object.values(snapshot.val()).filter(u => u.isOnline).length : 0;
+                const unsubPresence = onValue(ref(db, `presence/${roomCode}`), s => {
+                    const onlineCount = s.exists() ? Object.values(s.val()).filter(u => u.isOnline).length : 0;
                     const countEl = roomElement.querySelector('.online-count');
                     if(countEl) countEl.textContent = `${onlineCount} on`;
                 });
-                lobbyUnsubscribes.push(unsubPresence);
-
                 const unreadBadge = roomElement.querySelector('.unread-badge');
                 const lastViewed = lastViewedTimestamps[roomCode] || 0;
-                const messagesRef = ref(db, `messages/${roomCode}`);
-                
-                const unsubMessagesCount = onValue(query(messagesRef), (snapshot) => {
-                    if (!snapshot.exists()) return;
+                const unsubMessagesCount = onValue(query(ref(db, `messages/${roomCode}`)), (s) => {
+                    if (!s.exists()) return;
                     let unreadCount = 0;
-                    snapshot.forEach(child => {
-                        const msg = child.val();
-                        if (msg.timestamp > lastViewed && msg.userId !== userId) {
-                            unreadCount++;
-                        }
-                    });
+                    s.forEach(c => { if (c.val().timestamp > lastViewed && c.val().userId !== userId) unreadCount++; });
                     
                     if (unreadCount > 0)
                     { 
@@ -687,134 +703,159 @@
                         unreadBadge.textContent = unreadCount > 9 ? '9+' : unreadCount + txt;
                         unreadBadge.classList.remove('opacity-0');
                     } else {
-                        unreadBadge.classList.add('opacity-0');
+                        unreadBadge.textContent = "Sem novas mensagens...";
                     }
                 });
-                lobbyUnsubscribes.push(unsubMessagesCount);
+                lobbyUnsubscribes.push(unsubRoomDeletion, unsubPresence, unsubMessagesCount);
             });
         };
+        
+        // Event Listeners Globais
+        DOMElements.messagesList.addEventListener('click', e => {
+            const reactionBtn = e.target.closest('.reaction-btn');
+            const copyBtn = e.target.closest('.copy-btn');
+            const reactionChip = e.target.closest('.reaction-chip');
+            const msgId = e.target.closest('[data-msg-id]')?.dataset.msgId;
 
-        const showNotification = (roomCode, text) => {
-            if (Notification.permission !== 'granted' || document.hasFocus()) {
-                return;
+            if (!msgId) return;
+            if (reactionBtn) toggleReaction(msgId, reactionBtn.dataset.emoji);
+            if (reactionChip) toggleReaction(msgId, reactionChip.dataset.emoji);
+            if (copyBtn) {
+                navigator.clipboard.writeText(decodeURIComponent(copyBtn.dataset.text));
+                showToast('Texto copiado!');
             }
-            const notification = new Notification(`Nova mensagem em #${roomCode}`, {
-                body: text,
-                icon: `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>`
-            });
-            notification.onclick = () => {
-                window.focus();
-                joinRoom(roomCode);
-            };
-        };
+        });
         
-        const clearNotificationListeners = () => {
-            notificationUnsubscribes.forEach(unsub => unsub());
-            notificationUnsubscribes = [];
-        };
-        
-        const setupNotificationListeners = () => {
-            clearNotificationListeners();
-            const createdRooms = new Set(JSON.parse(localStorage.getItem("createdRooms") || "[]"));
-            const recentRooms = JSON.parse(localStorage.getItem("recentRooms") || "[]");
-            const allRooms = [...new Set([...createdRooms, ...recentRooms])];
+        document.getElementById('settings-btn').addEventListener('click', () => {
+            DOMElements.settingsModal.classList.remove('hidden');
+            DOMElements.settingsModal.classList.add('flex');
+        });
+        document.getElementById('close-settings-modal-btn').addEventListener('click', () => {
+            DOMElements.settingsModal.classList.add('hidden');
+            DOMElements.settingsModal.classList.remove('flex');
+        });
 
-            allRooms.forEach(roomCode => {
-                let lastKey = null;
-                const messagesRef = ref(db, `messages/${roomCode}`);
-                get(query(messagesRef, orderByKey())).then(initialSnapshot => {
-                    if (initialSnapshot.exists()) {
-                        initialSnapshot.forEach(child => { lastKey = child.key; });
-                    }
-                    const newMessagesQuery = lastKey ? query(messagesRef, orderByKey(), startAfter(lastKey)) : messagesRef;
-                    const unsub = onChildAdded(newMessagesQuery, (snapshot) => {
-                        const msg = snapshot.val();
-                        if(msg && msg.userId !== userId && currentRoom !== roomCode) {
-                            showNotification(roomCode, `${msg.nickname}: ${msg.text}`);
-                        }
-                    });
-                    notificationUnsubscribes.push(unsub);
-                });
+        document.querySelectorAll('.theme-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const theme = btn.dataset.theme;
+                document.body.dataset.theme = theme;
+                localStorage.setItem('astroTheme', theme);
+                document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('border-primary-color'));
+                btn.classList.add('border-primary-color');
             });
-        };
+        });
 
-        const clearLobbyListeners = () => {
-            lobbyUnsubscribes.forEach(unsub => unsub());
-            lobbyUnsubscribes = [];
+        const leaveRoom = async () => {
+            if(currentRoom) updateLastViewedTimestamp(currentRoom);
+            if(messageObserver) messageObserver.disconnect();
+            await cleanupRoomListeners();
+            currentRoom = null;
+            switchScreen('lobby');
+        };
+        const cleanupRoomListeners = async () => {
+            if (presenceRef) await set(presenceRef, { isOnline: false });
+            roomUnsubscribes.forEach(unsub => unsub());
+            roomUnsubscribes = [];
+            presenceRef = null;
+        };
+        const updateRecentRooms = (roomCode) => {
+             let recentRooms = JSON.parse(localStorage.getItem("recentRooms") || "[]").filter(r => r !== roomCode);
+            recentRooms.unshift(roomCode);
+            localStorage.setItem("recentRooms", JSON.stringify(recentRooms.slice(0, 10)));
+        };
+         const updateLastViewedTimestamp = (roomCode) => {
+            if (!roomCode) return;
+            const timestamps = JSON.parse(localStorage.getItem('lastViewedTimestamps') || '{}');
+            timestamps[roomCode] = Date.now();
+            localStorage.setItem('lastViewedTimestamps', JSON.stringify(timestamps));
+        };
+        const createRoom = async () => {
+            const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
+            await set(ref(db, `rooms/${roomCode}`), { createdAt: serverTimestamp() });
+            let createdRooms = JSON.parse(localStorage.getItem("createdRooms") || "[]");
+            createdRooms.unshift(roomCode);
+            localStorage.setItem("createdRooms", JSON.stringify(createdRooms.slice(0, 10)));
+            setupNotificationListeners();
+            joinRoom(roomCode);
+            await navigator.clipboard.writeText(roomCode);
+            showToast(`Sala #${roomCode} criada e código copiado!`);
         };
 
         const showToast = (message, type = 'info') => {
             const toast = document.createElement('div');
-            let iconClass = '';
-
-            if (type === 'enter') iconClass = 'fas fa-user-plus text-green-400';
-            else if (type === 'leave') iconClass = 'fas fa-user-minus text-red-400';
-            else iconClass = 'fas fa-info-circle text-indigo-400';
-
             toast.className = 'toast';
-            toast.innerHTML = `<i class="${iconClass}"></i> <span class="toast-message">${message}</span>`;
+            toast.innerHTML = `<i class="${type === 'enter' ? 'fas fa-user-plus text-green-400' : type === 'leave' ? 'fas fa-user-minus text-red-400' : 'fas fa-info-circle text-indigo-400'}"></i> <span class="toast-message">${message}</span>`;
             DOMElements.toastContainer.appendChild(toast);
-
             setTimeout(() => toast.remove(), 4000);
         };
-        
-        // BIND DE EVENTOS
+        const clearLobbyListeners = () => {
+            lobbyUnsubscribes.forEach(unsub => unsub());
+            lobbyUnsubscribes = [];
+        };
+        const saveNicknameAndEnterLobby = () => {
+            nickname = DOMElements.nicknameInput.value.trim();
+            if (!nickname) return;
+            localStorage.setItem('astroNickname', nickname);
+            DOMElements.lobbyNickname.textContent = nickname;
+            setupNotificationListeners();
+            switchScreen('lobby');
+        };
         document.getElementById('save-nickname-btn').addEventListener('click', saveNicknameAndEnterLobby);
         document.getElementById('send-btn').addEventListener('click', sendMessage);
         document.getElementById('leave-btn').addEventListener('click', leaveRoom);
         
         DOMElements.roomListContainer.addEventListener('click', e => {
-             const roomItem = e.target.closest('[data-roomcode]');
-             if(!roomItem) return;
-             const roomCode = roomItem.dataset.roomcode;
-             if(e.target.closest('.btn-delete-room')) {
+            const roomItem = e.target.closest('[data-roomcode]');
+            if (!roomItem) return;
+
+            const roomCode = roomItem.dataset.roomcode;
+            const deleteBtn = e.target.closest('.btn-delete-room');
+            const removeBtn = e.target.closest('.btn-remove-room');
+
+            if (deleteBtn) {
                 roomToDelete = roomCode;
-                DOMElements.deleteRoomCode.textContent = roomCode;
+                DOMElements.deleteRoomCode.textContent = roomToDelete;
                 DOMElements.confirmDeleteModal.classList.remove('hidden');
                 DOMElements.confirmDeleteModal.classList.add('flex');
-             } else {
-                 joinRoom(roomCode);
-             }
+            } else if (removeBtn) {
+                let recentRooms = JSON.parse(localStorage.getItem("recentRooms") || "[]");
+                recentRooms = recentRooms.filter(r => r !== roomCode);
+                localStorage.setItem("recentRooms", JSON.stringify(recentRooms));
+                
+                roomItem.remove();
+                showToast(`Sala #${roomCode} removida da sua lista.`);
+                
+                if (DOMElements.roomListContainer.childElementCount === 0) {
+                    DOMElements.roomListContainer.innerHTML = `<div class="text-center text-muted-color mt-10"><i class="fas fa-ghost text-5xl mb-4"></i><p>Nenhuma sala por aqui.</p><p class="text-sm">Crie uma ou entre com um código!</p></div>`;
+                }
+            } else {
+                joinRoom(roomCode);
+            }
         });
-        
+
         document.getElementById('cancel-delete-btn').addEventListener('click', () => {
             DOMElements.confirmDeleteModal.classList.add('hidden');
             DOMElements.confirmDeleteModal.classList.remove('flex');
-            roomToDelete = null;
         });
-
         document.getElementById('confirm-delete-btn').addEventListener('click', () => {
-            if (roomToDelete) {
-                set(ref(db, `rooms/${roomToDelete}`), null);
-                // A remoção da UI e do localStorage será tratada pelo listener onValue
-            }
+            if (roomToDelete) set(ref(db, `rooms/${roomToDelete}`), null);
             DOMElements.confirmDeleteModal.classList.add('hidden');
             DOMElements.confirmDeleteModal.classList.remove('flex');
             roomToDelete = null;
         });
-
         const closeActionsModal = () => {
             DOMElements.roomActionsModal.classList.add('hidden');
             DOMElements.roomActionsModal.classList.remove('flex');
-            DOMElements.modalRoomCodeInput.value = '';
         };
-        
         document.getElementById('new-conversation-btn').addEventListener('click', () => {
             DOMElements.roomActionsModal.classList.remove('hidden');
             DOMElements.roomActionsModal.classList.add('flex');
         });
-
         document.getElementById('close-room-actions-modal-btn').addEventListener('click', closeActionsModal);
-        document.getElementById('modal-create-room-btn').addEventListener('click', () => {
-            createRoom();
-            closeActionsModal();
-        });
+        document.getElementById('modal-create-room-btn').addEventListener('click', () => { createRoom(); closeActionsModal(); });
         document.getElementById('modal-confirm-join-btn').addEventListener('click', () => {
             const roomCode = DOMElements.modalRoomCodeInput.value.trim().toUpperCase();
-            if (roomCode) {
-                 joinRoom(roomCode);
-                 closeActionsModal();
-            }
+            if (roomCode) { joinRoom(roomCode); closeActionsModal(); }
         });
 
         document.getElementById('change-nickname-btn').addEventListener('click', () => {
@@ -825,32 +866,49 @@
             DOMElements.confirmResetModal.classList.add('hidden');
             DOMElements.confirmResetModal.classList.remove('flex');
         });
-        document.getElementById('confirm-reset-btn').addEventListener('click', () => {
+        document.getElementById('confirm-change-nickname-btn').addEventListener('click', () => {
             localStorage.removeItem('astroNickname');
+            DOMElements.confirmResetModal.classList.add('hidden');
+            DOMElements.confirmResetModal.classList.remove('flex');
+            clearNotificationListeners();
+            switchScreen('nickname');
+        });
+        document.getElementById('confirm-delete-all-rooms-btn').addEventListener('click', () => {
             localStorage.removeItem('createdRooms');
             localStorage.removeItem('recentRooms');
             localStorage.removeItem('lastViewedTimestamps');
             DOMElements.confirmResetModal.classList.add('hidden');
-            clearNotificationListeners();
-            switchScreen('nickname');
+            DOMElements.confirmResetModal.classList.remove('flex');
+            showToast('Histórico de salas foi apagado.');
+            renderRoomList();
         });
 
         DOMElements.messageInput.addEventListener('keydown', e => e.key === 'Enter' && sendMessage());
-        DOMElements.messageInput.addEventListener('input', handleTyping);
-
-        DOMElements.roomCodeWrapper.addEventListener('click', async () => {
-            if (currentRoom) {
-                await navigator.clipboard.writeText(currentRoom);
-                DOMElements.copyFeedback.classList.remove('hidden', 'opacity-0');
-                DOMElements.copyFeedback.classList.add('opacity-100');
-                setTimeout(() => {
-                    DOMElements.copyFeedback.classList.remove('opacity-100');
-                    DOMElements.copyFeedback.classList.add('opacity-0');
-                    setTimeout(() => DOMElements.copyFeedback.classList.add('hidden'), 500);
-                }, 1500);
-            }
-        });
+        const clearNotificationListeners = () => {
+            notificationUnsubscribes.forEach(unsub => unsub());
+            notificationUnsubscribes = [];
+        };
+        const setupNotificationListeners = () => {
+            clearNotificationListeners();
+            const allRooms = [...new Set([...JSON.parse(localStorage.getItem("createdRooms")||"[]"), ...JSON.parse(localStorage.getItem("recentRooms")||"[]")])];
+            allRooms.forEach(roomCode => {
+                const messagesRef = ref(db, `messages/${roomCode}`);
+                get(query(messagesRef, orderByKey())).then(initialSnapshot => {
+                    let lastKey = null;
+                    if (initialSnapshot.exists()) initialSnapshot.forEach(child => { lastKey = child.key; });
+                    
+                    const newMessagesQuery = lastKey ? query(messagesRef, orderByKey(), startAfter(lastKey)) : query(messagesRef, orderByKey());
+                    const unsub = onChildAdded(newMessagesQuery, (s) => {
+                        const msg = s.val();
+                        if(msg && msg.userId !== userId && currentRoom !== roomCode && Notification.permission === 'granted' && !document.hasFocus()) {
+                            new Notification(`Nova mensagem em #${roomCode}`, { body: `${msg.nickname}: ${msg.text}`, icon: `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>`})
+                            .onclick = () => { window.focus(); joinRoom(roomCode); };
+                        }
+                    });
+                    notificationUnsubscribes.push(unsub);
+                });
+            });
+        };
     </script>
 </body>
 </html>
-
