@@ -17,11 +17,13 @@
             --loser-color: #ef4444;
             --draw-color: #eab308;
         }
+        html, body {
+            overflow: hidden; /* Previne o scroll */
+        }
         body {
             font-family: 'Orbitron', sans-serif;
             background-color: #0f172a;
             color: white;
-            overflow: hidden;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
         }
@@ -34,6 +36,7 @@
             -webkit-backdrop-filter: blur(12px);
             border: 2px solid var(--primary-color);
             box-shadow: 0 0 20px var(--primary-color) inset;
+            flex-direction: column;
         }
         .game-button {
             background-color: var(--primary-color);
@@ -69,12 +72,12 @@
         .choice-card.draw { border-color: var(--draw-color); }
     </style>
 </head>
-<body class="flex items-center justify-center h-screen w-screen">
+<body class="flex items-center justify-center w-screen">
 
     <div id="game-container" class="relative hidden w-full h-full flex-col items-center justify-center p-4">
-        <div id="hud" class="hud absolute top-4 left-0 right-0 p-4 flex justify-between items-center text-xl sm:text-2xl w-full max-w-4xl mx-auto">
+        <div id="hud" class="hud absolute top-4 left-0 right-0 p-4 flex justify-between items-center text-base sm:text-xl w-full max-w-4xl mx-auto">
             <div id="player-score">Você: 0</div>
-            <div id="turn-indicator" class="text-center"></div>
+            <div id="turn-indicator" class="text-center px-2"></div>
             <div id="opponent-score">Oponente: 0</div>
         </div>
 
@@ -83,20 +86,20 @@
             <div id="result-area" class="hidden w-full max-w-2xl flex justify-around items-center mb-8">
                 <div class="flex flex-col items-center">
                     <h3 class="text-lg mb-2">Sua Jogada</h3>
-                    <div id="player-choice-card" class="choice-card w-32 h-32 sm:w-40 sm:h-40 rounded-lg flex items-center justify-center text-6xl"></div>
+                    <div id="player-choice-card" class="choice-card w-28 h-28 sm:w-40 sm:h-40 rounded-lg flex items-center justify-center text-5xl sm:text-6xl"></div>
                 </div>
                  <div class="flex flex-col items-center">
                     <h3 class="text-lg mb-2">Oponente</h3>
-                    <div id="opponent-choice-card" class="choice-card w-32 h-32 sm:w-40 sm:h-40 rounded-lg flex items-center justify-center text-6xl"></div>
+                    <div id="opponent-choice-card" class="choice-card w-28 h-28 sm:w-40 sm:h-40 rounded-lg flex items-center justify-center text-5xl sm:text-6xl"></div>
                 </div>
             </div>
-             <p id="round-result-text" class="text-3xl font-bold my-4 h-10"></p>
+             <p id="round-result-text" class="text-2xl sm:text-3xl font-bold my-4 h-10 text-center"></p>
 
             <!-- Botões de escolha -->
-            <div id="choices-container" class="flex justify-center gap-4 sm:gap-8">
-                <button data-choice="pedra" class="choice-btn game-button rounded-full w-24 h-24 sm:w-32 sm:h-32 text-5xl flex items-center justify-center"><i class="fa-solid fa-hand-back-fist"></i></button>
-                <button data-choice="papel" class="choice-btn game-button rounded-full w-24 h-24 sm:w-32 sm:h-32 text-5xl flex items-center justify-center"><i class="fa-solid fa-hand"></i></button>
-                <button data-choice="tesoura" class="choice-btn game-button rounded-full w-24 h-24 sm:w-32 sm:h-32 text-5xl flex items-center justify-center"><i class="fa-solid fa-hand-scissors"></i></button>
+            <div id="choices-container" class="flex justify-center gap-4 sm:gap-6">
+                <button data-choice="pedra" class="choice-btn game-button rounded-full w-20 h-20 sm:w-28 sm:h-28 text-4xl sm:text-5xl flex items-center justify-center"><i class="fa-solid fa-hand-back-fist"></i></button>
+                <button data-choice="papel" class="choice-btn game-button rounded-full w-20 h-20 sm:w-28 sm:h-28 text-4xl sm:text-5xl flex items-center justify-center"><i class="fa-solid fa-hand"></i></button>
+                <button data-choice="tesoura" class="choice-btn game-button rounded-full w-20 h-20 sm:w-28 sm:h-28 text-4xl sm:text-5xl flex items-center justify-center"><i class="fa-solid fa-hand-scissors"></i></button>
             </div>
         </div>
         
@@ -325,7 +328,7 @@
                     DOMElements.opponentChoiceCard.innerHTML = ICONS[opponentMove] || ICONS.default;
 
                     const winner = gameState.roundWinner;
-                    ['playerChoiceCard', 'opponentChoiceCard'].forEach(key => DOMElements[key].className = 'choice-card w-32 h-32 sm:w-40 sm:h-40 rounded-lg flex items-center justify-center text-6xl');
+                    ['playerChoiceCard', 'opponentChoiceCard'].forEach(key => DOMElements[key].className = 'choice-card w-28 h-28 sm:w-40 sm:h-40 rounded-lg flex items-center justify-center text-5xl sm:text-6xl');
                     if (winner === 'draw') {
                          DOMElements.roundResultText.textContent = "Empate!";
                          DOMElements.playerChoiceCard.classList.add('draw');
@@ -387,13 +390,11 @@
         
         const handleExitGame = async () => {
             if (!gameRef) return;
-            // First, try to read the hostId from the current gameState if available
             const hostId = gameState?.hostId;
             
             if (localPlayerId === hostId) {
                 await set(gameRef, null); 
             } else {
-                // If not the host, just remove the current player
                 const playerRef = ref(db, `games/rps/${gameId}/players/${localPlayerId}`);
                 await set(playerRef, null); 
             }
@@ -408,7 +409,16 @@
 
         DOMElements.closeBtn.addEventListener('click', exitAndClose);
         DOMElements.exitGameBtn.addEventListener('click', exitAndClose);
-
+        
+        // --- AJUSTE DE ALTURA RESPONSIVO ---
+        const setAppHeight = () => {
+            // Garante que a aplicação use a altura visível real da janela,
+            // evitando que a barra de navegação do telemóvel oculte o conteúdo.
+            document.body.style.height = `${window.innerHeight}px`;
+        };
+        window.addEventListener('resize', setAppHeight);
+        
+        setAppHeight(); // Define a altura inicial
         initializeGame();
 
     </script>
