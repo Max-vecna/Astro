@@ -106,7 +106,6 @@
         <div id="countdown-overlay" class="absolute inset-0 flex items-center justify-center bg-slate-900/80 hidden">
             <h1 id="countdown" class="text-9xl font-bold"></h1>
         </div>
-        <button id="exit-game-btn" class="absolute bottom-4 right-4 game-button py-2 px-4 rounded-md text-lg font-bold bg-red-600 border-red-800 hover:bg-red-700">Sair e Fechar</button>
     </div>
     
     <div id="loading-screen" class="glass-panel p-6 sm:p-8 rounded-lg text-center w-full max-w-md mx-4 flex flex-col items-center">
@@ -114,15 +113,9 @@
         <p class="text-lg animate-pulse">A conectar ao duelo...</p>
     </div>
 
-    <div id="game-over-screen" class="glass-panel p-6 sm:p-8 rounded-lg text-center w-full max-w-md mx-4 hidden">
-        <h2 class="text-3xl sm:text-4xl font-bold mb-4 hud">FIM DE JOGO</h2>
-        <p id="winner-text" class="text-xl sm:text-2xl mb-6"></p>
-        <button id="close-btn" class="game-button w-full py-3 rounded-md text-xl font-bold">Sair e Fechar</button>
-    </div>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getDatabase, ref, set, onValue, get, serverTimestamp, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        import { getDatabase, ref, set, onValue, get, serverTimestamp, update, push } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAxb2s4tzbtD1arG9UAf7UrzhFqbRrrsl8",
@@ -139,12 +132,9 @@
         const DOMElements = {
             gameContainer: document.getElementById('game-container'),
             loadingScreen: document.getElementById('loading-screen'),
-            gameOverScreen: document.getElementById('game-over-screen'),
             turnIndicator: document.getElementById('turn-indicator'),
             countdownOverlay: document.getElementById('countdown-overlay'),
             countdown: document.getElementById('countdown'),
-            winnerText: document.getElementById('winner-text'),
-            closeBtn: document.getElementById('close-btn'),
             playerScore: document.getElementById('player-score'),
             opponentScore: document.getElementById('opponent-score'),
             resultArea: document.getElementById('result-area'),
@@ -153,11 +143,12 @@
             roundResultText: document.getElementById('round-result-text'),
             choicesContainer: document.getElementById('choices-container'),
             choiceBtns: document.querySelectorAll('.choice-btn'),
-            exitGameBtn: document.getElementById('exit-game-btn'),
         };
 
         let localPlayerId = `player_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
         let gameId = null;
+        let localNickname = 'Jogador';
+        let roomCode = null;
         let gameState = {};
         let gameRef = null;
         let isGameActive = false;
@@ -174,16 +165,27 @@
         };
 
         const switchScreen = (screen) => {
-            ['loading', 'game', 'gameOver'].forEach(s => {
-                const element = DOMElements[`${s}Screen`] || DOMElements.gameContainer;
-                element.classList.toggle('hidden', s !== screen);
-                element.classList.toggle('flex', ['loading', 'gameOver', 'game'].includes(s));
-            });
+            DOMElements.loadingScreen.classList.add('hidden');
+            DOMElements.gameContainer.classList.add('hidden');
+
+            const screenMap = {
+                loading: DOMElements.loadingScreen,
+                game: DOMElements.gameContainer,
+            };
+
+            const targetScreen = screenMap[screen];
+            if (targetScreen) {
+                targetScreen.classList.remove('hidden');
+                targetScreen.classList.add('flex');
+            }
         };
         
         const initializeGame = async () => {
             const urlParams = new URLSearchParams(window.location.search);
             gameId = urlParams.get('game')?.toUpperCase();
+            localNickname = decodeURIComponent(urlParams.get('nick') || 'Jogador');
+            roomCode = urlParams.get('room');
+
             if (!gameId) {
                 document.body.innerHTML = `<div class="glass-panel p-8 rounded-lg text-center w-full max-w-md"><h1>ERRO</h1><p>Falta o código do jogo.</p></div>`;
                 return;
@@ -196,7 +198,7 @@
                 const currentGameState = snapshot.val();
                 if (Object.keys(currentGameState.players || {}).length < 2 && currentGameState.status === 'waiting') {
                     const updates = {
-                        [`players/${localPlayerId}`]: { connected: true },
+                        [`players/${localPlayerId}`]: { connected: true, nickname: localNickname },
                         status: 'countdown',
                         countdownStart: serverTimestamp(),
                     };
@@ -208,7 +210,7 @@
                 }
             } else {
                 const newGame = {
-                    players: { [localPlayerId]: { connected: true } },
+                    players: { [localPlayerId]: { connected: true, nickname: localNickname } },
                     score: { [localPlayerId]: 0 },
                     status: 'waiting',
                     hostId: localPlayerId,
@@ -221,7 +223,7 @@
         const listenToGameStateChanges = () => {
             onValue(gameRef, (snapshot) => {
                 if (!snapshot.exists()) {
-                    if (isGameActive) handleGameEnd(true, "O duelo foi encerrado.");
+                    if (!isGameOver) window.close();
                     return;
                 }
                 const newState = snapshot.val();
@@ -372,56 +374,52 @@
             }
         };
 
-        const handleGameEnd = (wasForced = false, message = "") => {
+        const handleGameEnd = async (wasForced = false, message = "") => {
             if (isGameOver) return;
             isGameOver = true;
             isGameActive = false;
             
             if(countdownInterval) clearInterval(countdownInterval);
 
-            DOMElements.winnerText.textContent = wasForced ? message : (gameState.finalWinner === localPlayerId ? "Parabéns, você venceu o duelo!" : "Você foi derrotado. Mais sorte na próxima!");
-            
-            switchScreen('gameOver');
+            if (localPlayerId === gameState.hostId) {
+                let resultText = "O duelo terminou.";
+                if (wasForced) {
+                    resultText = message || "O oponente desconectou-se.";
+                } else {
+                    const winnerNickname = gameState.players[gameState.finalWinner]?.nickname;
+                    const loserId = Object.keys(gameState.players).find(id => id !== gameState.finalWinner);
+                    const loserNickname = gameState.players[loserId]?.nickname;
+                    resultText = `⚔️ ${winnerNickname} venceu o duelo contra ${loserNickname}!`;
+                }
 
-            if (localPlayerId === gameState.hostId && !wasForced) {
-                setTimeout(() => set(gameRef, null), 5000);
+                if (roomCode) {
+                    const messagesRef = ref(db, `messages/${roomCode}`);
+                    const resultMessage = {
+                        type: 'duel_result',
+                        text: resultText,
+                        timestamp: serverTimestamp(),
+                        nickname: 'Astro Duel',
+                        userId: 'system'
+                    };
+                    await push(messagesRef, resultMessage);
+                }
+                
+                await set(gameRef, null);
             }
-        };
-        
-        const handleExitGame = async () => {
-            if (!gameRef) return;
-            const hostId = gameState?.hostId;
             
-            if (localPlayerId === hostId) {
-                await set(gameRef, null); 
-            } else {
-                const playerRef = ref(db, `games/rps/${gameId}/players/${localPlayerId}`);
-                await set(playerRef, null); 
-            }
+            window.close();
         };
 
         DOMElements.choiceBtns.forEach(btn => btn.addEventListener('click', () => handleChoiceClick(btn.dataset.choice)));
         
-        const exitAndClose = async () => {
-            await handleExitGame();
-            window.close();
-        };
-
-        DOMElements.closeBtn.addEventListener('click', exitAndClose);
-        DOMElements.exitGameBtn.addEventListener('click', exitAndClose);
-        
-        // --- AJUSTE DE ALTURA RESPONSIVO ---
         const setAppHeight = () => {
-            // Garante que a aplicação use a altura visível real da janela,
-            // evitando que a barra de navegação do telemóvel oculte o conteúdo.
             document.body.style.height = `${window.innerHeight}px`;
         };
         window.addEventListener('resize', setAppHeight);
         
-        setAppHeight(); // Define a altura inicial
+        setAppHeight();
         initializeGame();
 
     </script>
 </body>
 </html>
-

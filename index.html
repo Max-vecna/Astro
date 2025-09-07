@@ -553,6 +553,15 @@
         
         // Lógica de Renderização
         const renderMessage = (msgData, msgId) => {
+            if (msgData.type === 'duel_result') {
+                const existing = DOMElements.messagesList.querySelector(`[data-msg-id="${msgId}"]`);
+                if (!existing) {
+                    const notificationEl = renderNotification(msgData.text);
+                    notificationEl.dataset.msgId = msgId;
+                }
+                return;
+            }
+
             const existingMsgWrapper = DOMElements.messagesList.querySelector(`[data-msg-id="${msgId}"]`);
             if (existingMsgWrapper) {
                 updateMessage(existingMsgWrapper, msgData);
@@ -595,6 +604,7 @@
             notification.textContent = text;
             DOMElements.messagesList.insertBefore(notification, DOMElements.typingIndicatorContainer);
             DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
+            return notification;
         };
 
         const renderTypingIndicator = (typingUsers) => {
@@ -796,7 +806,8 @@
                 renderMessage(msgData, s.key);
                 if (msgData.type === 'duel_invite' && msgData.duelStatus === 'accepted' && (msgData.userId === userId || msgData.challengedId === userId)) {
                    const gameUrl = msgData.gameType === 'tictactoe' ? './astro_duel_tictactoe.html' : './astro_duel_rps.html';
-                    window.open(`${gameUrl}?game=${msgData.duelGameId}`, '_blank');
+                    const finalUrl = `${gameUrl}?game=${msgData.duelGameId}&nick=${encodeURIComponent(nickname)}&room=${currentRoom}`;
+                    window.open(finalUrl, '_blank');
                 }
             });
             
@@ -1111,8 +1122,10 @@
                 const gameType = acceptBtn.dataset.gameType;
                 const messageRef = ref(db, `messages/${currentRoom}/${msgId}`);
                 await update(messageRef, { duelStatus: 'accepted' });
+                
                 const gameUrl = gameType === 'tictactoe' ? './astro_duel_tictactoe.html' : './astro_duel_rps.html';
-                window.open(`${gameUrl}?game=${gameId}`, '_blank');
+                const finalUrl = `${gameUrl}?game=${gameId}&nick=${encodeURIComponent(nickname)}&room=${currentRoom}`;
+                window.open(finalUrl, '_blank');
                 return;
             }
 
@@ -1370,3 +1383,4 @@
     </script>
 </body>
 </html>
+
