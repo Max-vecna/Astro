@@ -6,6 +6,8 @@
     <title>Astro Chat V6</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- Adicione o manifesto para uma melhor experiência PWA -->
+    <link rel="manifest" href="manifest.json">
     <style>
         :root {
             --primary-color: #4f46e5;
@@ -353,7 +355,7 @@
                 <div id="reply-preview" class="hidden"></div>
                 <div class="flex items-center gap-3">
                     <input type="text" id="message-input" placeholder="Digite uma mensagem..." class="flex-1 bg-[var(--background-color)] text-[var(--text-color)] rounded-full py-3 px-5 outline-none focus:ring-2 focus:ring-primary-color">
-                    <button id="duel-btn" class="bg-[var(--secondary-color)] hover:opacity-90 w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90 glow-on-hover text-white">
+                    <button id="duel-btn" class="bg-[var(--secondary-color)] hover:opacity-90 w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90 glow-on-hover text-white" style="display: none;">
                         <i class="fas fa-gamepad"></i>
                     </button>
                     <button id="send-btn" class="bg-[var(--primary-color)] hover:opacity-90 w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90 glow-on-hover text-white">
@@ -365,6 +367,19 @@
     </div>
     
     <!-- Modals -->
+    <div id="game-choice-modal" class="fixed inset-0 bg-black bg-opacity-75 z-40 hidden items-center justify-center p-4">
+        <div class="glassmorphism p-6 rounded-2xl max-w-sm w-full flex flex-col gap-4">
+            <h3 class="text-xl font-bold text-center">Escolha o Duelo</h3>
+            <button class="game-choice-btn w-full text-left p-3 rounded-md hover:bg-primary-color/20 transition-colors" data-game="tictactoe">
+                <i class="fas fa-border-all mr-2"></i> Jogo da Velha
+            </button>
+            <button class="game-choice-btn w-full text-left p-3 rounded-md hover:bg-primary-color/20 transition-colors" data-game="rps">
+                <i class="fas fa-hand-rock mr-2"></i> Pedra, Papel e Tesoura
+            </button>
+            <button id="close-game-choice-modal-btn" class="w-full bg-slate-600 hover:bg-slate-700 p-3 rounded-md mt-2">Cancelar</button>
+        </div>
+    </div>
+
     <div id="duel-modal" class="fixed inset-0 bg-black bg-opacity-75 z-40 hidden items-center justify-center p-4">
         <div class="glassmorphism p-6 rounded-2xl max-w-sm w-full flex flex-col gap-4">
             <h3 class="text-xl font-bold text-center">Desafiar para Duelo</h3>
@@ -462,6 +477,7 @@
         let roomToDelete = null;
         let replyingToMessage = null;
         let activeMessageMenu = null;
+        let selectedGame = null;
         const userColors = {};
         let onlineUsersInRoom = {};
         let isInitialPresenceLoad = true;
@@ -493,6 +509,8 @@
             settingsModal: document.getElementById('settings-modal'),
             toastContainer: document.getElementById('toast-container'),
             duelBtn: document.getElementById('duel-btn'),
+            gameChoiceModal: document.getElementById('game-choice-modal'),
+            closeGameChoiceModalBtn: document.getElementById('close-game-choice-modal-btn'),
             duelModal: document.getElementById('duel-modal'),
             duelUserList: document.getElementById('duel-user-list'),
             closeDuelModalBtn: document.getElementById('close-duel-modal-btn'),
@@ -618,11 +636,12 @@
             let contentHTML = '';
 
             if (msgData.type === 'duel_invite') {
-                let duelHTML = `<p class="text-white message-text mt-1" style="color: inherit;">desafiou <strong>${msgData.challengedNickname}</strong> para um duelo!</p>`;
+                const gameName = msgData.gameType === 'tictactoe' ? 'Jogo da Velha' : 'Pedra, Papel e Tesoura';
+                let duelHTML = `<p class="text-white message-text mt-1" style="color: inherit;">desafiou <strong>${msgData.challengedNickname}</strong> para um Duelo de ${gameName}!</p>`;
                 
                 switch (msgData.duelStatus) {
                     case 'accepted':
-                        duelHTML += `<p class="font-bold text-green-400 mt-2">Duelo aceito...</p>`;
+                        duelHTML += `<p class="font-bold text-green-400 mt-2">Duelo aceite! A preparar naves...</p>`;
                         break;
                     case 'refused':
                         duelHTML += `<p class="font-bold text-red-400 mt-2">Duelo recusado.</p>`;
@@ -632,7 +651,7 @@
                         if (msgData.challengedId === userId) {
                             duelHTML += `
                                 <div class="flex gap-2 mt-2">
-                                    <button class="accept-duel-btn text-sm bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded-full" data-msg-id="${msgId}" data-game-id="${msgData.duelGameId}">Aceitar</button>
+                                    <button class="accept-duel-btn text-sm bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded-full" data-msg-id="${msgId}" data-game-id="${msgData.duelGameId}" data-game-type="${msgData.gameType}">Aceitar</button>
                                     <button class="refuse-duel-btn text-sm bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded-full" data-msg-id="${msgId}">Recusar</button>
                                 </div>`;
                         } else {
@@ -777,8 +796,9 @@
             const unsubMessageChanges = onChildChanged(query(messagesRef, orderByKey()), s => {
                 const msgData = s.val();
                 renderMessage(msgData, s.key);
-                if (msgData.type === 'duel_invite' && msgData.duelStatus === 'accepted' && msgData.userId === userId) {
-                    window.open(`./astro_duel.html?game=${msgData.duelGameId}`, '_blank');
+                if (msgData.type === 'duel_invite' && msgData.duelStatus === 'accepted' && (msgData.userId === userId || msgData.challengedId === userId)) {
+                   const gameUrl = msgData.gameType === 'tictactoe' ? './astro_duel_tictactoe.html' : './astro_duel_rps.html';
+                    window.open(`${gameUrl}?game=${msgData.duelGameId}`, '_blank');
                 }
             });
             
@@ -812,7 +832,7 @@
         };
 
         const sendDuelInvite = (challengedId, challengedNickname) => {
-            if (!currentRoom) return;
+            if (!currentRoom || !selectedGame) return;
             const duelGameId = Math.random().toString(36).substring(2, 7).toUpperCase();
             
             const newMessage = {
@@ -823,6 +843,7 @@
                 challengedId,
                 challengedNickname,
                 duelGameId,
+                gameType: selectedGame,
                 timestamp: serverTimestamp()
             };
             set(push(ref(db, `messages/${currentRoom}`)), newMessage);
@@ -1036,6 +1057,11 @@
             DOMElements.replyPreview.classList.remove('flex', 'items-center', 'justify-between');
             DOMElements.replyPreview.innerHTML = '';
         };
+        
+        const openGameChoiceModal = () => {
+            DOMElements.gameChoiceModal.classList.remove('hidden');
+            DOMElements.gameChoiceModal.classList.add('flex');
+        };
 
         const openDuelModal = () => {
             const list = DOMElements.duelUserList;
@@ -1084,9 +1110,11 @@
                 e.preventDefault();
                 const msgId = acceptBtn.dataset.msgId;
                 const gameId = acceptBtn.dataset.gameId;
+                const gameType = acceptBtn.dataset.gameType;
                 const messageRef = ref(db, `messages/${currentRoom}/${msgId}`);
-                update(messageRef, { duelStatus: 'accepted' });
-                window.open(`./astro_duel.html?game=${gameId}`, '_blank');
+                await update(messageRef, { duelStatus: 'accepted' });
+                const gameUrl = gameType === 'tictactoe' ? './astro_duel_tictactoe.html' : './astro_duel_rps.html';
+                window.open(`${gameUrl}?game=${gameId}`, '_blank');
                 return;
             }
 
@@ -1130,7 +1158,22 @@
             }
         });
         
-        DOMElements.duelBtn.addEventListener('click', openDuelModal);
+        DOMElements.duelBtn.addEventListener('click', openGameChoiceModal);
+        
+        document.querySelectorAll('.game-choice-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                selectedGame = btn.dataset.game;
+                DOMElements.gameChoiceModal.classList.add('hidden');
+                DOMElements.gameChoiceModal.classList.remove('flex');
+                openDuelModal();
+            });
+        });
+
+        DOMElements.closeGameChoiceModalBtn.addEventListener('click', () => {
+            DOMElements.gameChoiceModal.classList.add('hidden');
+            DOMElements.gameChoiceModal.classList.remove('flex');
+        });
+        
         DOMElements.closeDuelModalBtn.addEventListener('click', () => {
              DOMElements.duelModal.classList.add('hidden');
              DOMElements.duelModal.classList.remove('flex');
@@ -1329,5 +1372,4 @@
     </script>
 </body>
 </html>
-
 

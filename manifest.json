@@ -1,0 +1,21 @@
+{
+  "name": "Astro Chat",
+  "short_name": "Astro",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#4f46e5",
+  "description": "Conectando galáxias, uma mensagem de cada vez.",
+  "icons": [
+    {
+      "src": "icon-192x192.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-192x192.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Astro Duel - Pedra, Papel e Tesoura</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --secondary-color: #7c3aed;
+            --winner-color: #22c55e;
+            --loser-color: #ef4444;
+            --draw-color: #eab308;
+        }
+        html, body {
+            overflow: hidden; /* Previne o scroll */
+        }
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background-color: #0f172a;
+            color: white;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .hud {
+            text-shadow: 0 0 5px var(--primary-color), 0 0 10px var(--primary-color);
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 0 20px var(--primary-color) inset;
+            flex-direction: column;
+        }
+        .game-button {
+            background-color: var(--primary-color);
+            border: 2px solid var(--secondary-color);
+            box-shadow: 0 0 10px var(--secondary-color);
+            transition: all 0.3s ease;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .game-button:hover:not(:disabled) {
+            background-color: var(--secondary-color);
+            box-shadow: 0 0 20px var(--secondary-color), 0 0 30px #ffffff;
+        }
+        .game-button:disabled {
+            background-color: #374151;
+            border-color: #4b5563;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        #countdown {
+            text-shadow: 0 0 10px #ffffff, 0 0 20px #ffffff, 0 0 30px var(--primary-color);
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        
+        .choice-card {
+            background-color: rgba(15, 23, 42, 0.5);
+            border: 2px solid var(--primary-color);
+            transition: all 0.3s ease;
+        }
+        .choice-card.winner { border-color: var(--winner-color); box-shadow: 0 0 15px var(--winner-color); }
+        .choice-card.loser { border-color: var(--loser-color); }
+        .choice-card.draw { border-color: var(--draw-color); }
+    </style>
+</head>
+<body class="flex items-center justify-center w-screen">
+
+    <div id="game-container" class="relative hidden w-full h-full flex-col items-center justify-center p-4">
+        <div id="hud" class="hud absolute top-4 left-0 right-0 p-4 flex justify-between items-center text-base sm:text-xl w-full max-w-4xl mx-auto">
+            <div id="player-score">Você: 0</div>
+            <div id="turn-indicator" class="text-center px-2"></div>
+            <div id="opponent-score">Oponente: 0</div>
+        </div>
+
+        <div id="game-area" class="w-full flex flex-col items-center justify-center">
+            <!-- Área de resultados da rodada -->
+            <div id="result-area" class="hidden w-full max-w-2xl flex justify-around items-center mb-8">
+                <div class="flex flex-col items-center">
+                    <h3 class="text-lg mb-2">Sua Jogada</h3>
+                    <div id="player-choice-card" class="choice-card w-28 h-28 sm:w-40 sm:h-40 rounded-lg flex items-center justify-center text-5xl sm:text-6xl"></div>
+                </div>
+                 <div class="flex flex-col items-center">
+                    <h3 class="text-lg mb-2">Oponente</h3>
+                    <div id="opponent-choice-card" class="choice-card w-28 h-28 sm:w-40 sm:h-40 rounded-lg flex items-center justify-center text-5xl sm:text-6xl"></div>
+                </div>
+            </div>
+             <p id="round-result-text" class="text-2xl sm:text-3xl font-bold my-4 h-10 text-center"></p>
+
+            <!-- Botões de escolha -->
+            <div id="choices-container" class="flex justify-center gap-4 sm:gap-6">
+                <button data-choice="pedra" class="choice-btn game-button rounded-full w-20 h-20 sm:w-28 sm:h-28 text-4xl sm:text-5xl flex items-center justify-center"><i class="fa-solid fa-hand-back-fist"></i></button>
+                <button data-choice="papel" class="choice-btn game-button rounded-full w-20 h-20 sm:w-28 sm:h-28 text-4xl sm:text-5xl flex items-center justify-center"><i class="fa-solid fa-hand"></i></button>
+                <button data-choice="tesoura" class="choice-btn game-button rounded-full w-20 h-20 sm:w-28 sm:h-28 text-4xl sm:text-5xl flex items-center justify-center"><i class="fa-solid fa-hand-scissors"></i></button>
+            </div>
+        </div>
+        
+        <div id="countdown-overlay" class="absolute inset-0 flex items-center justify-center bg-slate-900/80 hidden">
+            <h1 id="countdown" class="text-9xl font-bold"></h1>
+        </div>
+        <button id="exit-game-btn" class="absolute bottom-4 right-4 game-button py-2 px-4 rounded-md text-lg font-bold bg-red-600 border-red-800 hover:bg-red-700">Sair e Fechar</button>
+    </div>
+    
+    <div id="loading-screen" class="glass-panel p-6 sm:p-8 rounded-lg text-center w-full max-w-md mx-4 flex flex-col items-center">
+        <h1 class="text-4xl sm:text-5xl font-bold mb-6 hud">DUELO ASTROLÓGICO</h1>
+        <p class="text-lg animate-pulse">A conectar ao duelo...</p>
+    </div>
+
+    <div id="game-over-screen" class="glass-panel p-6 sm:p-8 rounded-lg text-center w-full max-w-md mx-4 hidden">
+        <h2 class="text-3xl sm:text-4xl font-bold mb-4 hud">FIM DE JOGO</h2>
+        <p id="winner-text" class="text-xl sm:text-2xl mb-6"></p>
+        <button id="close-btn" class="game-button w-full py-3 rounded-md text-xl font-bold">Sair e Fechar</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getDatabase, ref, set, onValue, get, serverTimestamp, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAxb2s4tzbtD1arG9UAf7UrzhFqbRrrsl8",
+            authDomain: "astro-642b6.firebaseapp.com",
+            databaseURL: "https://astro-642b6-default-rtdb.firebaseio.com",
+            projectId: "astro-642b6",
+            storageBucket: "astro-642b6.appspot.com",
+            messagingSenderId: "141832763492",
+            appId: "1:141832763492:web:c8f6a529849bab54ee8771"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        const DOMElements = {
+            gameContainer: document.getElementById('game-container'),
+            loadingScreen: document.getElementById('loading-screen'),
+            gameOverScreen: document.getElementById('game-over-screen'),
+            turnIndicator: document.getElementById('turn-indicator'),
+            countdownOverlay: document.getElementById('countdown-overlay'),
+            countdown: document.getElementById('countdown'),
+            winnerText: document.getElementById('winner-text'),
+            closeBtn: document.getElementById('close-btn'),
+            playerScore: document.getElementById('player-score'),
+            opponentScore: document.getElementById('opponent-score'),
+            resultArea: document.getElementById('result-area'),
+            playerChoiceCard: document.getElementById('player-choice-card'),
+            opponentChoiceCard: document.getElementById('opponent-choice-card'),
+            roundResultText: document.getElementById('round-result-text'),
+            choicesContainer: document.getElementById('choices-container'),
+            choiceBtns: document.querySelectorAll('.choice-btn'),
+            exitGameBtn: document.getElementById('exit-game-btn'),
+        };
+
+        let localPlayerId = `player_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        let gameId = null;
+        let gameState = {};
+        let gameRef = null;
+        let isGameActive = false;
+        let isGameOver = false;
+        let countdownInterval = null;
+        const COUNTDOWN_SECONDS = 3;
+        const WINNING_SCORE = 3;
+
+        const ICONS = {
+            pedra: '<i class="fa-solid fa-hand-back-fist"></i>',
+            papel: '<i class="fa-solid fa-hand"></i>',
+            tesoura: '<i class="fa-solid fa-hand-scissors"></i>',
+            default: '<i class="fa-solid fa-question"></i>',
+        };
+
+        const switchScreen = (screen) => {
+            ['loading', 'game', 'gameOver'].forEach(s => {
+                const element = DOMElements[`${s}Screen`] || DOMElements.gameContainer;
+                element.classList.toggle('hidden', s !== screen);
+                element.classList.toggle('flex', ['loading', 'gameOver', 'game'].includes(s));
+            });
+        };
+        
+        const initializeGame = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            gameId = urlParams.get('game')?.toUpperCase();
+            if (!gameId) {
+                document.body.innerHTML = `<div class="glass-panel p-8 rounded-lg text-center w-full max-w-md"><h1>ERRO</h1><p>Falta o código do jogo.</p></div>`;
+                return;
+            }
+
+            gameRef = ref(db, `games/rps/${gameId}`);
+            const snapshot = await get(gameRef);
+
+            if (snapshot.exists()) {
+                const currentGameState = snapshot.val();
+                if (Object.keys(currentGameState.players || {}).length < 2 && currentGameState.status === 'waiting') {
+                    const updates = {
+                        [`players/${localPlayerId}`]: { connected: true },
+                        status: 'countdown',
+                        countdownStart: serverTimestamp(),
+                    };
+                    await update(gameRef, updates);
+                } else {
+                    alert('Este duelo já está cheio ou em andamento.');
+                    window.close();
+                    return;
+                }
+            } else {
+                const newGame = {
+                    players: { [localPlayerId]: { connected: true } },
+                    score: { [localPlayerId]: 0 },
+                    status: 'waiting',
+                    hostId: localPlayerId,
+                };
+                await set(gameRef, newGame);
+            }
+            listenToGameStateChanges();
+        };
+
+        const listenToGameStateChanges = () => {
+            onValue(gameRef, (snapshot) => {
+                if (!snapshot.exists()) {
+                    if (isGameActive) handleGameEnd(true, "O duelo foi encerrado.");
+                    return;
+                }
+                const newState = snapshot.val();
+                if (!newState || !newState.players) return;
+
+                const wasGameJustStarted = !isGameActive;
+                gameState = newState;
+                isGameActive = true;
+
+                if (wasGameJustStarted) switchScreen('game');
+                
+                const numPlayers = Object.keys(gameState.players).length;
+                if (!isGameOver && numPlayers < 2 && ['playing', 'countdown', 'reveal'].includes(gameState.status)) {
+                    if (isGameActive) handleGameEnd(true, "O oponente desconectou-se.");
+                    return;
+                }
+
+                if (localPlayerId === gameState.hostId && gameState.status === 'playing') {
+                    const moves = gameState.moves || {};
+                    if (Object.keys(moves).length === 2) {
+                        determineRoundWinner();
+                    }
+                }
+                updateUI();
+            });
+        };
+
+        const handleChoiceClick = (choice) => {
+            if (gameState.status !== 'playing') return;
+            const updates = { [`moves/${localPlayerId}`]: choice };
+            update(gameRef, updates);
+            DOMElements.choiceBtns.forEach(btn => btn.disabled = true);
+            DOMElements.turnIndicator.textContent = "Aguardando oponente...";
+        };
+
+        const determineRoundWinner = async () => {
+            const playerIds = Object.keys(gameState.moves);
+            const p1_id = playerIds[0];
+            const p2_id = playerIds[1];
+            const p1_move = gameState.moves[p1_id];
+            const p2_move = gameState.moves[p2_id];
+
+            let winnerId = null;
+            if (p1_move === p2_move) {
+                winnerId = 'draw';
+            } else if (
+                (p1_move === 'pedra' && p2_move === 'tesoura') ||
+                (p1_move === 'tesoura' && p2_move === 'papel') ||
+                (p1_move === 'papel' && p2_move === 'pedra')
+            ) {
+                winnerId = p1_id;
+            } else {
+                winnerId = p2_id;
+            }
+            
+            const updates = { status: 'reveal', roundWinner: winnerId };
+            if (winnerId !== 'draw') {
+                const currentScore = gameState.score?.[winnerId] || 0;
+                updates[`score/${winnerId}`] = currentScore + 1;
+            }
+            await update(gameRef, updates);
+
+            setTimeout(async () => {
+                const latestSnapshot = await get(gameRef);
+                if (!latestSnapshot.exists()) return;
+                const latestState = latestSnapshot.val();
+                
+                const finalWinner = Object.keys(latestState.players).find(id => latestState.score?.[id] >= WINNING_SCORE);
+
+                if (finalWinner) {
+                    update(gameRef, { status: 'gameover', finalWinner: finalWinner });
+                } else {
+                    update(gameRef, { status: 'playing', moves: null, roundWinner: null });
+                }
+            }, 3000);
+        };
+        
+        const updateUI = () => {
+            const opponentId = Object.keys(gameState.players || {}).find(id => id !== localPlayerId);
+
+            DOMElements.playerScore.textContent = `Você: ${gameState.score?.[localPlayerId] || 0}`;
+            DOMElements.opponentScore.textContent = `Oponente: ${gameState.score?.[opponentId] || 0}`;
+
+            handleCountdown();
+
+            switch (gameState.status) {
+                case 'waiting':
+                    DOMElements.turnIndicator.textContent = "A aguardar oponente...";
+                    break;
+                case 'playing':
+                    DOMElements.turnIndicator.textContent = gameState.moves?.[localPlayerId] ? "Aguardando oponente..." : "Faça a sua jogada!";
+                    DOMElements.choicesContainer.classList.remove('hidden');
+                    DOMElements.resultArea.classList.add('hidden');
+                    DOMElements.roundResultText.textContent = '';
+                    DOMElements.choiceBtns.forEach(btn => btn.disabled = !!gameState.moves?.[localPlayerId]);
+                    break;
+                case 'reveal':
+                    const myMove = gameState.moves[localPlayerId];
+                    const opponentMove = gameState.moves[opponentId];
+                    DOMElements.choicesContainer.classList.add('hidden');
+                    DOMElements.resultArea.classList.remove('hidden');
+                    
+                    DOMElements.playerChoiceCard.innerHTML = ICONS[myMove] || ICONS.default;
+                    DOMElements.opponentChoiceCard.innerHTML = ICONS[opponentMove] || ICONS.default;
+
+                    const winner = gameState.roundWinner;
+                    ['playerChoiceCard', 'opponentChoiceCard'].forEach(key => DOMElements[key].className = 'choice-card w-28 h-28 sm:w-40 sm:h-40 rounded-lg flex items-center justify-center text-5xl sm:text-6xl');
+                    if (winner === 'draw') {
+                         DOMElements.roundResultText.textContent = "Empate!";
+                         DOMElements.playerChoiceCard.classList.add('draw');
+                         DOMElements.opponentChoiceCard.classList.add('draw');
+                    } else if (winner === localPlayerId) {
+                        DOMElements.roundResultText.textContent = "Você venceu a rodada!";
+                        DOMElements.playerChoiceCard.classList.add('winner');
+                        DOMElements.opponentChoiceCard.classList.add('loser');
+                    } else {
+                        DOMElements.roundResultText.textContent = "Você perdeu a rodada.";
+                        DOMElements.playerChoiceCard.classList.add('loser');
+                        DOMElements.opponentChoiceCard.classList.add('winner');
+                    }
+                    break;
+                case 'gameover':
+                    handleGameEnd();
+                    break;
+            }
+        };
+        
+        const handleCountdown = () => {
+             if (gameState.status === 'countdown' && typeof gameState.countdownStart === 'number') {
+                if (countdownInterval) return;
+                DOMElements.countdownOverlay.classList.remove('hidden');
+                countdownInterval = setInterval(() => {
+                    const remaining = (gameState.countdownStart + (COUNTDOWN_SECONDS * 1000)) - Date.now();
+                    if (remaining <= 0) {
+                        clearInterval(countdownInterval);
+                        countdownInterval = null;
+                        DOMElements.countdownOverlay.classList.add('hidden');
+                        if (localPlayerId === gameState.hostId) {
+                            const opponentId = Object.keys(gameState.players).find(id=>id!==localPlayerId);
+                            if (opponentId) {
+                                update(gameRef, { status: 'playing', score: {[localPlayerId]: 0, [opponentId]:0} });
+                            }
+                        }
+                    } else {
+                        DOMElements.countdown.textContent = Math.ceil(remaining / 1000);
+                    }
+                }, 250);
+            }
+        };
+
+        const handleGameEnd = (wasForced = false, message = "") => {
+            if (isGameOver) return;
+            isGameOver = true;
+            isGameActive = false;
+            
+            if(countdownInterval) clearInterval(countdownInterval);
+
+            DOMElements.winnerText.textContent = wasForced ? message : (gameState.finalWinner === localPlayerId ? "Parabéns, você venceu o duelo!" : "Você foi derrotado. Mais sorte na próxima!");
+            
+            switchScreen('gameOver');
+
+            if (localPlayerId === gameState.hostId && !wasForced) {
+                setTimeout(() => set(gameRef, null), 5000);
+            }
+        };
+        
+        const handleExitGame = async () => {
+            if (!gameRef) return;
+            const hostId = gameState?.hostId;
+            
+            if (localPlayerId === hostId) {
+                await set(gameRef, null); 
+            } else {
+                const playerRef = ref(db, `games/rps/${gameId}/players/${localPlayerId}`);
+                await set(playerRef, null); 
+            }
+        };
+
+        DOMElements.choiceBtns.forEach(btn => btn.addEventListener('click', () => handleChoiceClick(btn.dataset.choice)));
+        
+        const exitAndClose = async () => {
+            await handleExitGame();
+            window.close();
+        };
+
+        DOMElements.closeBtn.addEventListener('click', exitAndClose);
+        DOMElements.exitGameBtn.addEventListener('click', exitAndClose);
+        
+        // --- AJUSTE DE ALTURA RESPONSIVO ---
+        const setAppHeight = () => {
+            // Garante que a aplicação use a altura visível real da janela,
+            // evitando que a barra de navegação do telemóvel oculte o conteúdo.
+            document.body.style.height = `${window.innerHeight}px`;
+        };
+        window.addEventListener('resize', setAppHeight);
+        
+        setAppHeight(); // Define a altura inicial
+        initializeGame();
+
+    </script>
+</body>
+</html>
+

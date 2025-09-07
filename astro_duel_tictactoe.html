@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Astro Duel - Jogo da Velha</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --secondary-color: #7c3aed;
+            --winner-color: #22c55e;
+        }
+        html, body {
+            overflow: hidden;
+        }
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background-color: #0f172a;
+            color: white;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .hud {
+            text-shadow: 0 0 5px var(--primary-color), 0 0 10px var(--primary-color);
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 0 20px var(--primary-color) inset;
+        }
+        .game-button {
+            background-color: var(--primary-color);
+            border: 2px solid var(--secondary-color);
+            box-shadow: 0 0 10px var(--secondary-color);
+            transition: all 0.3s ease;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .game-button:hover:not(:disabled) {
+            background-color: var(--secondary-color);
+            box-shadow: 0 0 20px var(--secondary-color), 0 0 30px #ffffff;
+        }
+        #countdown {
+            text-shadow: 0 0 10px #ffffff, 0 0 20px #ffffff, 0 0 30px var(--primary-color);
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        
+        #tic-tac-toe-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            width: clamp(280px, 90vw, 450px);
+            aspect-ratio: 1 / 1;
+        }
+        .cell {
+            background-color: rgba(15, 23, 42, 0.5);
+            border: 2px solid var(--primary-color);
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: clamp(3rem, 18vw, 6rem);
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .cell:hover {
+            background-color: rgba(79, 70, 229, 0.3);
+        }
+        .cell.X {
+            color: var(--primary-color);
+            text-shadow: 0 0 10px var(--primary-color);
+        }
+        .cell.O {
+            color: var(--secondary-color);
+            text-shadow: 0 0 10px var(--secondary-color);
+        }
+        .cell.win {
+            background-color: var(--winner-color);
+            animation: win-pulse 0.5s infinite alternate;
+        }
+        @keyframes win-pulse {
+            from { box-shadow: 0 0 10px var(--winner-color); }
+            to { box-shadow: 0 0 30px var(--winner-color); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center w-screen">
+
+    <div id="game-container" class="relative hidden w-full h-full flex-col items-center justify-center p-4">
+        <div id="hud" class="hud absolute top-4 left-0 right-0 p-4 flex justify-center items-center text-lg sm:text-2xl w-full max-w-4xl mx-auto">
+            <p id="turn-indicator" class="text-center"></p>
+        </div>
+
+        <div id="tic-tac-toe-board"></div>
+        
+        <div id="countdown-overlay" class="absolute inset-0 flex items-center justify-center bg-slate-900/80 hidden">
+            <h1 id="countdown" class="text-9xl font-bold"></h1>
+        </div>
+        <button id="exit-game-btn" class="absolute bottom-4 right-4 game-button py-2 px-4 rounded-md text-lg font-bold bg-red-600 border-red-800 hover:bg-red-700">Sair e Fechar</button>
+    </div>
+    
+    <div id="loading-screen" class="glass-panel p-6 sm:p-8 rounded-lg text-center w-full max-w-md mx-4 flex flex-col items-center">
+        <h1 class="text-4xl sm:text-5xl font-bold mb-6 hud">DUELO DA VELHA</h1>
+        <p class="text-lg animate-pulse">A conectar ao duelo...</p>
+    </div>
+
+    <div id="game-over-screen" class="glass-panel p-6 sm:p-8 rounded-lg text-center w-full max-w-md mx-4 hidden">
+        <h2 class="text-3xl sm:text-4xl font-bold mb-4 hud">FIM DE JOGO</h2>
+        <p id="winner-text" class="text-xl sm:text-2xl mb-6"></p>
+        <button id="close-btn" class="game-button w-full py-3 rounded-md text-xl font-bold">Sair e Fechar</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getDatabase, ref, set, onValue, get, serverTimestamp, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAxb2s4tzbtD1arG9UAf7UrzhFqbRrrsl8",
+            authDomain: "astro-642b6.firebaseapp.com",
+            databaseURL: "https://astro-642b6-default-rtdb.firebaseio.com",
+            projectId: "astro-642b6",
+            storageBucket: "astro-642b6.appspot.com",
+            messagingSenderId: "141832763492",
+            appId: "1:141832763492:web:c8f6a529849bab54ee8771"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        const DOMElements = {
+            gameContainer: document.getElementById('game-container'),
+            loadingScreen: document.getElementById('loading-screen'),
+            gameOverScreen: document.getElementById('game-over-screen'),
+            turnIndicator: document.getElementById('turn-indicator'),
+            countdownOverlay: document.getElementById('countdown-overlay'),
+            countdown: document.getElementById('countdown'),
+            winnerText: document.getElementById('winner-text'),
+            closeBtn: document.getElementById('close-btn'),
+            board: document.getElementById('tic-tac-toe-board'),
+            exitGameBtn: document.getElementById('exit-game-btn'),
+        };
+
+        let localPlayerId = `player_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        let gameId = null;
+        let gameState = {};
+        let gameRef = null;
+        let isGameActive = false;
+        let isGameOver = false;
+        let countdownInterval = null;
+        const COUNTDOWN_SECONDS = 3;
+
+        const switchScreen = (screen) => {
+            const screens = {
+                loading: DOMElements.loadingScreen,
+                game: DOMElements.gameContainer,
+                gameOver: DOMElements.gameOverScreen
+            };
+
+            Object.entries(screens).forEach(([key, element]) => {
+                if (key === screen) {
+                    element.classList.remove('hidden');
+                    element.classList.add('flex', 'flex-col');
+                } else {
+                    element.classList.add('hidden');
+                    element.classList.remove('flex', 'flex-col');
+                }
+            });
+        };
+        
+        const initializeGame = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            gameId = urlParams.get('game')?.toUpperCase();
+            if (!gameId) {
+                document.body.innerHTML = `<div class="glass-panel p-8 rounded-lg text-center w-full max-w-md"><h1>ERRO</h1><p>Falta o código do jogo.</p></div>`;
+                return;
+            }
+
+            gameRef = ref(db, `games/tictactoe/${gameId}`);
+            const snapshot = await get(gameRef);
+
+            if (snapshot.exists()) {
+                const currentGameState = snapshot.val();
+                if (Object.keys(currentGameState.players || {}).length < 2 && currentGameState.status === 'waiting') {
+                    // O jogador convidado entra aqui
+                    const updates = {
+                        [`players/${localPlayerId}`]: { symbol: 'O' },
+                        status: 'countdown',
+                        countdownStart: serverTimestamp(),
+                        currentPlayerId: localPlayerId, // Define o convidado como o primeiro a jogar
+                    };
+                    await update(gameRef, updates);
+                } else {
+                    alert('Este duelo já está cheio ou em andamento.');
+                    window.close();
+                    return;
+                }
+            } else {
+                // O anfitrião cria o jogo aqui
+                const newGame = {
+                    board: Array(9).fill(null),
+                    players: { [localPlayerId]: { symbol: 'X' } },
+                    // O primeiro a jogar será definido quando o convidado entrar
+                    status: 'waiting',
+                    hostId: localPlayerId,
+                };
+                await set(gameRef, newGame);
+            }
+            listenToGameStateChanges();
+        };
+
+        const listenToGameStateChanges = () => {
+            onValue(gameRef, (snapshot) => {
+                if (!snapshot.exists()) {
+                    if (isGameActive) handleGameEnd(true, "O duelo foi encerrado.");
+                    return;
+                }
+                const newState = snapshot.val();
+                if (!newState || !newState.players) return;
+
+                gameState = newState;
+                isGameActive = true;
+                
+                // Garante que a tela correta seja exibida com base no status do jogo
+                if (['playing', 'countdown', 'waiting'].includes(gameState.status)) {
+                    switchScreen('game');
+                }
+
+                const numPlayers = Object.keys(gameState.players).length;
+                if (!isGameOver && numPlayers < 2 && ['playing', 'countdown'].includes(gameState.status)) {
+                    if (isGameActive) handleGameEnd(true, "O oponente desconectou-se.");
+                    return;
+                }
+
+                if (localPlayerId === gameState.hostId && gameState.status === 'playing') {
+                    checkWinCondition();
+                }
+                updateUI();
+            });
+        };
+
+        const handleCellClick = (index) => {
+            if (isGameOver || gameState.status !== 'playing' || gameState.currentPlayerId !== localPlayerId || gameState.board[index] !== null) {
+                return;
+            }
+            const opponentId = Object.keys(gameState.players).find(id => id !== localPlayerId);
+            const updates = {
+                [`board/${index}`]: gameState.players[localPlayerId].symbol,
+                currentPlayerId: opponentId
+            };
+            update(gameRef, updates);
+        };
+
+        const checkWinCondition = () => {
+            if (!gameState.board) {
+                return;
+            }
+            const board = gameState.board;
+            const lines = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8],
+                [0, 3, 6], [1, 4, 7], [2, 5, 8],
+                [0, 4, 8], [2, 4, 6]
+            ];
+
+            for (const line of lines) {
+                const [a, b, c] = line;
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                    const winnerSymbol = board[a];
+                    const winnerId = Object.keys(gameState.players).find(id => gameState.players[id].symbol === winnerSymbol);
+                    update(gameRef, { status: 'gameover', winnerId: winnerId, winningLine: line });
+                    return;
+                }
+            }
+
+            if (!board.includes(null)) {
+                update(gameRef, { status: 'gameover', winnerId: 'draw' });
+            }
+        };
+        
+        const updateUI = () => {
+            drawBoard();
+            updateHUD();
+            handleCountdown();
+            if (gameState.status === 'gameover') {
+                handleGameEnd();
+            }
+        };
+        
+        const drawBoard = () => {
+            DOMElements.board.innerHTML = '';
+            (gameState.board || []).forEach((cell, index) => {
+                const cellEl = document.createElement('div');
+                cellEl.className = `cell ${cell || ''}`;
+                cellEl.textContent = cell;
+                if (gameState.winningLine?.includes(index)) {
+                    cellEl.classList.add('win');
+                }
+                cellEl.addEventListener('click', () => handleCellClick(index));
+                DOMElements.board.appendChild(cellEl);
+            });
+        };
+
+        const updateHUD = () => {
+            switch (gameState.status) {
+                case 'waiting':
+                    DOMElements.turnIndicator.textContent = "A aguardar oponente...";
+                    break;
+                case 'countdown':
+                    DOMElements.turnIndicator.textContent = "O duelo vai começar!";
+                    break;
+                case 'playing':
+                    const mySymbol = gameState.players[localPlayerId]?.symbol;
+                    DOMElements.turnIndicator.textContent = gameState.currentPlayerId === localPlayerId ? `É a sua vez (${mySymbol})` : "Aguardando oponente...";
+                    break;
+            }
+        };
+        
+        const handleCountdown = () => {
+             if (gameState.status === 'countdown' && typeof gameState.countdownStart === 'number') {
+                if (countdownInterval) return;
+                DOMElements.countdownOverlay.classList.remove('hidden');
+                countdownInterval = setInterval(() => {
+                    const remaining = (gameState.countdownStart + (COUNTDOWN_SECONDS * 1000)) - Date.now();
+                    if (remaining <= 0) {
+                        clearInterval(countdownInterval);
+                        countdownInterval = null;
+                        DOMElements.countdownOverlay.classList.add('hidden');
+                        if (localPlayerId === gameState.hostId) {
+                            update(gameRef, { status: 'playing' });
+                        }
+                    } else {
+                        DOMElements.countdown.textContent = Math.ceil(remaining / 1000);
+                    }
+                }, 250);
+            }
+        };
+
+        const handleGameEnd = (wasForced = false, message = "") => {
+            if (isGameOver) return;
+            isGameOver = true;
+            isGameActive = false;
+            
+            if(countdownInterval) clearInterval(countdownInterval);
+
+            if (wasForced) {
+                DOMElements.winnerText.textContent = message;
+            } else if (gameState.winnerId === 'draw') {
+                DOMElements.winnerText.textContent = "Empate!";
+            } else {
+                DOMElements.winnerText.textContent = gameState.winnerId === localPlayerId ? "Parabéns, você venceu o duelo!" : "Você foi derrotado!";
+            }
+            
+            switchScreen('gameOver');
+
+            if (localPlayerId === gameState.hostId && !wasForced) {
+                setTimeout(() => set(gameRef, null), 5000);
+            }
+        };
+        
+        const handleExitGame = async () => {
+            if (!gameRef) return;
+            const hostId = gameState?.hostId;
+            
+            if (localPlayerId === hostId) {
+                await set(gameRef, null); 
+            } else {
+                const playerRef = ref(db, `games/tictactoe/${gameId}/players/${localPlayerId}`);
+                await set(playerRef, null); 
+            }
+        };
+        
+        const exitAndClose = async () => {
+            await handleExitGame();
+            window.close();
+        };
+
+        DOMElements.closeBtn.addEventListener('click', exitAndClose);
+        DOMElements.exitGameBtn.addEventListener('click', exitAndClose);
+        
+        const setAppHeight = () => {
+            document.body.style.height = `${window.innerHeight}px`;
+        };
+        window.addEventListener('resize', setAppHeight);
+        
+        setAppHeight();
+        initializeGame();
+
+    </script>
+</body>
+</html>
+
