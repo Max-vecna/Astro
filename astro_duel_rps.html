@@ -156,6 +156,7 @@
         let countdownInterval = null;
         const COUNTDOWN_SECONDS = 3;
         const WINNING_SCORE = 3;
+        const OPPONENT_WAIT_TIMEOUT = 30000;
 
         const ICONS = {
             pedra: '<i class="fa-solid fa-hand-back-fist"></i>',
@@ -216,6 +217,14 @@
                     hostId: localPlayerId,
                 };
                 await set(gameRef, newGame);
+                setTimeout(async () => {
+                    const currentSnapshot = await get(gameRef);
+                    if (currentSnapshot.exists() && Object.keys(currentSnapshot.val().players || {}).length < 2) {
+                        alert("O oponente não conectou-se a tempo. O duelo foi cancelado.");
+                        await set(gameRef, null);
+                        window.close();
+                    }
+                }, OPPONENT_WAIT_TIMEOUT);
             }
             listenToGameStateChanges();
         };
@@ -229,13 +238,18 @@
                 const newState = snapshot.val();
                 if (!newState || !newState.players) return;
 
-                const wasGameJustStarted = !isGameActive;
                 gameState = newState;
-                isGameActive = true;
-
-                if (wasGameJustStarted) switchScreen('game');
                 
                 const numPlayers = Object.keys(gameState.players).length;
+                if (numPlayers < 2 && gameState.status === 'waiting') {
+                    return;
+                }
+                
+                if (!isGameActive && numPlayers === 2) {
+                    switchScreen('game');
+                    isGameActive = true;
+                }
+                
                 if (!isGameOver && numPlayers < 2 && ['playing', 'countdown', 'reveal'].includes(gameState.status)) {
                     if (isGameActive) handleGameEnd(true, "O oponente desconectou-se.");
                     return;
@@ -291,7 +305,7 @@
                 if (!latestSnapshot.exists()) return;
                 const latestState = latestSnapshot.val();
                 
-                const finalWinner = Object.keys(latestState.players).find(id => latestState.score?.[id] >= WINNING_SCORE);
+                const finalWinner = Object.keys(latestState.players).find(id => (latestState.score?.[id] || 0) >= WINNING_SCORE);
 
                 if (finalWinner) {
                     update(gameRef, { status: 'gameover', finalWinner: finalWinner });
@@ -302,6 +316,8 @@
         };
         
         const updateUI = () => {
+            if(!isGameActive) return;
+
             const opponentId = Object.keys(gameState.players || {}).find(id => id !== localPlayerId);
 
             DOMElements.playerScore.textContent = `Você: ${gameState.score?.[localPlayerId] || 0}`;
@@ -346,7 +362,7 @@
                     }
                     break;
                 case 'gameover':
-                    handleGameEnd();
+                    if(!isGameOver) handleGameEnd();
                     break;
             }
         };
@@ -385,11 +401,11 @@
                 let resultText = "O duelo terminou.";
                 if (wasForced) {
                     resultText = message || "O oponente desconectou-se.";
-                } else {
+                } else if (gameState.finalWinner) {
                     const winnerNickname = gameState.players[gameState.finalWinner]?.nickname;
                     const loserId = Object.keys(gameState.players).find(id => id !== gameState.finalWinner);
                     const loserNickname = gameState.players[loserId]?.nickname;
-                    resultText = `⚔️ ${winnerNickname} venceu o duelo contra ${loserNickname}!`;
+                    resultText = `🏆 ${winnerNickname} venceu o duelo de Pedra, Papel e Tesoura contra ${loserNickname}!`;
                 }
 
                 if (roomCode) {
@@ -407,9 +423,9 @@
                 await set(gameRef, null);
             }
             
-            window.close();
+            setTimeout(() => window.close(), 3000);
         };
-
+        
         DOMElements.choiceBtns.forEach(btn => btn.addEventListener('click', () => handleChoiceClick(btn.dataset.choice)));
         
         const setAppHeight = () => {
@@ -423,3 +439,4 @@
     </script>
 </body>
 </html>
+

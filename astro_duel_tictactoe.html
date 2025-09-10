@@ -148,6 +148,7 @@
         let isGameOver = false;
         let countdownInterval = null;
         const COUNTDOWN_SECONDS = 3;
+        const OPPONENT_WAIT_TIMEOUT = 30000; // 30 segundos
 
         const switchScreen = (screen) => {
             DOMElements.loadingScreen.classList.add('hidden');
@@ -202,6 +203,14 @@
                     hostId: localPlayerId,
                 };
                 await set(gameRef, newGame);
+                setTimeout(async () => {
+                    const currentSnapshot = await get(gameRef);
+                    if (currentSnapshot.exists() && Object.keys(currentSnapshot.val().players || {}).length < 2) {
+                        alert("O oponente não conectou-se a tempo. O duelo foi cancelado.");
+                        await set(gameRef, null);
+                        window.close();
+                    }
+                }, OPPONENT_WAIT_TIMEOUT);
             }
             listenToGameStateChanges();
         };
@@ -215,7 +224,6 @@
                 const newState = snapshot.val();
                 if (!newState || !newState.players) return;
 
-                // Garante que o tabuleiro seja sempre um array completo
                 const boardData = newState.board || {};
                 const newBoard = Array(9).fill(null);
                 for (let i = 0; i < 9; i++) {
@@ -226,12 +234,16 @@
                 newState.board = newBoard;
                 gameState = newState;
                 
-                if (!isGameActive) {
-                    switchScreen('game');
-                }
-                isGameActive = true;
-
                 const numPlayers = Object.keys(gameState.players).length;
+                if (numPlayers < 2 && gameState.status === 'waiting') {
+                    return;
+                }
+
+                if (!isGameActive && numPlayers === 2) {
+                    switchScreen('game');
+                    isGameActive = true;
+                }
+
                 if (!isGameOver && numPlayers < 2 && ['playing', 'countdown'].includes(gameState.status)) {
                     if (isGameActive) handleGameEnd(true, "O oponente desconectou-se.");
                     return;
@@ -248,10 +260,10 @@
             if (isGameOver || gameState.status !== 'playing' || gameState.currentPlayerId !== localPlayerId || gameState.board[index] !== null) {
                 return;
             }
-            if(Object.keys(gameState.players).length < 2) return; // Proteção extra
+            if(Object.keys(gameState.players).length < 2) return;
 
             const opponentId = Object.keys(gameState.players).find(id => id !== localPlayerId);
-            if (!opponentId) return; // Garante que o oponente exista
+            if (!opponentId) return;
 
             const updates = {
                 [`board/${index}`]: gameState.players[localPlayerId].symbol,
@@ -304,8 +316,11 @@
                 const contentSpan = document.createElement('span');
                 if (cell) {
                     contentSpan.className = cell;
+                    contentSpan.textContent = cell;
+                } else {
+                    contentSpan.style.visibility = 'hidden';
+                    contentSpan.textContent = 'X';
                 }
-                contentSpan.textContent = cell;
                 cellEl.appendChild(contentSpan);
 
                 if (gameState.winningLine?.includes(index)) {
@@ -387,7 +402,7 @@
                 await set(gameRef, null);
             }
             
-            setTimeout(() => window.close(), 1000); // Dá um segundo para a exclusão propagar
+            setTimeout(() => window.close(), 3000);
         };
         
         const setAppHeight = () => {
