@@ -226,43 +226,33 @@
   // Gerencia o estado de conexão do próprio usuário
   onValue(connectedRef, (snap) => {
     if (snap.val() === true) {
-      // Se estamos conectados (internet ok), verificamos a visibilidade da página
       updatePresence();
-      
-      // Garante que se a internet cair ou fechar a aba, o user sai da lista
       onDisconnect(presenceRef).remove();
     }
   });
 
-  // Função que atualiza o status baseado na visibilidade da aba
   function updatePresence() {
     if (document.visibilityState === 'visible') {
-        // Aba em foco: Estou Online
         set(presenceRef, { 
             online: true, 
             lastChanged: Date.now() 
         });
     } else {
-        // Aba minimizada/fundo: Remove da lista (finge que saiu)
         remove(presenceRef);
     }
   }
 
-  // Ouve mudanças de visibilidade (mudança de aba, minimizar app)
   document.addEventListener("visibilitychange", updatePresence);
 
-  // Ouve a lista de todos os usuários online para atualizar o contador
   onValue(presenceListRef, (snap) => {
-      const count = snap.size; // snap.size retorna o número de filhos (usuários)
+      const count = snap.size; 
       
       if (count > 0) {
           presenceBadge.classList.remove('hidden');
           presenceBadge.classList.add('flex');
-          // Texto dinâmico
           const text = count === 1 ? "Só você" : `${count} Online`;
           onlineCountEl.textContent = text;
       } else {
-          // Fallback raro
           presenceBadge.classList.add('hidden');
       }
   });
@@ -366,13 +356,45 @@
     document.getElementById("modal").style.display = "none";
   }
 
-  async function traduzir(texto, langCode = TARGET_LANG) {
+  // Wrapper para Fetch com Timeout
+  async function fetchWithTimeout(resource, options = {}) {
+    const { timeout = 5000 } = options;
+    
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    
+    try {
+      const response = await fetch(resource, {
+        ...options,
+        signal: controller.signal  
+      });
+      clearTimeout(id);
+      return response;
+    } catch (error) {
+      clearTimeout(id);
+      throw error;
+    }
+  }
+
+  // Função de Tradução com Retry e Timeout
+  async function traduzir(texto, langCode = TARGET_LANG, tentarNovamente = true) {
     const idioma = langCode === "pt" ? "português" : "árabe";
     const prompt = encodeURIComponent(`traduza apenas para ${idioma}: ${texto}. responda apenas com a tradução`);
+    const url = `https://text.pollinations.ai/${prompt}`;
+
     try {
-        const res = await fetch(`https://text.pollinations.ai/${prompt}`);
+        // Tenta buscar com timeout de 5 segundos
+        const res = await fetchWithTimeout(url, { timeout: 5000 });
+        if (!res.ok) throw new Error("Erro na API");
         return await res.text();
     } catch(e) {
+        // Se falhar (timeout ou erro), tenta mais uma vez se 'tentarNovamente' for true
+        if (tentarNovamente) {
+            console.warn("Falha na tradução (timeout/erro), tentando novamente...", e);
+            // Chama recursivamente com false para não entrar em loop infinito
+            return await traduzir(texto, langCode, false);
+        }
+        // Se falhar na segunda tentativa, retorna o texto original
         return texto;
     }
   }
@@ -380,9 +402,13 @@
   async function gerarVariacoes(texto, qtd = 3) {
     const idioma = TARGET_LANG === "pt" ? "português" : "árabe";
     const prompt = encodeURIComponent(`gere ${qtd} variações diferentes de tradução para ${idioma} (seja criativo): "${texto}". responda apenas as variações em linhas separadas sem numeração.`);
-    const res = await fetch(`https://text.pollinations.ai/${prompt}?seed=${Math.random()}`);
-    const txt = await res.text();
-    return txt.split("\n").filter(l => l.trim().length > 0).map(l => l.replace(/^[-*•]\s*/, ''));
+    try {
+      const res = await fetch(`https://text.pollinations.ai/${prompt}?seed=${Math.random()}`);
+      const txt = await res.text();
+      return txt.split("\n").filter(l => l.trim().length > 0).map(l => l.replace(/^[-*•]\s*/, ''));
+    } catch(e) {
+      throw e;
+    }
   }
 
   const fila = [];
@@ -394,6 +420,7 @@
 
     const item = fila.pop();
     try {
+      // Chama a função de tradução atualizada
       const traduzido = await traduzir(item.texto, item.lang);
       item.element.textContent = traduzido;
 
@@ -403,7 +430,7 @@
         await update(ref(db, `salas/${SALA_ID}/mensagens/${item.key}/traducoes`), updates);
       }
     } catch (e) {
-      item.element.textContent = "Erro na tradução";
+      item.element.textContent = item.texto; // Fallback para texto original
     }
 
     processando = false;
@@ -572,5 +599,4 @@
   };
 </script>
 </body>
-
 </html>
