@@ -5,18 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Chat Global – Sala Fixa</title>
   <script src="https://cdn.tailwindcss.com"></script>
+
   <style>
     body { font-family: Inter, system-ui, sans-serif; }
 
-    /* Balões acompanham o tamanho do texto */
-        .message { max-width: 85%; padding: 10px 14px; border-radius: 16px; word-wrap: break-word;width: fit-content; }
+    .message {
+      max-width: 85%;
+      padding: 10px 14px;
+      border-radius: 16px;
+      word-wrap: break-word;
+      width: fit-content;
+    }
 
-
-    .sent { background:#3b82f6; color:#fff; margin-left:auto; }
-    .received { background:#e5e7eb; color:#111827; margin-right:auto; }
+    .sent { background: #3b82f6; color: #fff; margin-left: auto; }
+    .received { background: #e5e7eb; color: #111827; margin-right: auto; }
 
     .original { font-size: 0.7rem; opacity: 0.6; margin-top: 4px; }
     .time { font-size: 0.65rem; opacity: 0.5; margin-top: 2px; text-align: right; }
+    .variant-btn { font-size: 0.65rem; opacity: 0.7; margin-top: 4px; cursor: pointer; text-decoration: underline; }
+
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 50; }
+    .modal-content { background: #fff; max-width: 90%; width: 420px; border-radius: 12px; padding: 16px; }
 
     @media (max-width: 640px) {
       .message { max-width: 95%; font-size: 0.95rem; }
@@ -26,52 +35,49 @@
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
 
-  <div class="w-full max-w-lg bg-white sm:rounded-xl shadow-xl flex flex-col h-screen sm:h-[90vh]">
+<div class="w-full max-w-lg bg-white sm:rounded-xl shadow-xl flex flex-col h-screen sm:h-[90vh]">
 
-    <!-- Header -->
-    <div class="p-4 border-b flex justify-between items-center">
-      <h1 class="font-bold text-lg">Sala Principal</h1>
-      <span id="status" class="text-xs text-gray-500">Conectado</span>
-    </div>
-
-    <!-- Idioma -->
-    <div class="p-2 border-b flex items-center justify-between text-sm">
-      <span>Traduzir para:</span>
-      <select id="lang" class="border rounded p-1">
-        <option value="pt">Português</option>
-        <option value="ar">Árabe</option>
-      </select>
-    </div>
-
-    <!-- Chat -->
-    <div id="chat" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
-
-    <!-- Envio -->
-    <div class="p-3 border-t flex gap-2 items-center">
-        <input id="msg" placeholder="Digite sua mensagem" class="flex-1 p-2 border rounded" />
-        <button id="send" class="bg-blue-500 text-white w-10 h-10 flex items-center justify-center rounded-full">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3 21l18-9L3 3l3 9zm0 0h6" />
-            </svg>
-        </button>
-    </div>
-
+  <div class="p-4 border-b flex justify-between items-center">
+    <h1 class="font-bold text-lg">Sala Principal</h1>
+    <span id="status" class="text-xs text-gray-500"></span>
   </div>
+
+  <div class="p-2 border-b flex items-center justify-between text-sm">
+    <span>Traduzir para:</span>
+    <select id="lang" class="border rounded p-1">
+      <option value="pt">Português</option>
+      <option value="ar">Árabe</option>
+    </select>
+  </div>
+
+  <div id="chat" class="flex-1 overflow-y-auto p-3 space-y-2 relative">
+    <div id="loadingOld" class="absolute top-2 left-1/2 -translate-x-1/2 text-xs text-gray-500 hidden">
+      Carregando mensagens antigas…
+    </div>
+  </div>
+
+  <div class="p-3 border-t flex gap-2 items-center">
+    <input id="msg" placeholder="Digite sua mensagem" class="flex-1 p-2 border rounded" />
+    <button id="send" class="bg-blue-500 text-white w-10 h-10 flex items-center justify-center rounded-full">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3 21l18-9L3 3l3 9zm0 0h6" />
+        </svg>
+    </button>
+  </div>
+</div>
+
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <h2 class="font-bold mb-2">Variações da tradução</h2>
+    <ul id="variants" class="text-sm space-y-2"></ul>
+    <button id="closeModal" class="mt-3 text-blue-500 text-sm">Fechar</button>
+  </div>
+</div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-  import {
-    getDatabase,
-    ref,
-    push,
-    onChildAdded,
-    set,
-    get,
-    query,
-    orderByChild
-  } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+  import { getDatabase, ref, push, onChildAdded, set, get, query, orderByChild } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
-  /* Firebase */
   const firebaseConfig = {
     apiKey: "AIzaSyAxb2s4tzbtD1arG9UAf7UrzhFqbRrrsl8",
     authDomain: "astro-642b6.firebaseapp.com",
@@ -84,10 +90,8 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
-
   const SALA_ID = "sala_fixa";
 
-  /* Nick automático */
   let nick = localStorage.getItem("chat_nick");
   if (!nick) {
     nick = "User-" + Math.floor(Math.random() * 9000 + 1000);
@@ -95,7 +99,6 @@
   }
   document.getElementById("status").textContent = nick;
 
-  /* Idioma */
   let TARGET_LANG = localStorage.getItem("chat_lang") || "pt";
   const langSelect = document.getElementById("lang");
   langSelect.value = TARGET_LANG;
@@ -104,49 +107,56 @@
     localStorage.setItem("chat_lang", TARGET_LANG);
   };
 
-  /* Criar sala fixa */
   const salaRef = ref(db, `salas/${SALA_ID}`);
-  const salaSnap = await get(salaRef);
-  if (!salaSnap.exists()) {
+  if (!(await get(salaRef)).exists()) {
     await set(salaRef, { nome: "Sala Principal", criadaEm: Date.now() });
   }
-
-  /* Referência ordenada corretamente */
-  const chatRef = query(
-    ref(db, `salas/${SALA_ID}/mensagens`),
-    orderByChild("timestamp")
-  );
 
   const chatEl = document.getElementById("chat");
   const msgEl = document.getElementById("msg");
 
-  /* Tradução */
   async function traduzir(texto) {
     const idioma = TARGET_LANG === "pt" ? "português" : "árabe";
-    const prompt = encodeURIComponent(
-      `traduza para ${idioma}: ${texto}. responda apenas com a tradução`
-    );
+    const prompt = encodeURIComponent(`traduza para ${idioma}: ${texto}. responda apenas com a tradução`);
     const res = await fetch(`https://text.pollinations.ai/${prompt}`);
     return await res.text();
   }
 
-  /* Listener SEM await (ordem garantida) */
-  chatEl.innerHTML = "";
+  async function gerarVariacoes(texto, qtd = 3) {
+    const idioma = TARGET_LANG === "pt" ? "português" : "árabe";
+    const prompt = encodeURIComponent(`gere ${qtd} variações diferentes de tradução para ${idioma}: ${texto}. responda em linhas separadas`);
+    const res = await fetch(`https://text.pollinations.ai/${prompt}`);
+    const txt = await res.text();
+    return txt.split("\n").filter(l => l.trim());
+  }
 
-  onChildAdded(chatRef, snap => {
-    const { nick: from, texto, timestamp } = snap.val();
+  const fila = [];
+  let processando = false;
+
+  async function processarFila() {
+    if (processando || fila.length === 0) return;
+    processando = true;
+
+    const item = fila.pop();
+    try {
+      const traduzido = await traduzir(item.texto);
+      item.element.textContent = traduzido;
+    } catch {
+      item.element.textContent = "Erro na tradução";
+    }
+
+    processando = false;
+    setTimeout(processarFila, 400);
+  }
+
+  function renderMensagem(data) {
+    const { nick: from, texto, timestamp } = data;
 
     const div = document.createElement("div");
     div.className = `message ${from === nick ? 'sent' : 'received'}`;
 
     const content = document.createElement("div");
     content.textContent = from === nick ? texto : "traduzindo...";
-
-    const time = document.createElement("div");
-    time.className = "time";
-    time.textContent = new Date(timestamp)
-      .toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
     div.appendChild(content);
 
     if (from !== nick) {
@@ -155,17 +165,34 @@
       original.textContent = texto;
       div.appendChild(original);
 
-      traduzir(texto).then(traduzido => {
-        content.textContent = traduzido;
-      });
+      const varBtn = document.createElement("div");
+      varBtn.className = "variant-btn";
+      varBtn.textContent = "Ver variações";
+      varBtn.onclick = async () => {
+        document.getElementById("variants").innerHTML = "<li>Gerando variações…</li>";
+        document.getElementById("modal").style.display = "flex";
+        const vars = await gerarVariacoes(texto);
+        document.getElementById("variants").innerHTML = vars.map(v => `<li>• ${v}</li>`).join("");
+      };
+      div.appendChild(varBtn);
+
+      fila.push({ texto, element: content });
+      processarFila();
     }
+
+    const time = document.createElement("div");
+    time.className = "time";
+    time.textContent = new Date(timestamp).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' });
 
     div.appendChild(time);
     chatEl.appendChild(div);
     chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  onChildAdded(query(ref(db, `salas/${SALA_ID}/mensagens`), orderByChild("timestamp")), snap => {
+    renderMensagem(snap.val());
   });
 
-  /* Enviar */
   document.getElementById("send").onclick = () => {
     const texto = msgEl.value.trim();
     if (!texto) return;
@@ -178,7 +205,10 @@
 
     msgEl.value = "";
   };
-</script>
 
+  document.getElementById("closeModal").onclick = () => {
+    document.getElementById("modal").style.display = "none";
+  };
+</script>
 </body>
 </html>
