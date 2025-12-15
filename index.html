@@ -61,10 +61,10 @@
     
     .variant-btn { 
         position: absolute;
-        bottom: -8px;
-        right: -8px;
-        width: 24px;
-        height: 24px;
+        bottom: -10px;
+        right: -10px;
+        width: 26px;
+        height: 26px;
         background: #6b7280;
         color: #fff;
         border-radius: 50%;
@@ -72,12 +72,14 @@
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-        transition: background-color 0.15s;
-        z-index: 10;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        transition: all 0.2s;
+        z-index: 20;
+        border: 2px solid #fff;
     }
     .variant-btn:hover {
         background: #2563eb;
+        transform: scale(1.1);
     }
 
     .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 50; }
@@ -95,14 +97,13 @@
 
     .variant-item {
         cursor: pointer;
-        padding: 10px;
+        padding: 12px;
         margin-bottom: 4px;
-        border-radius: 6px;
+        border-radius: 8px;
         transition: background-color 0.15s;
-        border-bottom: 1px solid #f3f4f6;
+        border: 1px solid #f3f4f6;
     }
-    .variant-item:last-child { border-bottom: none; }
-    .variant-item:hover { background-color: #f3f4f6; }
+    .variant-item:hover { background-color: #f0f9ff; border-color: #3b82f6; }
 
     /* Animação do indicador online */
     @keyframes pulse-green {
@@ -164,20 +165,21 @@
   </div>
 </div>
 
+<!-- Modal de Variações -->
 <div id="modal" class="modal">
-  <div class="modal-content">
-    <h2 class="font-bold mb-1 shrink-0 text-gray-800">Variações da tradução</h2>
-    <p class="text-xs text-gray-500 mb-3 shrink-0">Clique em uma opção para substituir a mensagem.</p>
+  <div class="modal-content shadow-2xl">
+    <h2 class="font-bold text-lg mb-1 shrink-0 text-gray-800">Escolha uma tradução</h2>
+    <p class="text-xs text-gray-500 mb-4 shrink-0">Selecione a melhor opção para substituir a mensagem.</p>
     
-    <ul id="variants" class="text-sm space-y-1 selectable overflow-y-auto flex-1 pr-1 custom-scrollbar" style="min-height: 100px;"></ul>
+    <ul id="variants" class="text-sm space-y-2 selectable overflow-y-auto flex-1 pr-1 custom-scrollbar" style="min-height: 120px;"></ul>
     
     <div class="mt-4 flex justify-between items-center shrink-0 pt-3 border-t">
-        <button id="loadMore" class="text-green-600 text-sm font-medium hover:bg-green-50 px-3 py-2 rounded transition-colors flex items-center gap-1">
+        <button id="loadMore" class="text-blue-600 text-sm font-semibold hover:bg-blue-50 px-3 py-2 rounded transition-colors flex items-center gap-1">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            Gerar +3
+            Gerar +3 Variações
         </button>
         <button id="closeModal" class="text-gray-500 text-sm hover:bg-gray-100 px-3 py-2 rounded transition-colors">
-            Fechar
+            Cancelar
         </button>
     </div>
   </div>
@@ -223,7 +225,6 @@
   const presenceBadge = document.getElementById("presenceBadge");
   const onlineCountEl = document.getElementById("onlineCount");
 
-  // Gerencia o estado de conexão do próprio usuário
   onValue(connectedRef, (snap) => {
     if (snap.val() === true) {
       updatePresence();
@@ -383,27 +384,27 @@
     const url = `https://text.pollinations.ai/${prompt}`;
 
     try {
-        // Tenta buscar com timeout de 5 segundos
         const res = await fetchWithTimeout(url, { timeout: 5000 });
         if (!res.ok) throw new Error("Erro na API");
         return await res.text();
     } catch(e) {
-        // Se falhar (timeout ou erro), tenta mais uma vez se 'tentarNovamente' for true
         if (tentarNovamente) {
             console.warn("Falha na tradução (timeout/erro), tentando novamente...", e);
-            // Chama recursivamente com false para não entrar em loop infinito
             return await traduzir(texto, langCode, false);
         }
-        // Se falhar na segunda tentativa, retorna o texto original
         return texto;
     }
   }
 
+  // Geração de Variações agora usa Timeout também
   async function gerarVariacoes(texto, qtd = 3) {
     const idioma = TARGET_LANG === "pt" ? "português" : "árabe";
     const prompt = encodeURIComponent(`gere ${qtd} variações diferentes de tradução para ${idioma} (seja criativo): "${texto}". responda apenas as variações em linhas separadas sem numeração.`);
+    const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
+
     try {
-      const res = await fetch(`https://text.pollinations.ai/${prompt}?seed=${Math.random()}`);
+      const res = await fetchWithTimeout(url, { timeout: 6000 }); // Um pouco mais de tempo para criatividade
+      if (!res.ok) throw new Error("Erro API variações");
       const txt = await res.text();
       return txt.split("\n").filter(l => l.trim().length > 0).map(l => l.replace(/^[-*•]\s*/, ''));
     } catch(e) {
@@ -420,7 +421,6 @@
 
     const item = fila.pop();
     try {
-      // Chama a função de tradução atualizada
       const traduzido = await traduzir(item.texto, item.lang);
       item.element.textContent = traduzido;
 
@@ -430,7 +430,7 @@
         await update(ref(db, `salas/${SALA_ID}/mensagens/${item.key}/traducoes`), updates);
       }
     } catch (e) {
-      item.element.textContent = item.texto; // Fallback para texto original
+      item.element.textContent = item.texto; 
     }
 
     processando = false;
@@ -474,6 +474,7 @@
     
     div.appendChild(content);
 
+    // Adiciona o botão de variações apenas para mensagens recebidas
     if (from !== nick) {
       const original = document.createElement("div");
       original.className = "original";
@@ -482,9 +483,10 @@
 
       const varBtn = document.createElement("div");
       varBtn.className = "variant-btn";
+      varBtn.title = "Gerar variações de tradução";
       
       varBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="4 7 4 4 20 4 20 7"></polyline>
             <line x1="9" y1="20" x2="15" y2="20"></line>
             <line x1="12" y1="4" x2="12" y2="20"></line>
@@ -518,6 +520,7 @@
             variantsUl.innerHTML = "<li class='text-red-500 text-center'>Erro ao gerar. Tente novamente.</li>";
         }
 
+        // Lógica do botão "Gerar +3" dentro do modal
         loadMoreBtn.onclick = async () => {
             const originalText = loadMoreBtn.innerHTML;
             loadMoreBtn.innerHTML = `<span class="animate-spin inline-block mr-1">↻</span> Gerando...`;
