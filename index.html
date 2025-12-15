@@ -50,47 +50,36 @@
       border-radius: 16px;
       word-wrap: break-word;
       width: fit-content;
-      position: relative;    
+      position: relative;
+      /* Ajuste para permitir que botões fiquem para fora */
+      margin-top: 10px; 
+      margin-bottom: 10px; 
     }
 
     .sent { background: #3b82f6; color: #fff; margin-left: auto; }
     .received { background: #e5e7eb; color: #111827; margin-right: auto; }
 
     .original { font-size: 0.7rem; opacity: 0.6; margin-top: 4px; }
-    .time { font-size: 0.65rem; opacity: 0.5; margin-top: 2px; text-align: right; }
     
-    /* Novo estilo para o botão de Retentar Tradução */
-    .retry-btn { 
-        position: absolute;
-        bottom: 22px; 
-        right: -10px;
-        width: 26px;
-        height: 26px;
-        background: #f59e0b; /* Amarelo/Laranja para 'retry' */
-        color: #fff;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        transition: all 0.2s;
-        z-index: 20;
-        border: 2px solid #fff;
+    .time-container {
+        font-size: 0.65rem; 
+        opacity: 0.8; 
+        margin-top: 2px; 
+        text-align: right; 
+        display: flex; 
+        align-items: center; 
+        justify-content: flex-end; 
+        gap: 4px;
     }
-    .retry-btn:hover {
-        background: #d97706;
-        transform: scale(1.1);
-    }
+    .sent .time-container { color: rgba(255, 255, 255, 0.8); }
+    .received .time-container { color: #4b5563; }
+    .edited-tag { font-style: italic; opacity: 0.7; }
 
-    /* Estilo para o botão de Variações */
-    .variant-btn { 
+    /* Botões de Ação Comuns */
+    .action-btn {
         position: absolute;
-        bottom: -10px; /* Mantém a posição original, o retry-btn fica acima */
-        right: -10px;
         width: 26px;
         height: 26px;
-        background: #6b7280;
         color: #fff;
         border-radius: 50%;
         display: flex;
@@ -102,10 +91,33 @@
         z-index: 20;
         border: 2px solid #fff;
     }
-    .variant-btn:hover {
-        background: #2563eb;
-        transform: scale(1.1);
+    .action-btn:hover { transform: scale(1.1); }
+
+
+    /* Botão de Retentar Tradução */
+    .retry-btn { 
+        right: -10px;
+        bottom: 22px; 
+        background: #f59e0b;
     }
+    .retry-btn:hover { background: #d97706; }
+
+    /* Botão de Gerar Variações */
+    .variant-btn { 
+        right: -10px;
+        bottom: -10px; 
+        background: #6b7280;
+    }
+    .variant-btn:hover { background: #2563eb; }
+    
+    /* NOVO: Botão de Edição */
+    .edit-btn {
+        left: -10px;
+        bottom: -10px;
+        background: #10b981; /* Verde para 'edit' */
+    }
+    .edit-btn:hover { background: #059669; }
+
 
     .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 50; }
     
@@ -221,7 +233,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-  import { getDatabase, ref, push, onChildAdded, set, get, query, orderByChild, remove, update, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+  import { getDatabase, ref, push, onChildAdded, set, get, query, orderByChild, remove, update, onValue, onDisconnect, onChildChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAxb2s4tzbtD1arG9UAf7UrzhFqbRrrsl8",
@@ -236,6 +248,10 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
   const SALA_ID = "sala_fixa";
+  const chatEl = document.getElementById("chat");
+  const msgEl = document.getElementById("msg");
+
+  let messageElements = {}; // Map para armazenar {key: domElement}
 
   let nick = localStorage.getItem("chat_nick");
   if (!nick) {
@@ -360,15 +376,18 @@
   langSelect.onchange = () => {
     TARGET_LANG = langSelect.value;
     localStorage.setItem("chat_lang", TARGET_LANG);
+    // Força a re-renderização/re-tradução de todas as mensagens visíveis
+    Object.values(messageElements).forEach(div => {
+        const key = div.dataset.key;
+        const data = messageElements[key].data;
+        updateMessageDOM(div, data, key);
+    });
   };
 
   const salaRef = ref(db, `salas/${SALA_ID}`);
   if (!(await get(salaRef)).exists()) {
     await set(salaRef, { nome: "Sala Principal", criadaEm: Date.now() });
   }
-
-  const chatEl = document.getElementById("chat");
-  const msgEl = document.getElementById("msg");
 
   async function selectTranslation(key, newTranslation, contentElement) {
     contentElement.textContent = newTranslation;
@@ -389,7 +408,6 @@
 
   // Wrapper para Fetch com Timeout
   async function fetchWithTimeout(resource, options = {}) {
-    // Usamos o timeout que foi determinado na função 'traduzir'
     const { timeout = 5000 } = options; 
     
     const controller = new AbortController();
@@ -420,9 +438,14 @@
         if (!res.ok) throw new Error("Erro na API");
         return await res.text();
     } catch(e) {
+        if (e.name === 'AbortError') {
+             console.warn("Falha na tradução por timeout.");
+        } else {
+             console.error("Erro desconhecido na tradução:", e);
+        }
+        
         if (tentarNovamente) {
-            console.warn("Falha na tradução (timeout/erro), tentando novamente...", e);
-            // Re-tenta com o mesmo timeout
+            console.warn("Tentando tradução novamente...");
             return await traduzir(texto, langCode, false);
         }
         throw e; // Lança o erro se a segunda tentativa falhar
@@ -436,7 +459,7 @@
     const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
 
     try {
-      const res = await fetchWithTimeout(url, { timeout: 6000 });
+      const res = await fetchWithTimeout(url, { timeout: 8000 }); // Maior timeout para variações
       if (!res.ok) throw new Error("Erro API variações");
       const txt = await res.text();
       return txt.split("\n").filter(l => l.trim().length > 0).map(l => l.replace(/^[-*•]\s*/, ''));
@@ -445,32 +468,27 @@
     }
   }
   
-  // NOVA FUNÇÃO: Trata a tentativa de retradução
+  // Função para tratar a tentativa de retradução
   async function retraduzirMensagem(key, originalText, contentElement) {
     const originalContent = contentElement.textContent;
     contentElement.textContent = "Traduzindo novamente...";
     
-    // Simula um estado de carregamento, desabilita botões temporariamente
-    const buttons = contentElement.parentElement.querySelectorAll('.variant-btn, .retry-btn');
+    const div = contentElement.parentElement;
+    const buttons = div.querySelectorAll('.action-btn');
     buttons.forEach(btn => btn.style.pointerEvents = 'none');
 
     try {
         const traduzido = await traduzir(originalText, TARGET_LANG, true);
         
-        // Atualiza UI
-        contentElement.textContent = traduzido;
-
-        // Atualiza o Firestore
+        // Atualiza o Firebase (o onChildChanged cuidará do DOM)
         const updates = {};
         updates[TARGET_LANG] = traduzido;
         await update(ref(db, `salas/${SALA_ID}/mensagens/${key}/traducoes`), updates);
         
     } catch (e) {
         console.error("Falha ao retraduzir", e);
-        // Exibe mensagem de erro na UI e reverte após 3s
         contentElement.textContent = "ERRO: Falha na tradução. Clique para tentar.";
         setTimeout(() => {
-            // Se o conteúdo ainda for a mensagem de erro, reverte ao original
             if (contentElement.textContent.startsWith("ERRO:")) {
                 contentElement.textContent = originalContent; 
             }
@@ -487,26 +505,166 @@
     if (processando || fila.length === 0) return;
     processando = true;
 
-    const item = fila.pop();
+    const item = fila.shift(); // Usa shift para FIFO
     try {
       const traduzido = await traduzir(item.texto, item.lang);
-      item.element.textContent = traduzido;
+      
+      // Verifica se o elemento ainda é o que estava esperando a tradução
+      if (item.element.textContent === "traduzindo...") {
+          item.element.textContent = traduzido;
+      }
+      item.element.classList.remove('italic', 'text-gray-400');
+
 
       if (item.key) {
         const updates = {};
         updates[item.lang] = traduzido;
+        // Salva a tradução no Firebase
         await update(ref(db, `salas/${SALA_ID}/mensagens/${item.key}/traducoes`), updates);
       }
     } catch (e) {
-      item.element.textContent = item.texto; 
+      item.element.textContent = item.texto; // Exibe o original em caso de erro
+      item.element.classList.remove('italic', 'text-gray-400');
     }
 
     processando = false;
-    setTimeout(processarFila, 400);
+    // Pequeno delay entre as traduções para não sobrecarregar
+    setTimeout(processarFila, 400); 
   }
+  
+  // FUNÇÕES DE EDIÇÃO
+  
+  function startEdit(key, currentText, contentElement) {
+    const messageDiv = contentElement.parentElement;
+    const timeContainer = messageDiv.querySelector('.time-container');
+    
+    // Esconde o conteúdo original e o horário
+    contentElement.style.display = 'none';
+    timeContainer.style.display = 'none';
+    
+    // Esconde todos os botões de ação (edit, retry, variant)
+    messageDiv.querySelectorAll('.action-btn').forEach(btn => btn.style.display = 'none');
 
-  function renderMensagem(data, key) {
-    const { nick: from, texto, timestamp, traducoes } = data;
+    // Cria a área de edição (textarea + save/cancel buttons)
+    const editArea = document.createElement('div');
+    editArea.className = 'edit-area flex flex-col gap-2 w-full mt-2';
+    
+    const textarea = document.createElement('textarea');
+    textarea.className = 'w-full p-2 border rounded resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-800';
+    textarea.value = currentText;
+    textarea.rows = 2;
+    
+    const controls = document.createElement('div');
+    controls.className = 'flex justify-end gap-2';
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'text-sm text-gray-500 hover:text-gray-700 p-1 rounded transition-colors';
+    cancelBtn.textContent = 'Cancelar';
+    
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'text-sm bg-blue-500 hover:bg-blue-600 text-white p-1.5 px-3 rounded transition-colors shadow-sm';
+    saveBtn.textContent = 'Salvar';
+
+    controls.appendChild(cancelBtn);
+    controls.appendChild(saveBtn);
+    editArea.appendChild(textarea);
+    editArea.appendChild(controls);
+    
+    messageDiv.insertBefore(editArea, timeContainer);
+
+    const cleanup = () => {
+        editArea.remove();
+        contentElement.style.display = 'block';
+        timeContainer.style.display = 'flex';
+        // Reexibe o botão de edição (ou outros botões de ação se for o caso)
+        messageDiv.querySelectorAll('.action-btn').forEach(btn => btn.style.display = 'flex');
+    };
+    
+    cancelBtn.onclick = cleanup;
+    
+    saveBtn.onclick = async () => {
+        const newText = textarea.value.trim();
+        if (newText === currentText) {
+            cleanup(); 
+            return;
+        }
+        
+        if (newText.length === 0) {
+            console.error("A mensagem não pode estar vazia.");
+            return;
+        }
+
+        saveBtn.textContent = 'Salvando...';
+        saveBtn.disabled = true;
+
+        try {
+            // Salva novo texto, marca como editado, e DELETA as traduções para forçar re-tradução
+            await update(ref(db, `salas/${SALA_ID}/mensagens/${key}`), {
+                texto: newText,
+                edited: true,
+                traducoes: null 
+            });
+            cleanup(); 
+        } catch (e) {
+            console.error("Erro ao salvar edição:", e);
+            saveBtn.textContent = 'Salvar';
+            saveBtn.disabled = false;
+        }
+    };
+    
+    textarea.focus();
+  }
+  
+  // FUNÇÃO PARA ATUALIZAR O DOM DE UMA MENSAGEM EXISTENTE
+  function updateMessageDOM(div, data, key) {
+    const { nick: from, texto, traducoes, edited } = data;
+    const isReceived = from !== nick;
+    
+    const content = div.querySelector('.message-content');
+    const original = div.querySelector('.original');
+    const timeContainer = div.querySelector('.time-container');
+    
+    // Remove qualquer tag 'editado' existente
+    div.querySelectorAll('.edited-tag').forEach(el => el.remove());
+    
+    // 1. Atualiza Conteúdo (Tradução/Original)
+    if (isReceived) {
+        const cachedTranslation = traducoes && traducoes[TARGET_LANG];
+        if (cachedTranslation) {
+            content.textContent = cachedTranslation;
+            content.classList.remove('italic', 'text-gray-400');
+        } else if (content.textContent !== "traduzindo...") { // Evita quebra se já estiver traduzindo
+            content.textContent = "traduzindo...";
+            content.classList.add('italic', 'text-gray-400');
+            fila.push({ texto, element: content, key, lang: TARGET_LANG });
+            processarFila();
+        }
+        if (original) original.textContent = texto;
+        
+    } else {
+        // Remetente: Sempre mostra o texto original
+        content.textContent = texto;
+        content.classList.remove('italic', 'text-gray-400');
+        // Atualiza a função do botão de edição (caso o texto tenha mudado, a função onclick anterior usa o texto antigo)
+        const editBtn = div.querySelector('.edit-btn');
+        if (editBtn) {
+            editBtn.onclick = () => startEdit(key, texto, content);
+        }
+    }
+
+    // 2. Adiciona Tag de Edição
+    if (edited) {
+        const editedTag = document.createElement("span");
+        editedTag.className = "edited-tag text-xs";
+        editedTag.textContent = "(editado)";
+        timeContainer.prepend(editedTag);
+    }
+  }
+  
+
+  // FUNÇÃO PARA CRIAR O DOM DA MENSAGEM (chamada apenas em onChildAdded)
+  function createMessageDom(data, key) {
+    const { nick: from, texto, timestamp, edited } = data;
 
     const isNew = timestamp > loadTime;
     const isReceived = from !== nick;
@@ -523,123 +681,149 @@
     }
 
     const div = document.createElement("div");
-    div.className = `message ${from === nick ? 'sent' : 'received'}`;
+    div.dataset.key = key; // Salva a chave para referência
+    // Adiciona "flex flex-col gap-1" para facilitar o layout com a edição inline
+    div.className = `message flex flex-col gap-1 ${from === nick ? 'sent' : 'received'}`; 
 
     const content = document.createElement("div");
-    
-    if (from === nick) {
-        content.textContent = texto;
-    } else {
-        const cachedTranslation = traducoes && traducoes[TARGET_LANG];
-        if (cachedTranslation) {
-            content.textContent = cachedTranslation;
-        } else {
-            content.textContent = "traduzindo...";
-            fila.push({ texto, element: content, key, lang: TARGET_LANG });
-            processarFila();
-        }
-    }
-    
+    content.className = "message-content"; 
     div.appendChild(content);
 
-    // Adiciona botões apenas para mensagens recebidas
-    if (from !== nick) {
-      const original = document.createElement("div");
-      original.className = "original";
-      original.textContent = texto;
-      div.appendChild(original);
-
-      // NOVO BOTÃO: Retentar Tradução
-      const retryBtn = document.createElement("div");
-      retryBtn.className = "retry-btn";
-      retryBtn.title = "Retentar Tradução";
-      
-      retryBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M23 4v6h-6"></path>
-            <path d="M1 20v-6h6"></path>
-            <path d="M3.5 15a9 9 0 0 1 14.8-8.8L23 10"></path>
-            <path d="M1 14l4.7 4.7A9 9 0 0 0 20.5 9"></path>
-        </svg>
-      `;
-      retryBtn.onclick = () => retraduzirMensagem(key, texto, content);
-      div.appendChild(retryBtn);
-
-      // BOTÃO: Gerar Variações (agora posicionado abaixo do Retry)
-      const varBtn = document.createElement("div");
-      varBtn.className = "variant-btn";
-      varBtn.title = "Gerar variações de tradução";
-      
-      varBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="4 7 4 4 20 4 20 7"></polyline>
-            <line x1="9" y1="20" x2="15" y2="20"></line>
-            <line x1="12" y1="4" x2="12" y2="20"></line>
-        </svg>
-      `;
-      
-      varBtn.onclick = async () => {
-        const currentContentElement = content;
-        const variantsUl = document.getElementById("variants");
-        const loadMoreBtn = document.getElementById("loadMore");
-        const modal = document.getElementById("modal");
-
-        variantsUl.innerHTML = "<li class='text-gray-500 text-center py-4 animate-pulse'>Gerando variações...</li>";
-        modal.style.display = "flex";
+    // BOTOES E CONTEUDOS EXTRAS
+    if (from === nick) {
+        // BOTÃO: Editar (Remetente)
+        const editBtn = document.createElement("div");
+        editBtn.className = "action-btn edit-btn";
+        editBtn.title = "Editar Mensagem";
+        editBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 20h9"></path><path d="M16.5 3.5l4 4L7 19l-4 1 1-4z"></path>
+            </svg>
+        `;
+        // O onclick será configurado na primeira chamada de updateMessageDOM
+        editBtn.onclick = () => startEdit(key, content.textContent, content); 
+        div.appendChild(editBtn);
         
-        const addItems = (items) => {
-            items.forEach(v => {
-                const li = document.createElement('li');
-                li.className = 'variant-item text-gray-800'; 
-                li.textContent = v;
-                li.onclick = () => selectTranslation(key, v, currentContentElement); 
-                variantsUl.appendChild(li);
-            });
+    } else {
+        // Textos extras para o recebedor
+        const original = document.createElement("div");
+        original.className = "original";
+        div.appendChild(original);
+
+        // BOTÃO: Retentar Tradução (Recebedor)
+        const retryBtn = document.createElement("div");
+        retryBtn.className = "action-btn retry-btn";
+        retryBtn.title = "Retentar Tradução";
+        retryBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.5 15a9 9 0 0 1 14.8-8.8L23 10"></path><path d="M1 14l4.7 4.7A9 9 0 0 0 20.5 9"></path>
+            </svg>
+        `;
+        retryBtn.onclick = () => retraduzirMensagem(key, texto, content);
+        div.appendChild(retryBtn);
+
+        // BOTÃO: Gerar Variações (Recebedor)
+        const varBtn = document.createElement("div");
+        varBtn.className = "action-btn variant-btn";
+        varBtn.title = "Gerar variações de tradução";
+        varBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line>
+            </svg>
+        `;
+        
+        varBtn.onclick = async () => {
+          const currentContentElement = content;
+          const originalText = original.textContent; // Sempre usa o texto original
+          const variantsUl = document.getElementById("variants");
+          const loadMoreBtn = document.getElementById("loadMore");
+          const modal = document.getElementById("modal");
+
+          variantsUl.innerHTML = "<li class='text-gray-500 text-center py-4 animate-pulse'>Gerando variações...</li>";
+          modal.style.display = "flex";
+          
+          const addItems = (items) => {
+              items.forEach(v => {
+                  const li = document.createElement('li');
+                  li.className = 'variant-item text-gray-800'; 
+                  li.textContent = v;
+                  li.onclick = () => selectTranslation(key, v, currentContentElement); 
+                  variantsUl.appendChild(li);
+              });
+          };
+
+          try {
+              const vars = await gerarVariacoes(originalText);
+              variantsUl.innerHTML = '';
+              addItems(vars);
+          } catch (e) {
+              variantsUl.innerHTML = "<li class='text-red-500 text-center'>Erro ao gerar. Tente novamente.</li>";
+          }
+
+          loadMoreBtn.onclick = async () => {
+              const originalBtnText = loadMoreBtn.innerHTML;
+              loadMoreBtn.innerHTML = `<span class="animate-spin inline-block mr-1">↻</span> Gerando...`;
+              loadMoreBtn.disabled = true;
+              loadMoreBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+              try {
+                  const moreVars = await gerarVariacoes(originalText, 3);
+                  addItems(moreVars);
+                  variantsUl.scrollTo({ top: variantsUl.scrollHeight, behavior: 'smooth' });
+              } catch (e) {
+                  console.error("Erro ao carregar mais", e);
+              } finally {
+                  loadMoreBtn.innerHTML = originalBtnText;
+                  loadMoreBtn.disabled = false;
+                  loadMoreBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+              }
+          };
         };
-
-        try {
-            const vars = await gerarVariacoes(texto);
-            variantsUl.innerHTML = '';
-            addItems(vars);
-        } catch (e) {
-            variantsUl.innerHTML = "<li class='text-red-500 text-center'>Erro ao gerar. Tente novamente.</li>";
-        }
-
-        // Lógica do botão "Gerar +3" dentro do modal
-        loadMoreBtn.onclick = async () => {
-            const originalText = loadMoreBtn.innerHTML;
-            loadMoreBtn.innerHTML = `<span class="animate-spin inline-block mr-1">↻</span> Gerando...`;
-            loadMoreBtn.disabled = true;
-            loadMoreBtn.classList.add('opacity-50', 'cursor-not-allowed');
-
-            try {
-                const moreVars = await gerarVariacoes(texto, 3);
-                addItems(moreVars);
-                variantsUl.scrollTo({ top: variantsUl.scrollHeight, behavior: 'smooth' });
-            } catch (e) {
-                console.error("Erro ao carregar mais", e);
-            } finally {
-                loadMoreBtn.innerHTML = originalText;
-                loadMoreBtn.disabled = false;
-                loadMoreBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            }
-        };
-      };
-      div.appendChild(varBtn);
+        div.appendChild(varBtn);
     }
-
-    const time = document.createElement("div");
+    
+    const timeContainer = document.createElement("div");
+    timeContainer.className = "time-container";
+    
+    const time = document.createElement("span");
     time.className = "time";
     time.textContent = new Date(timestamp).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' });
+    timeContainer.appendChild(time);
+    
+    div.appendChild(timeContainer);
+    
+    // Atualiza o DOM para iniciar a tradução ou configurar botões
+    updateMessageDOM(div, data, key); 
 
-    div.appendChild(time);
-    chatEl.appendChild(div);
-    chatEl.scrollTop = chatEl.scrollHeight;
+    return div;
   }
+  
 
+  // Listener para mensagens novas
   onChildAdded(query(ref(db, `salas/${SALA_ID}/mensagens`), orderByChild("timestamp")), snap => {
-    renderMensagem(snap.val(), snap.key);
+    const key = snap.key;
+    const data = snap.val();
+    
+    if (!messageElements[key]) {
+        const div = createMessageDom(data, key);
+        messageElements[key] = { dom: div, data: data };
+        chatEl.appendChild(div);
+    }
+    chatEl.scrollTop = chatEl.scrollHeight;
   });
+
+  // NOVO LISTENER: Lidar com atualizações (edições ou traduções salvas)
+  onChildChanged(ref(db, `salas/${SALA_ID}/mensagens`), snap => {
+    const key = snap.key;
+    const data = snap.val();
+    
+    if (messageElements[key]) {
+        // Atualiza o objeto de dados interno
+        messageElements[key].data = data; 
+        updateMessageDOM(messageElements[key].dom, data, key);
+    }
+  });
+
 
   document.getElementById("send").onclick = async () => {
     const texto = msgEl.value.trim();
@@ -671,6 +855,11 @@
 
             mensagensParaApagar.forEach((key) => {
                 remove(ref(db, `salas/${SALA_ID}/mensagens/${key}`));
+                // Remove do nosso DOM cache
+                if (messageElements[key]) {
+                    messageElements[key].dom.remove();
+                    delete messageElements[key];
+                }
             });
         }
     } catch (erro) {
