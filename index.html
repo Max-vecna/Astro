@@ -59,9 +59,34 @@
     .original { font-size: 0.7rem; opacity: 0.6; margin-top: 4px; }
     .time { font-size: 0.65rem; opacity: 0.5; margin-top: 2px; text-align: right; }
     
+    /* Novo estilo para o botão de Retentar Tradução */
+    .retry-btn { 
+        position: absolute;
+        bottom: 22px; 
+        right: -10px;
+        width: 26px;
+        height: 26px;
+        background: #f59e0b; /* Amarelo/Laranja para 'retry' */
+        color: #fff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        transition: all 0.2s;
+        z-index: 20;
+        border: 2px solid #fff;
+    }
+    .retry-btn:hover {
+        background: #d97706;
+        transform: scale(1.1);
+    }
+
+    /* Estilo para o botão de Variações */
     .variant-btn { 
         position: absolute;
-        bottom: -10px;
+        bottom: -10px; /* Mantém a posição original, o retry-btn fica acima */
         right: -10px;
         width: 26px;
         height: 26px;
@@ -357,9 +382,15 @@
     document.getElementById("modal").style.display = "none";
   }
 
+  // Função para determinar o timeout de tradução (maior para mensagens longas)
+  function getTranslationTimeout(text) {
+    return text.length > 100 ? 10000 : 5000; // 5s padrão, 10s para > 100 caracteres
+  }
+
   // Wrapper para Fetch com Timeout
   async function fetchWithTimeout(resource, options = {}) {
-    const { timeout = 5000 } = options;
+    // Usamos o timeout que foi determinado na função 'traduzir'
+    const { timeout = 5000 } = options; 
     
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
@@ -377,38 +408,75 @@
     }
   }
 
-  // Função de Tradução com Retry e Timeout
+  // Função de Tradução com Retry e Timeout dinâmico
   async function traduzir(texto, langCode = TARGET_LANG, tentarNovamente = true) {
     const idioma = langCode === "pt" ? "português" : "árabe";
     const prompt = encodeURIComponent(`traduza apenas para ${idioma}: ${texto}. responda apenas com a tradução`);
     const url = `https://text.pollinations.ai/${prompt}`;
+    const timeout = getTranslationTimeout(texto); // Timeout dinâmico
 
     try {
-        const res = await fetchWithTimeout(url, { timeout: 5000 });
+        const res = await fetchWithTimeout(url, { timeout: timeout });
         if (!res.ok) throw new Error("Erro na API");
         return await res.text();
     } catch(e) {
         if (tentarNovamente) {
             console.warn("Falha na tradução (timeout/erro), tentando novamente...", e);
+            // Re-tenta com o mesmo timeout
             return await traduzir(texto, langCode, false);
         }
-        return texto;
+        throw e; // Lança o erro se a segunda tentativa falhar
     }
   }
 
-  // Geração de Variações agora usa Timeout também
+  // Função para gerar variações
   async function gerarVariacoes(texto, qtd = 3) {
     const idioma = TARGET_LANG === "pt" ? "português" : "árabe";
     const prompt = encodeURIComponent(`gere ${qtd} variações diferentes de tradução para ${idioma} (seja criativo): "${texto}". responda apenas as variações em linhas separadas sem numeração.`);
     const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
 
     try {
-      const res = await fetchWithTimeout(url, { timeout: 6000 }); // Um pouco mais de tempo para criatividade
+      const res = await fetchWithTimeout(url, { timeout: 6000 });
       if (!res.ok) throw new Error("Erro API variações");
       const txt = await res.text();
       return txt.split("\n").filter(l => l.trim().length > 0).map(l => l.replace(/^[-*•]\s*/, ''));
     } catch(e) {
       throw e;
+    }
+  }
+  
+  // NOVA FUNÇÃO: Trata a tentativa de retradução
+  async function retraduzirMensagem(key, originalText, contentElement) {
+    const originalContent = contentElement.textContent;
+    contentElement.textContent = "Traduzindo novamente...";
+    
+    // Simula um estado de carregamento, desabilita botões temporariamente
+    const buttons = contentElement.parentElement.querySelectorAll('.variant-btn, .retry-btn');
+    buttons.forEach(btn => btn.style.pointerEvents = 'none');
+
+    try {
+        const traduzido = await traduzir(originalText, TARGET_LANG, true);
+        
+        // Atualiza UI
+        contentElement.textContent = traduzido;
+
+        // Atualiza o Firestore
+        const updates = {};
+        updates[TARGET_LANG] = traduzido;
+        await update(ref(db, `salas/${SALA_ID}/mensagens/${key}/traducoes`), updates);
+        
+    } catch (e) {
+        console.error("Falha ao retraduzir", e);
+        // Exibe mensagem de erro na UI e reverte após 3s
+        contentElement.textContent = "ERRO: Falha na tradução. Clique para tentar.";
+        setTimeout(() => {
+            // Se o conteúdo ainda for a mensagem de erro, reverte ao original
+            if (contentElement.textContent.startsWith("ERRO:")) {
+                contentElement.textContent = originalContent; 
+            }
+        }, 3000);
+    } finally {
+        buttons.forEach(btn => btn.style.pointerEvents = 'auto');
     }
   }
 
@@ -474,13 +542,30 @@
     
     div.appendChild(content);
 
-    // Adiciona o botão de variações apenas para mensagens recebidas
+    // Adiciona botões apenas para mensagens recebidas
     if (from !== nick) {
       const original = document.createElement("div");
       original.className = "original";
       original.textContent = texto;
       div.appendChild(original);
 
+      // NOVO BOTÃO: Retentar Tradução
+      const retryBtn = document.createElement("div");
+      retryBtn.className = "retry-btn";
+      retryBtn.title = "Retentar Tradução";
+      
+      retryBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 4v6h-6"></path>
+            <path d="M1 20v-6h6"></path>
+            <path d="M3.5 15a9 9 0 0 1 14.8-8.8L23 10"></path>
+            <path d="M1 14l4.7 4.7A9 9 0 0 0 20.5 9"></path>
+        </svg>
+      `;
+      retryBtn.onclick = () => retraduzirMensagem(key, texto, content);
+      div.appendChild(retryBtn);
+
+      // BOTÃO: Gerar Variações (agora posicionado abaixo do Retry)
       const varBtn = document.createElement("div");
       varBtn.className = "variant-btn";
       varBtn.title = "Gerar variações de tradução";
