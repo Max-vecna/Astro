@@ -7,7 +7,20 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
-    body { font-family: Inter, system-ui, sans-serif; }
+    /* Proteção de Seleção: Impede selecionar a interface, mas permite nas mensagens */
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      -webkit-user-select: none; /* Safari */
+      -ms-user-select: none; /* IE 10 and IE 11 */
+      user-select: none; /* Standard syntax */
+    }
+
+    /* Permitir copiar o texto das mensagens e inputs */
+    .message, #msg, .selectable {
+      -webkit-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
+    }
 
     .message {
       max-width: 85%;
@@ -15,6 +28,7 @@
       border-radius: 16px;
       word-wrap: break-word;
       width: fit-content;
+      position: relative; /* Necessário para posicionamento absoluto do ícone */      
     }
 
     .sent { background: #3b82f6; color: #fff; margin-left: auto; }
@@ -22,61 +36,114 @@
 
     .original { font-size: 0.7rem; opacity: 0.6; margin-top: 4px; }
     .time { font-size: 0.65rem; opacity: 0.5; margin-top: 2px; text-align: right; }
-    .variant-btn { font-size: 0.65rem; opacity: 0.7; margin-top: 4px; cursor: pointer; text-decoration: underline; }
+    
+    /* Novo estilo para o botão de variação (ícone flutuante) */
+    .variant-btn { 
+        position: absolute;
+        bottom: -8px; /* Posição vertical fora do balão */
+        right: -8px; /* Posição horizontal fora do balão */
+        width: 24px;
+        height: 24px;
+        background: #6b7280; /* Gray-500 */
+        color: #fff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        transition: background-color 0.15s;
+        z-index: 10; /* Garante que fique acima de outros elementos */
+    }
+    .variant-btn:hover {
+        background: #2563eb; /* Blue-600 on hover */
+    }
 
     .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 50; }
     .modal-content { background: #fff; max-width: 90%; width: 420px; border-radius: 12px; padding: 16px; }
 
+    /* Estilo para itens clicáveis no modal */
+    .variant-item {
+        cursor: pointer;
+        padding: 8px;
+        margin-bottom: 4px;
+        border-radius: 6px;
+        transition: background-color 0.15s;
+    }
+    .variant-item:hover {
+        background-color: #f3f4f6;
+    }
+
     @media (max-width: 640px) {
-      .message { max-width: 95%; font-size: 0.95rem; }
+      .message { max-width: 85%; font-size: 0.95rem; }
       #msg { font-size: 1rem; }
     }
   </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+<!-- Adicionado oncontextmenu="return false" para bloquear clique direito -->
+<body class="bg-gray-100 flex items-center justify-center min-h-screen" oncontextmenu="return false;">
 
 <div class="w-full max-w-lg bg-white sm:rounded-xl shadow-xl flex flex-col h-screen sm:h-[90vh]">
 
-  <div class="p-4 border-b flex justify-between items-center">
-    <h1 class="font-bold text-lg">Sala Principal</h1>
-    <span id="status" class="text-xs text-gray-500"></span>
+  <div class="p-4 border-b flex justify-between items-center" style="display: none;">    
+    <!--<h1 class="font-bold text-lg">Sala Principal</h1>
+    <span id="status" class="text-xs text-gray-500"></span> -->
   </div>
 
   <div class="p-2 border-b flex items-center justify-between text-sm">
-    <span>Traduzir para:</span>
-    <select id="lang" class="border rounded p-1">
+    <div class="text-center">
+        <p class="text-[10px] text-gray-400">
+            &copy; <span id="year"></span> Chat Global. Todos os direitos reservados.
+        </p>
+    </div>
+    <select id="lang" class="border rounded p-1 selectable">
       <option value="pt">Português</option>
       <option value="ar">Árabe</option>
     </select>
   </div>
 
-  <div id="chat" class="flex-1 overflow-y-auto p-3 space-y-2 relative">
+  <div id="chat" class="flex-1 overflow-y-auto p-3 space-y-4 relative">
     <div id="loadingOld" class="absolute top-2 left-1/2 -translate-x-1/2 text-xs text-gray-500 hidden">
       Carregando mensagens antigas…
     </div>
   </div>
 
-  <div class="p-3 border-t flex gap-2 items-center">
-    <input id="msg" placeholder="Digite sua mensagem" class="flex-1 p-2 border rounded" />
-    <button id="send" class="bg-blue-500 text-white w-10 h-10 flex items-center justify-center rounded-full">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3 21l18-9L3 3l3 9zm0 0h6" />
-        </svg>
-    </button>
+  <div class="p-3 border-t flex flex-col gap-2">
+    <div class="flex gap-2 items-center w-full">
+      <input id="msg" placeholder="Digite sua mensagem" class="flex-1 p-2 border rounded" autocomplete="off" />
+      <button id="send" class="bg-blue-500 text-white w-10 h-10 flex items-center justify-center rounded-full shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3 21l18-9L3 3l3 9zm0 0h6" />
+          </svg>
+      </button>
+    </div>    
   </div>
 </div>
 
 <div id="modal" class="modal">
   <div class="modal-content">
-    <h2 class="font-bold mb-2">Variações da tradução</h2>
-    <ul id="variants" class="text-sm space-y-2"></ul>
+    <h2 class="font-bold mb-2">Variações da tradução (clique para selecionar)</h2>
+    <ul id="variants" class="text-sm space-y-2 selectable"></ul>
     <button id="closeModal" class="mt-3 text-blue-500 text-sm">Fechar</button>
   </div>
 </div>
 
+<script>
+    // Atualiza o ano automaticamente
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    // Proteção adicional contra teclas de atalho comuns de cópia/inspeção
+    document.addEventListener('keydown', function(e) {
+        // Bloqueia Ctrl+U (Ver código fonte) e Ctrl+S (Salvar)
+        if (e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 's' || e.key === 'S')) {
+            e.preventDefault();
+        }
+    });
+</script>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-  import { getDatabase, ref, push, onChildAdded, set, get, query, orderByChild } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+  import { getDatabase, ref, push, onChildAdded, set, get, query, orderByChild, remove, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAxb2s4tzbtD1arG9UAf7UrzhFqbRrrsl8",
@@ -97,7 +164,7 @@
     nick = "User-" + Math.floor(Math.random() * 9000 + 1000);
     localStorage.setItem("chat_nick", nick);
   }
-  document.getElementById("status").textContent = nick;
+  //document.getElementById("status").textContent = nick;
 
   let TARGET_LANG = localStorage.getItem("chat_lang") || "pt";
   const langSelect = document.getElementById("lang");
@@ -105,6 +172,8 @@
   langSelect.onchange = () => {
     TARGET_LANG = langSelect.value;
     localStorage.setItem("chat_lang", TARGET_LANG);
+    // Note: Mudar o idioma alvo não recarrega as mensagens existentes, apenas as futuras.
+    // Para atualizar as mensagens existentes, a página precisaria ser recarregada.
   };
 
   const salaRef = ref(db, `salas/${SALA_ID}`);
@@ -115,9 +184,29 @@
   const chatEl = document.getElementById("chat");
   const msgEl = document.getElementById("msg");
 
-  async function traduzir(texto) {
-    const idioma = TARGET_LANG === "pt" ? "português" : "árabe";
-    const prompt = encodeURIComponent(`traduza para ${idioma}: ${texto}. responda apenas com a tradução`);
+  // Função para salvar a tradução selecionada pelo usuário
+  async function selectTranslation(key, newTranslation, contentElement) {
+    // 1. Atualiza o texto exibido na mensagem
+    contentElement.textContent = newTranslation;
+
+    // 2. Atualiza o cache da tradução no Firebase
+    try {
+      const updates = {};
+      updates[TARGET_LANG] = newTranslation;
+      await update(ref(db, `salas/${SALA_ID}/mensagens/${key}/traducoes`), updates);
+      console.log(`Tradução da mensagem ${key} atualizada manualmente para ${TARGET_LANG}.`);
+    } catch (e) {
+      console.error("Erro ao salvar tradução selecionada:", e);
+    }
+
+    // 3. Fecha o modal
+    document.getElementById("modal").style.display = "none";
+  }
+
+  // Modificado para aceitar langCode opcional
+  async function traduzir(texto, langCode = TARGET_LANG) {
+    const idioma = langCode === "pt" ? "português" : "árabe";
+    const prompt = encodeURIComponent(`traduza apenas para ${idioma}: ${texto}. responda apenas com a tradução`);
     const res = await fetch(`https://text.pollinations.ai/${prompt}`);
     return await res.text();
   }
@@ -137,11 +226,22 @@
     if (processando || fila.length === 0) return;
     processando = true;
 
+    // Item agora contém key, lang e o elemento DOM para salvar corretamente
     const item = fila.pop();
     try {
-      const traduzido = await traduzir(item.texto);
+      const traduzido = await traduzir(item.texto, item.lang);
       item.element.textContent = traduzido;
-    } catch {
+
+      // Salva a tradução no Firebase se tivermos a chave da mensagem
+      if (item.key) {
+        const updates = {};
+        updates[item.lang] = traduzido; // ex: { pt: "Olá" }
+        // Atualiza apenas o nó 'traducoes' desta mensagem
+        await update(ref(db, `salas/${SALA_ID}/mensagens/${item.key}/traducoes`), updates);
+      }
+
+    } catch (e) {
+      console.error(e);
       item.element.textContent = "Erro na tradução";
     }
 
@@ -149,14 +249,32 @@
     setTimeout(processarFila, 400);
   }
 
-  function renderMensagem(data) {
-    const { nick: from, texto, timestamp } = data;
+  // Modificado para receber a key (ID da mensagem)
+  function renderMensagem(data, key) {
+    const { nick: from, texto, timestamp, traducoes } = data;
 
     const div = document.createElement("div");
     div.className = `message ${from === nick ? 'sent' : 'received'}`;
 
     const content = document.createElement("div");
-    content.textContent = from === nick ? texto : "traduzindo...";
+    
+    // Lógica principal de exibição
+    if (from === nick) {
+        content.textContent = texto;
+    } else {
+        // Verifica se já existe tradução salva para o idioma atual
+        const cachedTranslation = traducoes && traducoes[TARGET_LANG];
+        
+        if (cachedTranslation) {
+            content.textContent = cachedTranslation;
+        } else {
+            content.textContent = "traduzindo...";
+            // Adiciona na fila com a chave e o idioma alvo para salvar depois
+            fila.push({ texto, element: content, key, lang: TARGET_LANG });
+            processarFila();
+        }
+    }
+    
     div.appendChild(content);
 
     if (from !== nick) {
@@ -167,17 +285,38 @@
 
       const varBtn = document.createElement("div");
       varBtn.className = "variant-btn";
-      varBtn.textContent = "Ver variações";
+      
+      // Ícone SVG para "Ver variações"
+      varBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 7 4 4 20 4 20 7"></polyline>
+            <line x1="9" y1="20" x2="15" y2="20"></line>
+            <line x1="12" y1="4" x2="12" y2="20"></line>
+        </svg>
+      `;
+      
+      // Lógica atualizada para gerar o modal com itens clicáveis
       varBtn.onclick = async () => {
-        document.getElementById("variants").innerHTML = "<li>Gerando variações…</li>";
+        const currentContentElement = content; // Captura a referência para a tradução na tela
+        
+        document.getElementById("variants").innerHTML = "<li class='text-gray-500'>Gerando variações…</li>";
         document.getElementById("modal").style.display = "flex";
+        
         const vars = await gerarVariacoes(texto);
-        document.getElementById("variants").innerHTML = vars.map(v => `<li>• ${v}</li>`).join("");
-      };
-      div.appendChild(varBtn);
+        const variantsUl = document.getElementById("variants");
+        variantsUl.innerHTML = ''; // Limpa o conteúdo
 
-      fila.push({ texto, element: content });
-      processarFila();
+        // Cria os itens de lista clicáveis
+        vars.forEach(v => {
+            const li = document.createElement('li');
+            li.className = 'variant-item text-gray-800'; // Usa a classe CSS para o hover
+            li.textContent = `• ${v}`;
+            // Chama a função selectTranslation com a chave da mensagem, a nova tradução e o elemento DOM
+            li.onclick = () => selectTranslation(key, v.replace('• ', '').trim(), currentContentElement); 
+            variantsUl.appendChild(li);
+        });
+      };
+      div.appendChild(varBtn); // Adiciona o ícone flutuante
     }
 
     const time = document.createElement("div");
@@ -190,20 +329,50 @@
   }
 
   onChildAdded(query(ref(db, `salas/${SALA_ID}/mensagens`), orderByChild("timestamp")), snap => {
-    renderMensagem(snap.val());
+    // Passamos o snap.val() (dados) e snap.key (ID único)
+    renderMensagem(snap.val(), snap.key);
   });
 
-  document.getElementById("send").onclick = () => {
+  document.getElementById("send").onclick = async () => {
     const texto = msgEl.value.trim();
     if (!texto) return;
 
-    push(ref(db, `salas/${SALA_ID}/mensagens`), {
+    // 1. Envia a nova mensagem
+    await push(ref(db, `salas/${SALA_ID}/mensagens`), {
       nick,
       texto,
       timestamp: Date.now()
     });
 
     msgEl.value = "";
+
+    // 2. Limpeza automática: Mantém apenas as últimas 20 mensagens
+    try {
+        const msgsRef = ref(db, `salas/${SALA_ID}/mensagens`);
+        const snapshot = await get(query(msgsRef, orderByChild("timestamp")));
+        
+        if (snapshot.size > 20) {
+            const mensagensParaApagar = [];
+            let count = 0;
+            const limiteExclusao = snapshot.size - 20;
+
+            // Coleta as chaves das mensagens mais antigas
+            snapshot.forEach((child) => {
+                if (count < limiteExclusao) {
+                    mensagensParaApagar.push(child.key);
+                    count++;
+                }
+            });
+
+            // Apaga as mensagens antigas do Firebase
+            mensagensParaApagar.forEach((key) => {
+                remove(ref(db, `salas/${SALA_ID}/mensagens/${key}`));
+            });
+            console.log(`Limpeza realizada: ${mensagensParaApagar.length} mensagens antigas removidas.`);
+        }
+    } catch (erro) {
+        console.error("Erro ao limpar mensagens antigas:", erro);
+    }
   };
 
   document.getElementById("closeModal").onclick = () => {
