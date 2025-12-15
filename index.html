@@ -4,6 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Chat Global – Sala Fixa</title>
+  
+  <!-- Configurações para Mobile / PWA -->
+  <meta name="theme-color" content="#3b82f6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Chat Global">
+  
+  <!-- Manifesto em Data URI para permitir instalação como App -->
+  <link rel="manifest" href='data:application/manifest+json,{"name":"Chat Global","short_name":"Chat","display":"standalone","start_url":".","background_color":"#ffffff","theme_color":"#3b82f6","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/724/724715.png","sizes":"512x512","type":"image/png"}]}'>
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/724/724715.png">
+
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
@@ -60,15 +71,29 @@
     }
 
     .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 50; }
-    .modal-content { background: #fff; max-width: 90%; width: 420px; border-radius: 12px; padding: 16px; }
+    /* Modal responsivo com altura máxima e flexbox para scroll interno */
+    .modal-content { 
+        background: #fff; 
+        max-width: 90%; 
+        width: 420px; 
+        max-height: 85vh; /* Altura máxima para não estourar a tela */
+        border-radius: 12px; 
+        padding: 16px; 
+        display: flex;
+        flex-direction: column;
+    }
 
     /* Estilo para itens clicáveis no modal */
     .variant-item {
         cursor: pointer;
-        padding: 8px;
+        padding: 10px;
         margin-bottom: 4px;
         border-radius: 6px;
         transition: background-color 0.15s;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    .variant-item:last-child {
+        border-bottom: none;
     }
     .variant-item:hover {
         background-color: #f3f4f6;
@@ -86,8 +111,7 @@
 <div class="w-full max-w-lg bg-white sm:rounded-xl shadow-xl flex flex-col h-screen sm:h-[90vh]">
 
   <div class="p-4 border-b flex justify-between items-center" style="display: none;">    
-    <!--<h1 class="font-bold text-lg">Sala Principal</h1>
-    <span id="status" class="text-xs text-gray-500"></span> -->
+    <!-- Cabeçalho oculto -->
   </div>
 
   <div class="p-2 border-b flex items-center justify-between text-sm">
@@ -120,11 +144,25 @@
   </div>
 </div>
 
+<!-- Modal atualizado com botão Load More e Scroll -->
 <div id="modal" class="modal">
   <div class="modal-content">
-    <h2 class="font-bold mb-2">Variações da tradução (clique para selecionar)</h2>
-    <ul id="variants" class="text-sm space-y-2 selectable"></ul>
-    <button id="closeModal" class="mt-3 text-blue-500 text-sm">Fechar</button>
+    <h2 class="font-bold mb-1 shrink-0">Variações da tradução</h2>
+    <p class="text-xs text-gray-500 mb-3 shrink-0">Clique em uma opção para substituir a mensagem.</p>
+    
+    <!-- Lista com scroll -->
+    <ul id="variants" class="text-sm space-y-1 selectable overflow-y-auto flex-1 pr-1 custom-scrollbar" style="min-height: 100px;"></ul>
+    
+    <!-- Rodapé com botões -->
+    <div class="mt-4 flex justify-between items-center shrink-0 pt-3 border-t">
+        <button id="loadMore" class="text-green-600 text-sm font-medium hover:bg-green-50 px-3 py-2 rounded transition-colors flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Gerar +3
+        </button>
+        <button id="closeModal" class="text-gray-500 text-sm hover:bg-gray-100 px-3 py-2 rounded transition-colors">
+            Fechar
+        </button>
+    </div>
   </div>
 </div>
 
@@ -132,9 +170,8 @@
     // Atualiza o ano automaticamente
     document.getElementById("year").textContent = new Date().getFullYear();
 
-    // Proteção adicional contra teclas de atalho comuns de cópia/inspeção
+    // Proteção adicional contra teclas de atalho
     document.addEventListener('keydown', function(e) {
-        // Bloqueia Ctrl+U (Ver código fonte) e Ctrl+S (Salvar)
         if (e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 's' || e.key === 'S')) {
             e.preventDefault();
         }
@@ -159,12 +196,72 @@
   const db = getDatabase(app);
   const SALA_ID = "sala_fixa";
 
+  // --- Sistema de Notificação ---
+  const loadTime = Date.now(); // Marca quando a página abriu para ignorar histórico
+  const originalTitle = document.title;
+  let notificationAudio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"); // Som 'pop' simples
+  notificationAudio.volume = 0.5;
+
+  // Solicita permissão no primeiro clique do usuário
+  document.body.addEventListener('click', async () => {
+    if (Notification.permission === 'default') {
+      try {
+        await Notification.requestPermission();
+      } catch (e) {
+        console.log("Erro ao solicitar permissão de notificação", e);
+      }
+    }
+  }, { once: true });
+
+  // Reseta o título da página quando o usuário volta para a aba
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      document.title = originalTitle;
+    }
+  });
+
+  function sendNotification(sender, text) {
+    // 1. Toca som
+    try {
+        notificationAudio.currentTime = 0;
+        notificationAudio.play().catch(() => {}); // Ignora erro se navegador bloquear autoplay
+    } catch(e) {}
+
+    // 2. Vibrar (Novo para mobile - Android)
+    if ("vibrate" in navigator) {
+        try {
+            // Vibração padrão de notificação: curto, pausa, curto
+            navigator.vibrate([200, 100, 200]);
+        } catch(e) { console.log("Erro de vibração:", e); }
+    }
+
+    // 3. Muda o título da aba
+    document.title = `(1) ${sender} diz...`;
+
+    // 4. Envia notificação nativa se permitido
+    if (Notification.permission === "granted") {
+      const notif = new Notification(`Nova mensagem de ${sender}`, {
+        body: text,
+        icon: "https://cdn-icons-png.flaticon.com/512/724/724715.png", // Ícone genérico de chat
+        badge: "https://cdn-icons-png.flaticon.com/512/724/724715.png", // Ícone para Android Status Bar
+        vibrate: [200, 100, 200], // Padrão de vibração nativo da notificação
+        silent: true // Já tocamos nosso som e vibração manual
+      });
+      
+      // Foca na aba ao clicar na notificação
+      notif.onclick = function() {
+        window.focus();
+        notif.close();
+      };
+    }
+  }
+  // -----------------------------
+
   let nick = localStorage.getItem("chat_nick");
   if (!nick) {
     nick = "User-" + Math.floor(Math.random() * 9000 + 1000);
     localStorage.setItem("chat_nick", nick);
   }
-  //document.getElementById("status").textContent = nick;
 
   let TARGET_LANG = localStorage.getItem("chat_lang") || "pt";
   const langSelect = document.getElementById("lang");
@@ -172,8 +269,6 @@
   langSelect.onchange = () => {
     TARGET_LANG = langSelect.value;
     localStorage.setItem("chat_lang", TARGET_LANG);
-    // Note: Mudar o idioma alvo não recarrega as mensagens existentes, apenas as futuras.
-    // Para atualizar as mensagens existentes, a página precisaria ser recarregada.
   };
 
   const salaRef = ref(db, `salas/${SALA_ID}`);
@@ -184,26 +279,22 @@
   const chatEl = document.getElementById("chat");
   const msgEl = document.getElementById("msg");
 
-  // Função para salvar a tradução selecionada pelo usuário
+  // Função para salvar a tradução selecionada
   async function selectTranslation(key, newTranslation, contentElement) {
-    // 1. Atualiza o texto exibido na mensagem
     contentElement.textContent = newTranslation;
 
-    // 2. Atualiza o cache da tradução no Firebase
     try {
       const updates = {};
       updates[TARGET_LANG] = newTranslation;
       await update(ref(db, `salas/${SALA_ID}/mensagens/${key}/traducoes`), updates);
-      console.log(`Tradução da mensagem ${key} atualizada manualmente para ${TARGET_LANG}.`);
+      console.log(`Tradução atualizada.`);
     } catch (e) {
-      console.error("Erro ao salvar tradução selecionada:", e);
+      console.error("Erro ao salvar tradução:", e);
     }
 
-    // 3. Fecha o modal
     document.getElementById("modal").style.display = "none";
   }
 
-  // Modificado para aceitar langCode opcional
   async function traduzir(texto, langCode = TARGET_LANG) {
     const idioma = langCode === "pt" ? "português" : "árabe";
     const prompt = encodeURIComponent(`traduza apenas para ${idioma}: ${texto}. responda apenas com a tradução`);
@@ -213,10 +304,10 @@
 
   async function gerarVariacoes(texto, qtd = 3) {
     const idioma = TARGET_LANG === "pt" ? "português" : "árabe";
-    const prompt = encodeURIComponent(`gere ${qtd} variações diferentes de tradução para ${idioma}: ${texto}. responda em linhas separadas`);
-    const res = await fetch(`https://text.pollinations.ai/${prompt}`);
+    const prompt = encodeURIComponent(`gere ${qtd} variações diferentes de tradução para ${idioma} (seja criativo): "${texto}". responda apenas as variações em linhas separadas sem numeração.`);
+    const res = await fetch(`https://text.pollinations.ai/${prompt}?seed=${Math.random()}`);
     const txt = await res.text();
-    return txt.split("\n").filter(l => l.trim());
+    return txt.split("\n").filter(l => l.trim().length > 0).map(l => l.replace(/^[-*•]\s*/, ''));
   }
 
   const fila = [];
@@ -226,20 +317,16 @@
     if (processando || fila.length === 0) return;
     processando = true;
 
-    // Item agora contém key, lang e o elemento DOM para salvar corretamente
     const item = fila.pop();
     try {
       const traduzido = await traduzir(item.texto, item.lang);
       item.element.textContent = traduzido;
 
-      // Salva a tradução no Firebase se tivermos a chave da mensagem
       if (item.key) {
         const updates = {};
-        updates[item.lang] = traduzido; // ex: { pt: "Olá" }
-        // Atualiza apenas o nó 'traducoes' desta mensagem
+        updates[item.lang] = traduzido;
         await update(ref(db, `salas/${SALA_ID}/mensagens/${item.key}/traducoes`), updates);
       }
-
     } catch (e) {
       console.error(e);
       item.element.textContent = "Erro na tradução";
@@ -249,27 +336,30 @@
     setTimeout(processarFila, 400);
   }
 
-  // Modificado para receber a key (ID da mensagem)
   function renderMensagem(data, key) {
     const { nick: from, texto, timestamp, traducoes } = data;
+
+    // Lógica de Notificação:
+    // 1. Mensagem recebida agora (timestamp > loadTime)
+    // 2. Não fui eu quem enviou (from !== nick)
+    // 3. A página está oculta (document.hidden)
+    if (timestamp > loadTime && from !== nick && document.hidden) {
+        sendNotification(from, texto);
+    }
 
     const div = document.createElement("div");
     div.className = `message ${from === nick ? 'sent' : 'received'}`;
 
     const content = document.createElement("div");
     
-    // Lógica principal de exibição
     if (from === nick) {
         content.textContent = texto;
     } else {
-        // Verifica se já existe tradução salva para o idioma atual
         const cachedTranslation = traducoes && traducoes[TARGET_LANG];
-        
         if (cachedTranslation) {
             content.textContent = cachedTranslation;
         } else {
             content.textContent = "traduzindo...";
-            // Adiciona na fila com a chave e o idioma alvo para salvar depois
             fila.push({ texto, element: content, key, lang: TARGET_LANG });
             processarFila();
         }
@@ -286,7 +376,6 @@
       const varBtn = document.createElement("div");
       varBtn.className = "variant-btn";
       
-      // Ícone SVG para "Ver variações"
       varBtn.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="4 7 4 4 20 4 20 7"></polyline>
@@ -295,28 +384,59 @@
         </svg>
       `;
       
-      // Lógica atualizada para gerar o modal com itens clicáveis
+      // --- Lógica do Modal de Variações ---
       varBtn.onclick = async () => {
-        const currentContentElement = content; // Captura a referência para a tradução na tela
-        
-        document.getElementById("variants").innerHTML = "<li class='text-gray-500'>Gerando variações…</li>";
-        document.getElementById("modal").style.display = "flex";
-        
-        const vars = await gerarVariacoes(texto);
+        const currentContentElement = content;
         const variantsUl = document.getElementById("variants");
-        variantsUl.innerHTML = ''; // Limpa o conteúdo
+        const loadMoreBtn = document.getElementById("loadMore");
+        const modal = document.getElementById("modal");
 
-        // Cria os itens de lista clicáveis
-        vars.forEach(v => {
-            const li = document.createElement('li');
-            li.className = 'variant-item text-gray-800'; // Usa a classe CSS para o hover
-            li.textContent = `• ${v}`;
-            // Chama a função selectTranslation com a chave da mensagem, a nova tradução e o elemento DOM
-            li.onclick = () => selectTranslation(key, v.replace('• ', '').trim(), currentContentElement); 
-            variantsUl.appendChild(li);
-        });
+        // Prepara o modal para estado inicial
+        variantsUl.innerHTML = "<li class='text-gray-500 text-center py-4 animate-pulse'>Gerando variações...</li>";
+        modal.style.display = "flex";
+        
+        // Função auxiliar para criar itens da lista
+        const addItems = (items) => {
+            items.forEach(v => {
+                const li = document.createElement('li');
+                li.className = 'variant-item text-gray-800'; 
+                li.textContent = v;
+                li.onclick = () => selectTranslation(key, v, currentContentElement); 
+                variantsUl.appendChild(li);
+            });
+        };
+
+        // Primeira carga
+        try {
+            const vars = await gerarVariacoes(texto);
+            variantsUl.innerHTML = ''; // Limpa o "Gerando..."
+            addItems(vars);
+        } catch (e) {
+            variantsUl.innerHTML = "<li class='text-red-500 text-center'>Erro ao gerar. Tente novamente.</li>";
+        }
+
+        // Configura o botão "Carregar Mais"
+        loadMoreBtn.onclick = async () => {
+            const originalText = loadMoreBtn.innerHTML;
+            loadMoreBtn.innerHTML = `<span class="animate-spin inline-block mr-1">↻</span> Gerando...`;
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            try {
+                const moreVars = await gerarVariacoes(texto, 3);
+                addItems(moreVars);
+                variantsUl.scrollTo({ top: variantsUl.scrollHeight, behavior: 'smooth' });
+            } catch (e) {
+                console.error("Erro ao carregar mais", e);
+            } finally {
+                loadMoreBtn.innerHTML = originalText;
+                loadMoreBtn.disabled = false;
+                loadMoreBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        };
       };
-      div.appendChild(varBtn); // Adiciona o ícone flutuante
+      
+      div.appendChild(varBtn);
     }
 
     const time = document.createElement("div");
@@ -329,7 +449,6 @@
   }
 
   onChildAdded(query(ref(db, `salas/${SALA_ID}/mensagens`), orderByChild("timestamp")), snap => {
-    // Passamos o snap.val() (dados) e snap.key (ID único)
     renderMensagem(snap.val(), snap.key);
   });
 
@@ -337,7 +456,6 @@
     const texto = msgEl.value.trim();
     if (!texto) return;
 
-    // 1. Envia a nova mensagem
     await push(ref(db, `salas/${SALA_ID}/mensagens`), {
       nick,
       texto,
@@ -346,7 +464,6 @@
 
     msgEl.value = "";
 
-    // 2. Limpeza automática: Mantém apenas as últimas 20 mensagens
     try {
         const msgsRef = ref(db, `salas/${SALA_ID}/mensagens`);
         const snapshot = await get(query(msgsRef, orderByChild("timestamp")));
@@ -356,7 +473,6 @@
             let count = 0;
             const limiteExclusao = snapshot.size - 20;
 
-            // Coleta as chaves das mensagens mais antigas
             snapshot.forEach((child) => {
                 if (count < limiteExclusao) {
                     mensagensParaApagar.push(child.key);
@@ -364,14 +480,12 @@
                 }
             });
 
-            // Apaga as mensagens antigas do Firebase
             mensagensParaApagar.forEach((key) => {
                 remove(ref(db, `salas/${SALA_ID}/mensagens/${key}`));
             });
-            console.log(`Limpeza realizada: ${mensagensParaApagar.length} mensagens antigas removidas.`);
         }
     } catch (erro) {
-        console.error("Erro ao limpar mensagens antigas:", erro);
+        console.error("Erro limpeza:", erro);
     }
   };
 
