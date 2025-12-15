@@ -368,7 +368,7 @@
 
   async function traduzir(texto, langCode = TARGET_LANG) {
     const idioma = langCode === "pt" ? "português" : "árabe";
-    const prompt = encodeURIComponent(`traduza apenas para ${idioma}: ${texto}. responda apenas com a tradução`);
+    const prompt = encodeURIComponent(`traduza apenas para ${idioma}: ${texto}. responda apenas com a tradução, pode reformula lá se quiser como o mesmo sentido para melhor tradução.`);
     try {
         const res = await fetch(`https://text.pollinations.ai/${prompt}`);
         return await res.text();
