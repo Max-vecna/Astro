@@ -8,13 +8,11 @@
   <!-- Configurações para Mobile / PWA -->
   <meta name="theme-color" content="#3b82f6">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <!-- Adicionado meta tag recomendado para compatibilidade -->
   <meta name="mobile-web-app-capable" content="yes"> 
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Chat Global">
   
-  <!-- Manifesto em Data URI -->
-<link rel="manifest" href='data:application/manifest+json,{
+  <link rel="manifest" href='data:application/manifest+json,{
   "name": "Chat Global",
   "short_name": "Chat",
   "display": "standalone",
@@ -33,15 +31,13 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
-    /* Proteção de Seleção: Impede selecionar a interface, mas permite nas mensagens */
     body {
       font-family: Inter, system-ui, sans-serif;
-      -webkit-user-select: none; /* Safari */
-      -ms-user-select: none; /* IE 10 and IE 11 */
-      user-select: none; /* Standard syntax */
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
     }
 
-    /* Permitir copiar o texto das mensagens e inputs */
     .message, #msg, .selectable {
       -webkit-user-select: text;
       -ms-user-select: text;
@@ -54,7 +50,7 @@
       border-radius: 16px;
       word-wrap: break-word;
       width: fit-content;
-      position: relative; /* Necessário para posicionamento absoluto do ícone */      
+      position: relative;    
     }
 
     .sent { background: #3b82f6; color: #fff; margin-left: auto; }
@@ -63,14 +59,13 @@
     .original { font-size: 0.7rem; opacity: 0.6; margin-top: 4px; }
     .time { font-size: 0.65rem; opacity: 0.5; margin-top: 2px; text-align: right; }
     
-    /* Novo estilo para o botão de variação (ícone flutuante) */
     .variant-btn { 
         position: absolute;
-        bottom: -8px; /* Posição vertical fora do balão */
-        right: -8px; /* Posição horizontal fora do balão */
+        bottom: -8px;
+        right: -8px;
         width: 24px;
         height: 24px;
-        background: #6b7280; /* Gray-500 */
+        background: #6b7280;
         color: #fff;
         border-radius: 50%;
         display: flex;
@@ -79,26 +74,25 @@
         cursor: pointer;
         box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         transition: background-color 0.15s;
-        z-index: 10; /* Garante que fique acima de outros elementos */
+        z-index: 10;
     }
     .variant-btn:hover {
-        background: #2563eb; /* Blue-600 on hover */
+        background: #2563eb;
     }
 
     .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 50; }
-    /* Modal responsivo com altura máxima e flexbox para scroll interno */
+    
     .modal-content { 
         background: #fff; 
         max-width: 90%; 
         width: 420px; 
-        max-height: 85vh; /* Altura máxima para não estourar a tela */
+        max-height: 85vh;
         border-radius: 12px; 
         padding: 16px; 
         display: flex;
         flex-direction: column;
     }
 
-    /* Estilo para itens clicáveis no modal */
     .variant-item {
         cursor: pointer;
         padding: 10px;
@@ -107,11 +101,17 @@
         transition: background-color 0.15s;
         border-bottom: 1px solid #f3f4f6;
     }
-    .variant-item:last-child {
-        border-bottom: none;
+    .variant-item:last-child { border-bottom: none; }
+    .variant-item:hover { background-color: #f3f4f6; }
+
+    /* Animação do indicador online */
+    @keyframes pulse-green {
+      0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+      70% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
     }
-    .variant-item:hover {
-        background-color: #f3f4f6;
+    .online-indicator {
+      animation: pulse-green 2s infinite;
     }
 
     @media (max-width: 640px) {
@@ -120,25 +120,26 @@
     }
   </style>
 </head>
-<!-- oncontextmenu="return false" para bloquear clique direito -->
 <body class="bg-gray-100 flex items-center justify-center min-h-screen" oncontextmenu="return false;">
 
 <div class="w-full max-w-lg bg-white sm:rounded-xl shadow-xl flex flex-col h-screen sm:h-[90vh]">
 
-  <div class="p-4 border-b flex justify-between items-center" style="display: none;">    
-    <!-- Cabeçalho oculto -->
-  </div>
-
   <div class="p-2 border-b flex items-center justify-between text-sm bg-gray-50 rounded-t-xl">
     <div class="flex items-center gap-2">
         <button id="notifBtn" class="p-2 rounded-full hover:bg-gray-200 transition-colors text-gray-500" title="Ativar Notificações">
-            <!-- Ícone será injetado via JS -->
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path><line x1="2" y1="2" x2="22" y2="22"></line></svg>
         </button>
+        
+        <!-- Indicador de Presença -->
+        <div id="presenceBadge" class="hidden flex items-center gap-1.5 px-2 py-1 bg-white border rounded-full shadow-sm">
+            <span class="w-2 h-2 rounded-full bg-green-500 online-indicator"></span>
+            <span id="onlineCount" class="text-xs font-semibold text-gray-600">1 Online</span>
+        </div>
         <div class="text-[10px] text-gray-400 leading-tight">
             &copy; <span id="year"></span> Chat Global.<br>Todos os direitos reservados.
         </div>
     </div>
+    
     <select id="lang" class="border rounded p-1 selectable text-xs font-medium bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
       <option value="pt">Português</option>
       <option value="ar">Árabe</option>
@@ -163,16 +164,13 @@
   </div>
 </div>
 
-<!-- Modal atualizado com botão Load More e Scroll -->
 <div id="modal" class="modal">
   <div class="modal-content">
     <h2 class="font-bold mb-1 shrink-0 text-gray-800">Variações da tradução</h2>
     <p class="text-xs text-gray-500 mb-3 shrink-0">Clique em uma opção para substituir a mensagem.</p>
     
-    <!-- Lista com scroll -->
     <ul id="variants" class="text-sm space-y-1 selectable overflow-y-auto flex-1 pr-1 custom-scrollbar" style="min-height: 100px;"></ul>
     
-    <!-- Rodapé com botões -->
     <div class="mt-4 flex justify-between items-center shrink-0 pt-3 border-t">
         <button id="loadMore" class="text-green-600 text-sm font-medium hover:bg-green-50 px-3 py-2 rounded transition-colors flex items-center gap-1">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -186,9 +184,6 @@
 </div>
 
 <script>
-    // Atualiza o ano automaticamente
-    document.getElementById("year").textContent = new Date().getFullYear();
-
     // Proteção adicional contra teclas de atalho
     document.addEventListener('keydown', function(e) {
         if (e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 's' || e.key === 'S')) {
@@ -199,7 +194,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-  import { getDatabase, ref, push, onChildAdded, set, get, query, orderByChild, remove, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+  import { getDatabase, ref, push, onChildAdded, set, get, query, orderByChild, remove, update, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAxb2s4tzbtD1arG9UAf7UrzhFqbRrrsl8",
@@ -215,14 +210,71 @@
   const db = getDatabase(app);
   const SALA_ID = "sala_fixa";
 
-  // --- Sistema de Notificação Aprimorado ---
+  let nick = localStorage.getItem("chat_nick");
+  if (!nick) {
+    nick = "User-" + Math.floor(Math.random() * 9000 + 1000);
+    localStorage.setItem("chat_nick", nick);
+  }
+
+  // --- Sistema de Presença (Online/Offline) ---
+  const presenceRef = ref(db, `salas/${SALA_ID}/presenca/${nick}`);
+  const connectedRef = ref(db, ".info/connected");
+  const presenceListRef = ref(db, `salas/${SALA_ID}/presenca`);
+  const presenceBadge = document.getElementById("presenceBadge");
+  const onlineCountEl = document.getElementById("onlineCount");
+
+  // Gerencia o estado de conexão do próprio usuário
+  onValue(connectedRef, (snap) => {
+    if (snap.val() === true) {
+      // Se estamos conectados (internet ok), verificamos a visibilidade da página
+      updatePresence();
+      
+      // Garante que se a internet cair ou fechar a aba, o user sai da lista
+      onDisconnect(presenceRef).remove();
+    }
+  });
+
+  // Função que atualiza o status baseado na visibilidade da aba
+  function updatePresence() {
+    if (document.visibilityState === 'visible') {
+        // Aba em foco: Estou Online
+        set(presenceRef, { 
+            online: true, 
+            lastChanged: Date.now() 
+        });
+    } else {
+        // Aba minimizada/fundo: Remove da lista (finge que saiu)
+        remove(presenceRef);
+    }
+  }
+
+  // Ouve mudanças de visibilidade (mudança de aba, minimizar app)
+  document.addEventListener("visibilitychange", updatePresence);
+
+  // Ouve a lista de todos os usuários online para atualizar o contador
+  onValue(presenceListRef, (snap) => {
+      const count = snap.size; // snap.size retorna o número de filhos (usuários)
+      
+      if (count > 0) {
+          presenceBadge.classList.remove('hidden');
+          presenceBadge.classList.add('flex');
+          // Texto dinâmico
+          const text = count === 1 ? "Só você" : `${count} Online`;
+          onlineCountEl.textContent = text;
+      } else {
+          // Fallback raro
+          presenceBadge.classList.add('hidden');
+      }
+  });
+  // -----------------------------
+
+
+  // --- Sistema de Notificação ---
   const loadTime = Date.now();
   const originalTitle = document.title;
   let notificationAudio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
   notificationAudio.volume = 0.5;
   let audioUnlocked = false;
-
-  // Controle visual do botão de notificação
   const notifBtn = document.getElementById('notifBtn');
   
   function updateNotifIcon() {
@@ -235,51 +287,36 @@
     }
   }
 
-  // Tenta atualizar ícone no início
   if ("Notification" in window) {
       updateNotifIcon();
   } else {
-      notifBtn.style.display = 'none'; // Esconde se navegador não suporta
+      notifBtn.style.display = 'none';
   }
 
-  // Lógica de "Destravar Áudio" e Pedir Permissão
   async function unlockAudioAndRequestPermission() {
-    // 1. Destravar áudio (Hack para Autoplay Policy)
     if (!audioUnlocked) {
         try {
             await notificationAudio.play();
             notificationAudio.pause();
             notificationAudio.currentTime = 0;
             audioUnlocked = true;
-        } catch (e) {
-            console.log("Audio unlock falhou (normal se for interação auto):", e);
-        }
+        } catch (e) {}
     }
-
-    // 2. Pedir Permissão se necessário
     if ("Notification" in window && Notification.permission !== "granted") {
         try {
             const permission = await Notification.requestPermission();
             updateNotifIcon();
             if (permission === 'granted') {
-                // Teste sonoro ao ativar
-                notificationAudio.play().catch(e => console.log(e));
-                new Notification("Chat Global", { body: "Notificações ativadas com sucesso!" });
+                notificationAudio.play().catch(e => {});
+                new Notification("Chat Global", { body: "Notificações ativadas!" });
             }
-        } catch (e) {
-            console.error("Erro permissão:", e);
-        }
+        } catch (e) {}
     }
   }
 
   notifBtn.onclick = unlockAudioAndRequestPermission;
-  
-  // Tenta destravar áudio no primeiro clique em qualquer lugar, caso usuário não clique no sino
-  document.body.addEventListener('click', () => {
-      if(!audioUnlocked) unlockAudioAndRequestPermission();
-  }, { once: true });
+  document.body.addEventListener('click', () => { if(!audioUnlocked) unlockAudioAndRequestPermission(); }, { once: true });
 
-  // Reseta o título da página quando o usuário volta para a aba
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
       document.title = originalTitle;
@@ -288,32 +325,18 @@
 
   function sendNativeNotification(sender, text) {
     if (!("Notification" in window)) return;
-    
     if (Notification.permission === "granted") {
       try {
           const notif = new Notification(`Nova mensagem de ${sender}`, {
             body: text,
             icon: "https://cdn-icons-png.flaticon.com/512/724/724715.png",
-            // Removemos badge/vibrate/silent que podem bugar em alguns browsers
-            tag: 'chat-msg' // Evita spam de notificação, substitui a anterior se for do mesmo app
+            tag: 'chat-msg'
           });
-          
-          notif.onclick = function() {
-            window.focus();
-            notif.close();
-          };
-      } catch (e) {
-          console.error("Erro ao criar notificação:", e);
-      }
+          notif.onclick = function() { window.focus(); notif.close(); };
+      } catch (e) {}
     }
   }
   // -----------------------------
-
-  let nick = localStorage.getItem("chat_nick");
-  if (!nick) {
-    nick = "User-" + Math.floor(Math.random() * 9000 + 1000);
-    localStorage.setItem("chat_nick", nick);
-  }
 
   let TARGET_LANG = localStorage.getItem("chat_lang") || "pt";
   const langSelect = document.getElementById("lang");
@@ -333,32 +356,30 @@
 
   async function selectTranslation(key, newTranslation, contentElement) {
     contentElement.textContent = newTranslation;
-
     try {
       const updates = {};
       updates[TARGET_LANG] = newTranslation;
       await update(ref(db, `salas/${SALA_ID}/mensagens/${key}/traducoes`), updates);
     } catch (e) {
-      console.error("Erro ao salvar tradução:", e);
+      console.error(e);
     }
-
     document.getElementById("modal").style.display = "none";
   }
 
   async function traduzir(texto, langCode = TARGET_LANG) {
     const idioma = langCode === "pt" ? "português" : "árabe";
-    const prompt = encodeURIComponent(`traduza apenas para ${idioma}: ${texto}. responda apenas com a tradução, tente ser formal, sem girias ou abreviações.`);
+    const prompt = encodeURIComponent(`traduza apenas para ${idioma}: ${texto}. responda apenas com a tradução`);
     try {
         const res = await fetch(`https://text.pollinations.ai/${prompt}`);
         return await res.text();
     } catch(e) {
-        return texto; // Fallback
+        return texto;
     }
   }
 
   async function gerarVariacoes(texto, qtd = 3) {
     const idioma = TARGET_LANG === "pt" ? "português" : "árabe";
-    const prompt = encodeURIComponent(`gere ${qtd} variações diferentes de tradução para ${idioma} (seja criativo): "${texto}". responda apenas as variações em linhas separadas sem numeração. tente ser formal, sem girias ou abreviações`);
+    const prompt = encodeURIComponent(`gere ${qtd} variações diferentes de tradução para ${idioma} (seja criativo): "${texto}". responda apenas as variações em linhas separadas sem numeração.`);
     const res = await fetch(`https://text.pollinations.ai/${prompt}?seed=${Math.random()}`);
     const txt = await res.text();
     return txt.split("\n").filter(l => l.trim().length > 0).map(l => l.replace(/^[-*•]\s*/, ''));
@@ -382,7 +403,6 @@
         await update(ref(db, `salas/${SALA_ID}/mensagens/${item.key}/traducoes`), updates);
       }
     } catch (e) {
-      console.error(e);
       item.element.textContent = "Erro na tradução";
     }
 
@@ -397,29 +417,14 @@
     const isReceived = from !== nick;
     
     if (isNew && isReceived) {
-        // 1. Áudio
         try {
-            // Tenta tocar apenas se já estiver destravado ou se o navegador permitir
             const playPromise = notificationAudio.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    // Auto-play foi impedido. Normal se o usuário ainda não interagiu.
-                    console.log("Som de notificação impedido pelo navegador.");
-                });
-            }
-            
-            if ("vibrate" in navigator) {
-                navigator.vibrate([200]);
-            }
+            if (playPromise !== undefined) { playPromise.catch(e => {}); }
+            if ("vibrate" in navigator) { navigator.vibrate([200]); }
         } catch(e) {}
 
-        // 2. Notificação Nativa
         sendNativeNotification(from, texto);
-
-        // 3. Título
-        if (document.hidden) {
-            document.title = `(1) ${from} diz...`;
-        }
+        if (document.hidden) { document.title = `(1) ${from} diz...`; }
     }
 
     const div = document.createElement("div");
@@ -505,7 +510,6 @@
             }
         };
       };
-      
       div.appendChild(varBtn);
     }
 
@@ -559,7 +563,6 @@
     }
   };
   
-  // Enter para enviar
   msgEl.addEventListener("keypress", (e) => {
       if(e.key === "Enter") document.getElementById("send").click();
   });
