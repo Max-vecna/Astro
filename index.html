@@ -54,6 +54,13 @@
       /* Ajuste para permitir que botões fiquem para fora */
       margin-top: 10px; 
       margin-bottom: 10px; 
+      transition: all 0.2s ease;
+    }
+
+    /* ESTILO PARA MODO DE EDIÇÃO (Expandir largura) */
+    .message.editing {
+        width: 80% !important;
+        max-width: 80% !important;
     }
 
     .sent { background: #3b82f6; color: #fff; margin-left: auto; }
@@ -110,7 +117,7 @@
     }
     .variant-btn:hover { background: #2563eb; }
     
-    /* NOVO: Botão de Edição */
+    /* Botão de Edição */
     .edit-btn {
         left: -10px;
         bottom: -10px;
@@ -118,6 +125,93 @@
     }
     .edit-btn:hover { background: #059669; }
 
+
+    /* --- ESTILOS DA ÁREA DE EDIÇÃO (NOVO) --- */
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .edit-area {
+        animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        background: #ffffff; /* Fundo branco para contraste na edição */
+        border-radius: 12px;
+        padding: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.05);
+        margin-top: 4px;
+        border: 1px solid rgba(0,0,0,0.05);
+        width: 100%;
+        min-width: 200px; /* Garante largura mínima para os botões */
+    }
+
+    /* Ajuste de cor de texto para o textarea dentro do container azul */
+    .sent .edit-area textarea {
+        color: #1f2937; /* Cinza escuro */
+    }
+
+    .edit-textarea {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        line-height: 1.4;
+        color: #1f2937;
+        resize: none;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        font-family: inherit;
+        background: #f9fafb;
+        display: block;
+    }
+    
+    .edit-textarea:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        background: #fff;
+    }
+
+    .edit-controls {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 8px;
+        align-items: center;
+    }
+
+    .edit-btn-action {
+        padding: 6px 14px;
+        border-radius: 9999px; /* Pill shape */
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+    }
+    
+    .btn-cancel {
+        color: #6b7280;
+        background: transparent;
+    }
+    .btn-cancel:hover {
+        background: #f3f4f6;
+        color: #374151;
+    }
+    
+    .btn-save {
+        background: #3b82f6;
+        color: white;
+        box-shadow: 0 2px 5px rgba(59, 130, 246, 0.3);
+    }
+    .btn-save:hover {
+        background: #2563eb;
+        box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+        transform: translateY(-1px);
+    }
+    .btn-save:active {
+        transform: translateY(0);
+    }
+    /* ---------------------------------------- */
 
     .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 50; }
     
@@ -158,7 +252,7 @@
     }
   </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen" oncontextmenu="return false;">
+<body class="bg-gray-100 flex items-center justify-center min-h-screen" style="background-color: #1f2937;">
 
 <div class="w-full max-w-lg bg-white sm:rounded-xl shadow-xl flex flex-col h-screen sm:h-[90vh]">
 
@@ -181,6 +275,9 @@
     <select id="lang" class="border rounded p-1 selectable text-xs font-medium bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
       <option value="pt">Português</option>
       <option value="ar">Árabe</option>
+      <option value="es">Espanhol</option>
+      <option value="ja">Japonês</option>
+      <option value="zh">Chinês</option>
     </select>
   </div>
 
@@ -250,6 +347,19 @@
   const SALA_ID = "sala_fixa";
   const chatEl = document.getElementById("chat");
   const msgEl = document.getElementById("msg");
+  
+  // Variável para controlar o Heartbeat
+  let heartbeatInterval = null; 
+
+  // Mapeamento de códigos de idioma para nomes completos (necessário para a API de tradução)
+  const LANG_MAP = {
+      'pt': 'português',
+      'ar': 'árabe',
+      'es': 'espanhol',
+      'ja': 'japonês',
+      'zh': 'chinês'
+  };
+
 
   let messageElements = {}; // Map para armazenar {key: domElement}
 
@@ -259,32 +369,68 @@
     localStorage.setItem("chat_nick", nick);
   }
 
-  // --- Sistema de Presença (Online/Offline) ---
+  // --- Sistema de Presença (Online/Offline) e Heartbeat ---
   const presenceRef = ref(db, `salas/${SALA_ID}/presenca/${nick}`);
   const connectedRef = ref(db, ".info/connected");
   const presenceListRef = ref(db, `salas/${SALA_ID}/presenca`);
   const presenceBadge = document.getElementById("presenceBadge");
   const onlineCountEl = document.getElementById("onlineCount");
 
-  onValue(connectedRef, (snap) => {
-    if (snap.val() === true) {
-      updatePresence();
-      onDisconnect(presenceRef).remove();
-    }
-  });
-
   function updatePresence() {
-    if (document.visibilityState === 'visible') {
+    // Escreve no DB se a aba estiver visível OU se o heartbeat estiver ativo.
+    // Isso é o que ajuda a manter a conexão WebSocket viva em segundo plano.
+    if (document.visibilityState === 'visible' || heartbeatInterval) { 
         set(presenceRef, { 
             online: true, 
-            lastChanged: Date.now() 
+            lastChanged: Date.now() // Atualiza o timestamp
         });
     } else {
         remove(presenceRef);
     }
   }
 
-  document.addEventListener("visibilitychange", updatePresence);
+  onValue(connectedRef, (snap) => {
+    if (snap.val() === true) {
+      updatePresence();
+      onDisconnect(presenceRef).remove();
+      
+      // NOVO: Inicia o Heartbeat
+      // Se a aba estiver em segundo plano, a cada 30s ela tentará escrever no Firebase.
+      // Isso minimiza o estrangulamento do navegador.
+      if (!heartbeatInterval) {
+          heartbeatInterval = setInterval(() => {
+              if (document.hidden) { // Apenas mantém a atividade se a aba estiver em segundo plano
+                  updatePresence();
+              }
+          }, 30000); // 30 segundos
+      }
+    } else {
+      // Limpa o Heartbeat ao desconectar
+      if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+      }
+    }
+  });
+
+  document.addEventListener("visibilitychange", () => {
+      updatePresence(); // Atualiza imediatamente o status ao mudar de visibilidade
+      if (document.hidden) {
+          // Garante que o intervalo está rodando se o usuário minimizou
+          if (!heartbeatInterval) {
+              heartbeatInterval = setInterval(() => {
+                  updatePresence();
+              }, 30000);
+          }
+      } else {
+          // Limpa o intervalo quando volta para o primeiro plano (evita escritas desnecessárias)
+          if (heartbeatInterval) {
+              clearInterval(heartbeatInterval);
+              heartbeatInterval = null;
+          }
+      }
+  });
+
 
   onValue(presenceListRef, (snap) => {
       const count = snap.size; 
@@ -373,15 +519,40 @@
   let TARGET_LANG = localStorage.getItem("chat_lang") || "pt";
   const langSelect = document.getElementById("lang");
   langSelect.value = TARGET_LANG;
+  
+  // Lógica de troca de idioma
   langSelect.onchange = () => {
     TARGET_LANG = langSelect.value;
     localStorage.setItem("chat_lang", TARGET_LANG);
-    // Força a re-renderização/re-tradução de todas as mensagens visíveis
-    Object.values(messageElements).forEach(div => {
-        const key = div.dataset.key;
-        const data = messageElements[key].data;
-        updateMessageDOM(div, data, key);
+    
+    // 1. Limpa a fila de tradução pendente (porque o idioma mudou)
+    fila.length = 0; 
+    
+    // 2. Força a re-renderização/re-tradução de todas as mensagens visíveis
+    Object.keys(messageElements).forEach(key => {
+        const item = messageElements[key];
+        // Reinicia o status de tradução (se for uma mensagem recebida)
+        if (item.data.nick !== nick) {
+            // Se não houver tradução cacheada para o novo idioma, força a re-tradução
+            if (!item.data.traducoes || !item.data.traducoes[TARGET_LANG]) {
+                const contentEl = item.dom.querySelector('.message-content');
+                contentEl.textContent = "traduzindo...";
+                contentEl.classList.add('italic', 'text-gray-400');
+                
+                // Adiciona à fila
+                fila.push({ 
+                    texto: item.data.texto, 
+                    element: contentEl, 
+                    key, 
+                    lang: TARGET_LANG 
+                });
+            }
+        }
+        // Atualiza o DOM para refletir o novo idioma
+        updateMessageDOM(item.dom, item.data, key);
     });
+    // Inicia o processamento da fila com as novas traduções pendentes
+    processarFila(); 
   };
 
   const salaRef = ref(db, `salas/${SALA_ID}`);
@@ -392,6 +563,7 @@
   async function selectTranslation(key, newTranslation, contentElement) {
     contentElement.textContent = newTranslation;
     try {
+      // Salva a tradução escolhida no Firebase
       const updates = {};
       updates[TARGET_LANG] = newTranslation;
       await update(ref(db, `salas/${SALA_ID}/mensagens/${key}/traducoes`), updates);
@@ -428,7 +600,7 @@
 
   // Função de Tradução com Retry e Timeout dinâmico
   async function traduzir(texto, langCode = TARGET_LANG, tentarNovamente = true) {
-    const idioma = langCode === "pt" ? "português" : "árabe";
+    const idioma = LANG_MAP[langCode]; // Usa o mapeamento
     const prompt = encodeURIComponent(`traduza apenas para ${idioma}: ${texto}. responda apenas com a tradução`);
     const url = `https://text.pollinations.ai/${prompt}`;
     const timeout = getTranslationTimeout(texto); // Timeout dinâmico
@@ -454,7 +626,7 @@
 
   // Função para gerar variações
   async function gerarVariacoes(texto, qtd = 3) {
-    const idioma = TARGET_LANG === "pt" ? "português" : "árabe";
+    const idioma = LANG_MAP[TARGET_LANG]; // Usa o mapeamento
     const prompt = encodeURIComponent(`gere ${qtd} variações diferentes de tradução para ${idioma} (seja criativo): "${texto}". responda apenas as variações em linhas separadas sem numeração.`);
     const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
 
@@ -480,16 +652,22 @@
     try {
         const traduzido = await traduzir(originalText, TARGET_LANG, true);
         
-        // Atualiza o Firebase (o onChildChanged cuidará do DOM)
+        // 1. ATUALIZAÇÃO CRÍTICA: Salva a nova tradução no Firebase
         const updates = {};
         updates[TARGET_LANG] = traduzido;
         await update(ref(db, `salas/${SALA_ID}/mensagens/${key}/traducoes`), updates);
+        
+        // O listener onChildChanged será ativado, mas atualizamos o DOM imediatamente
+        // para dar feedback rápido e remover o texto "Traduzindo novamente...".
+        contentElement.textContent = traduzido;
+        contentElement.classList.remove('italic', 'text-gray-400');
         
     } catch (e) {
         console.error("Falha ao retraduzir", e);
         contentElement.textContent = "ERRO: Falha na tradução. Clique para tentar.";
         setTimeout(() => {
             if (contentElement.textContent.startsWith("ERRO:")) {
+                // Volta para o texto original para que a retradução possa ser tentada novamente
                 contentElement.textContent = originalContent; 
             }
         }, 3000);
@@ -517,9 +695,9 @@
 
 
       if (item.key) {
+        // ATUALIZAÇÃO CRÍTICA: Salva a tradução no Firebase
         const updates = {};
         updates[item.lang] = traduzido;
-        // Salva a tradução no Firebase
         await update(ref(db, `salas/${SALA_ID}/mensagens/${item.key}/traducoes`), updates);
       }
     } catch (e) {
@@ -538,6 +716,9 @@
     const messageDiv = contentElement.parentElement;
     const timeContainer = messageDiv.querySelector('.time-container');
     
+    // Adiciona classe para expandir a largura
+    messageDiv.classList.add('editing');
+
     // Esconde o conteúdo original e o horário
     contentElement.style.display = 'none';
     timeContainer.style.display = 'none';
@@ -545,24 +726,24 @@
     // Esconde todos os botões de ação (edit, retry, variant)
     messageDiv.querySelectorAll('.action-btn').forEach(btn => btn.style.display = 'none');
 
-    // Cria a área de edição (textarea + save/cancel buttons)
+    // Cria a área de edição (novo layout)
     const editArea = document.createElement('div');
-    editArea.className = 'edit-area flex flex-col gap-2 w-full mt-2';
+    editArea.className = 'edit-area';
     
     const textarea = document.createElement('textarea');
-    textarea.className = 'w-full p-2 border rounded resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-800';
+    textarea.className = 'edit-textarea';
     textarea.value = currentText;
     textarea.rows = 2;
     
     const controls = document.createElement('div');
-    controls.className = 'flex justify-end gap-2';
+    controls.className = 'edit-controls';
     
     const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'text-sm text-gray-500 hover:text-gray-700 p-1 rounded transition-colors';
+    cancelBtn.className = 'edit-btn-action btn-cancel';
     cancelBtn.textContent = 'Cancelar';
     
     const saveBtn = document.createElement('button');
-    saveBtn.className = 'text-sm bg-blue-500 hover:bg-blue-600 text-white p-1.5 px-3 rounded transition-colors shadow-sm';
+    saveBtn.className = 'edit-btn-action btn-save';
     saveBtn.textContent = 'Salvar';
 
     controls.appendChild(cancelBtn);
@@ -572,12 +753,27 @@
     
     messageDiv.insertBefore(editArea, timeContainer);
 
+    // Ajusta altura automaticamente
+    textarea.style.height = 'auto';
+    textarea.style.height = (textarea.scrollHeight + 2) + 'px';
+    textarea.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight + 2) + 'px';
+    });
+
     const cleanup = () => {
-        editArea.remove();
-        contentElement.style.display = 'block';
-        timeContainer.style.display = 'flex';
-        // Reexibe o botão de edição (ou outros botões de ação se for o caso)
-        messageDiv.querySelectorAll('.action-btn').forEach(btn => btn.style.display = 'flex');
+        // Animação de saída antes de remover
+        editArea.style.opacity = '0';
+        editArea.style.transform = 'translateY(-5px)';
+        setTimeout(() => {
+             editArea.remove();
+             contentElement.style.display = 'block';
+             timeContainer.style.display = 'flex';
+             // Reexibe o botão de edição (ou outros botões de ação se for o caso)
+             messageDiv.querySelectorAll('.action-btn').forEach(btn => btn.style.display = 'flex');
+             // Remove classe de edição para voltar ao tamanho original
+             messageDiv.classList.remove('editing');
+        }, 200);
     };
     
     cancelBtn.onclick = cleanup;
@@ -596,19 +792,21 @@
 
         saveBtn.textContent = 'Salvando...';
         saveBtn.disabled = true;
+        saveBtn.style.opacity = '0.7';
 
         try {
             // Salva novo texto, marca como editado, e DELETA as traduções para forçar re-tradução
             await update(ref(db, `salas/${SALA_ID}/mensagens/${key}`), {
                 texto: newText,
                 edited: true,
-                traducoes: null 
+                traducoes: null // Isto força uma nova tradução para o novo texto
             });
             cleanup(); 
         } catch (e) {
             console.error("Erro ao salvar edição:", e);
             saveBtn.textContent = 'Salvar';
             saveBtn.disabled = false;
+            saveBtn.style.opacity = '1';
         }
     };
     
@@ -630,10 +828,12 @@
     // 1. Atualiza Conteúdo (Tradução/Original)
     if (isReceived) {
         const cachedTranslation = traducoes && traducoes[TARGET_LANG];
+        const isTranslating = content.textContent === "traduzindo..." || content.textContent === "Traduzindo novamente..." || content.textContent.startsWith("ERRO:");
+        
         if (cachedTranslation) {
             content.textContent = cachedTranslation;
             content.classList.remove('italic', 'text-gray-400');
-        } else if (content.textContent !== "traduzindo...") { // Evita quebra se já estiver traduzindo
+        } else if (!isTranslating) { // Se não tiver tradução e não estiver traduzindo, inicia
             content.textContent = "traduzindo...";
             content.classList.add('italic', 'text-gray-400');
             fila.push({ texto, element: content, key, lang: TARGET_LANG });
@@ -648,7 +848,7 @@
         // Atualiza a função do botão de edição (caso o texto tenha mudado, a função onclick anterior usa o texto antigo)
         const editBtn = div.querySelector('.edit-btn');
         if (editBtn) {
-            editBtn.onclick = () => startEdit(key, texto, content);
+            editBtn.onclick = () => startEdit(key, content.textContent, content);
         }
     }
 
@@ -720,7 +920,7 @@
             </svg>
         `;
         retryBtn.onclick = () => retraduzirMensagem(key, texto, content);
-        //div.appendChild(retryBtn);
+        div.appendChild(retryBtn); 
 
         // BOTÃO: Gerar Variações (Recebedor)
         const varBtn = document.createElement("div");
