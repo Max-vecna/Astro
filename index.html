@@ -254,9 +254,13 @@
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen" style="background-color: #1f2937;">
 
-<div class="w-full max-w-lg bg-white sm:rounded-xl shadow-xl flex flex-col h-screen sm:h-[90vh]">
+<div class="w-full max-w-lg bg-white sm:rounded-xl shadow-xl flex flex-col h-screen sm:h-[90vh]" style="position: relative;">
 
-  <div class="p-2 border-b flex items-center justify-between text-sm bg-gray-50 rounded-t-xl">
+  <div class="p-2 border-b flex items-center justify-between text-sm bg-gray-50 rounded-t-xl" style="
+    position: absolute;
+    top: 0;
+    width: 100%;
+">
     <div class="flex items-center gap-2">
         <button id="notifBtn" class="p-2 rounded-full hover:bg-gray-200 transition-colors text-gray-500" title="Ativar Notificações">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path><line x1="2" y1="2" x2="22" y2="22"></line></svg>
@@ -281,13 +285,21 @@
     </select>
   </div>
 
-  <div id="chat" class="flex-1 overflow-y-auto p-3 space-y-4 relative bg-white">
+  <div id="chat" class="flex-1 overflow-y-auto p-3 space-y-4 relative bg-white" style="
+    position: absolute;
+    top: 51px;
+    bottom: 75px;
+">
     <div id="loadingOld" class="absolute top-2 left-1/2 -translate-x-1/2 text-xs text-gray-500 hidden">
       Carregando mensagens antigas…
     </div>
   </div>
 
-  <div class="p-3 border-t flex flex-col gap-2 bg-gray-50 rounded-b-xl">
+  <div class="p-3 border-t flex flex-col gap-2 bg-gray-50 rounded-b-xl"  style="
+    position: absolute;
+    width: 100%;
+    bottom: 0;
+">
     <div class="flex gap-2 items-center w-full">
       <input id="msg" placeholder="Digite sua mensagem" class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm" autocomplete="off" />
       <button id="send" class="bg-blue-600 hover:bg-blue-700 text-white w-12 h-12 flex items-center justify-center rounded-full shrink-0 shadow-md transition-all active:scale-95">
