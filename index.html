@@ -641,7 +641,14 @@
   }
   
   // Função para tratar a tentativa de retradução
-  async function retraduzirMensagem(key, originalText, contentElement) {
+  async function retraduzirMensagem(key, contentElement) {
+    // CORREÇÃO CRÍTICA: Busca o texto diretamente do Firebase para garantir que é a versão salva mais recente.
+    const messageSnap = await get(ref(db, `salas/${SALA_ID}/mensagens/${key}`));
+    const latestData = messageSnap.val();
+
+    if (!latestData || !latestData.texto) return;
+    const originalText = latestData.texto;
+
     const originalContent = contentElement.textContent;
     contentElement.textContent = "Traduzindo novamente...";
     
@@ -652,13 +659,7 @@
     try {
         const traduzido = await traduzir(originalText, TARGET_LANG, true);
         
-        // 1. ATUALIZAÇÃO CRÍTICA: Salva a nova tradução no Firebase
-        const updates = {};
-        updates[TARGET_LANG] = traduzido;
-        await update(ref(db, `salas/${SALA_ID}/mensagens/${key}/traducoes`), updates);
-        
-        // O listener onChildChanged será ativado, mas atualizamos o DOM imediatamente
-        // para dar feedback rápido e remover o texto "Traduzindo novamente...".
+        // ATUALIZAÇÃO: Apenas exibe localmente, não salva no Firebase
         contentElement.textContent = traduzido;
         contentElement.classList.remove('italic', 'text-gray-400');
         
@@ -667,7 +668,6 @@
         contentElement.textContent = "ERRO: Falha na tradução. Clique para tentar.";
         setTimeout(() => {
             if (contentElement.textContent.startsWith("ERRO:")) {
-                // Volta para o texto original para que a retradução possa ser tentada novamente
                 contentElement.textContent = originalContent; 
             }
         }, 3000);
@@ -840,6 +840,8 @@
             processarFila();
         }
         if (original) original.textContent = texto;
+
+        // O botão de retry agora usa busca dinâmica de dados, não precisa ser atualizado aqui
         
     } else {
         // Remetente: Sempre mostra o texto original
@@ -919,8 +921,8 @@
                 <path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.5 15a9 9 0 0 1 14.8-8.8L23 10"></path><path d="M1 14l4.7 4.7A9 9 0 0 0 20.5 9"></path>
             </svg>
         `;
-        retryBtn.onclick = () => retraduzirMensagem(key, texto, content);
-        div.appendChild(retryBtn); 
+        retryBtn.onclick = () => retraduzirMensagem(key, content);
+        //div.appendChild(retryBtn); 
 
         // BOTÃO: Gerar Variações (Recebedor)
         const varBtn = document.createElement("div");
@@ -934,7 +936,10 @@
         
         varBtn.onclick = async () => {
           const currentContentElement = content;
-          const originalText = original.textContent; // Sempre usa o texto original
+          // CORREÇÃO: Busca texto sempre atualizado do objeto de dados
+          const latestData = messageElements[key]?.data;
+          const originalText = latestData ? latestData.texto : original.textContent;
+
           const variantsUl = document.getElementById("variants");
           const loadMoreBtn = document.getElementById("loadMore");
           const modal = document.getElementById("modal");
