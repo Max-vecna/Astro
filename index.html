@@ -351,6 +351,10 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
   import { getDatabase, ref, push, onChildAdded, set, get, query, orderByChild, remove, update, onValue, onDisconnect, onChildChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js");
+  }
+
   const firebaseConfig = {
     apiKey: "AIzaSyAxb2s4tzbtD1arG9UAf7UrzhFqbRrrsl8",
     authDomain: "astro-642b6.firebaseapp.com",
@@ -520,19 +524,20 @@
     }
   });
 
-  function sendNativeNotification(sender, text) {
-    if (!("Notification" in window)) return;
-    if (Notification.permission === "granted") {
-      try {
-          const notif = new Notification(`Nova mensagem de ${sender}`, {
-            body: text,
-            icon: "https://cdn-icons-png.flaticon.com/512/724/724715.png",
-            tag: 'chat-msg'
-          });
-          notif.onclick = function() { window.focus(); notif.close(); };
-      } catch (e) {}
-    }
+ async function sendNativeNotification(sender, text) {
+    if (!("serviceWorker" in navigator)) return;
+
+    const registration = await navigator.serviceWorker.ready;
+
+    registration.showNotification(`Nova mensagem de ${sender}`, {
+      body: text,
+      icon: "https://cdn-icons-png.flaticon.com/512/724/724715.png",
+      badge: "https://cdn-icons-png.flaticon.com/512/724/724715.png",
+      tag: "chat-msg",
+      renotify: true
+    });
   }
+
   // -----------------------------
 
   let TARGET_LANG = localStorage.getItem("chat_lang") || "pt";
@@ -660,40 +665,38 @@
   }
   
   // Função para tratar a tentativa de retradução
-  async function retraduzirMensagem(key, contentElement) {
-    // CORREÇÃO CRÍTICA: Busca o texto diretamente do Firebase para garantir que é a versão salva mais recente.
-    const messageSnap = await get(ref(db, `salas/${SALA_ID}/mensagens/${key}`));
-    const latestData = messageSnap.val();
+ async function retraduzirMensagem(key, contentElement) {
+  // Busca SEMPRE o texto original salvo
+  const snap = await get(ref(db, `salas/${SALA_ID}/mensagens/${key}`));
+  const data = snap.val();
+  if (!data?.texto) return;
 
-    if (!latestData || !latestData.texto) return;
-    const originalText = latestData.texto;
+  const textoOriginal = data.texto;
 
-    const originalContent = contentElement.textContent;
-    contentElement.textContent = "Traduzindo novamente...";
-    
-    const div = contentElement.parentElement;
-    const buttons = div.querySelectorAll('.action-btn');
-    buttons.forEach(btn => btn.style.pointerEvents = 'none');
+  // UI de carregamento
+  contentElement.textContent = "Traduzindo novamente...";
+  contentElement.classList.add("italic", "text-gray-400");
 
-    try {
-        const traduzido = await traduzir(originalText, TARGET_LANG, true);
-        
-        // ATUALIZAÇÃO: Apenas exibe localmente, não salva no Firebase
-        contentElement.textContent = traduzido;
-        contentElement.classList.remove('italic', 'text-gray-400');
-        
-    } catch (e) {
-        console.error("Falha ao retraduzir", e);
-        contentElement.textContent = "ERRO: Falha na tradução. Clique para tentar.";
-        setTimeout(() => {
-            if (contentElement.textContent.startsWith("ERRO:")) {
-                contentElement.textContent = originalContent; 
-            }
-        }, 3000);
-    } finally {
-        buttons.forEach(btn => btn.style.pointerEvents = 'auto');
-    }
+  // Desativa botões temporariamente
+  const messageDiv = contentElement.parentElement;
+  messageDiv.querySelectorAll(".action-btn")
+    .forEach(b => b.style.pointerEvents = "none");
+
+  try {
+    const novaTraducao = await traduzir(textoOriginal, TARGET_LANG, true);
+
+    // Substitui apenas no DOM
+    contentElement.textContent = novaTraducao;
+    contentElement.classList.remove("italic", "text-gray-400");
+
+  } catch (e) {
+    console.error("Erro ao retraduzir:", e);
+    contentElement.textContent = "Erro ao retraduzir. Tente novamente.";
+  } finally {
+    messageDiv.querySelectorAll(".action-btn")
+      .forEach(b => b.style.pointerEvents = "auto");
   }
+}
 
   const fila = [];
   let processando = false;
@@ -941,7 +944,7 @@
             </svg>
         `;
         retryBtn.onclick = () => retraduzirMensagem(key, content);
-        //div.appendChild(retryBtn); 
+        div.appendChild(retryBtn); 
 
         // BOTÃO: Gerar Variações (Recebedor)
         const varBtn = document.createElement("div");
