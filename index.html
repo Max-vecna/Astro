@@ -293,7 +293,7 @@
   /* Botões de ação não saem da tela */
   .retry-btn,
   .variant-btn {
-    right: -10px;
+    right: -4px;
   }
 
   .edit-btn {
@@ -407,9 +407,6 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
   import { getDatabase, ref, push, onChildAdded, set, get, query, orderByChild, remove, update, onValue, onDisconnect, onChildChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
-  import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging.js";
-
-const messaging = getMessaging(app);
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js");
@@ -575,27 +572,7 @@ const messaging = getMessaging(app);
     }
   }
 
-  async function ativarFCM() {
-  try {
-    const token = await getToken(messaging, {
-      vapidKey: "SUA_VAPID_KEY_PUBLICA"
-    });
-
-    if (token) {
-      await set(ref(db, `usuarios/${nick}/fcmToken`), token);
-      console.log("FCM ativo:", token);
-    }
-  } catch (e) {
-    console.error("Erro FCM:", e);
-  }
-}
-
-
-  notifBtn.onclick = async () => {
-  await unlockAudioAndRequestPermission();
-  await ativarFCM();
-};
-
+  notifBtn.onclick = unlockAudioAndRequestPermission;
   document.body.addEventListener('click', () => { if(!audioUnlocked) unlockAudioAndRequestPermission(); }, { once: true });
 
   document.addEventListener("visibilitychange", () => {
