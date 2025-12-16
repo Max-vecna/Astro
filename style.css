@@ -1,4 +1,4 @@
- /* GARANTIA DE ALTURA TOTAL PARA ESTABILIDADE MÓVEL */
+/* GARANTIA DE ALTURA TOTAL PARA ESTABILIDADE MÓVEL */
     html, body {
       height: 100%;
       margin: 0;
@@ -56,57 +56,134 @@
     .received .time-container { color: #4b5563; }
     .edited-tag { font-style: italic; opacity: 0.7; }
 
-    /* Botões de Ação Comuns */
+    /* Botão de Menu (Três Pontos) e Botão de Edição */
     .action-btn {
         position: absolute;
-        width: 26px;
-        height: 26px;
-        color: #fff;
+        width: 28px;
+        height: 28px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.15);
         transition: all 0.2s;
         z-index: 20;
-        border: 2px solid #fff;
+        background: #fff;
+        color: #4b5563;
+        border: 1px solid #e5e7eb;
     }
-    .action-btn:hover { transform: scale(1.1); }
-
-
-    /* Botão de Retentar Tradução */
-    .retry-btn { 
-        right: -10px;
-        bottom: 20px; 
-        background: #f59e0b;
+    .action-btn:hover { 
+        transform: scale(1.05); 
+        background: #f9fafb;
     }
-    .retry-btn:hover { background: #d97706; }
-
-    .context-btn {
-      right: -10px;
-      bottom: 50px;
-      background-color: #059669;
+    .action-btn:active {
+        transform: scale(0.95);
     }
 
-    /* Botão de Gerar Variações */
-    .variant-btn { 
-        right: -10px;
-        bottom: -10px; 
-        background: #6b7280;
+    /* Posição do botão de menu para recebidos */
+    .menu-trigger {
+        right: -14px;
+        top: 50%;
+        transform: translateY(-50%);
     }
-    .variant-btn:hover { background: #2563eb; }
-    
-    /* Botão de Edição */
+    .menu-trigger:hover {
+         transform: translateY(-50%) scale(1.05);
+    }
+
+    /* Posição do botão de edição para enviados (mantendo o padrão visual) */
     .edit-btn {
-        left: -10px;
+        left: -14px;
         bottom: -10px;
-        background: #10b981; /* Verde para 'edit' */
+        background: #fff;
+        color: #10b981; /* Verde */
     }
-    .edit-btn:hover { background: #059669; }
+    
+    /* --- MENU DROPDOWN --- */
+    .options-menu {
+        position: fixed; 
+        top: 0; left: 0; 
+        margin: 0; 
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        padding: 4px;
+        display: none; 
+        flex-direction: column;
+        z-index: 9999; 
+        min-width: 160px;
+        border: 1px solid #e5e7eb;
+        animation: menuFadeIn 0.15s ease-out;
+    }
+    
+    @keyframes menuFadeIn {
+        from { opacity: 0; transform: translateY(-5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .options-menu.show { display: flex; }
+    
+    /* Seta para Menu Aberto à DIREITA (Ponteiro na ESQUERDA) - Seu Código */
+    .options-menu.open-right::after {
+        content: "";
+        position: absolute;
+        top: calc(50% - 6px);
+        left: -6px;
+        width: 12px;
+        height: 12px;
+        background: #ffffff;
+        border-left: 1px solid #e5e7eb;
+        border-top: 1px solid #e5e7eb;
+        transform: rotate(-45deg);
+        z-index: -1; 
+    }
+
+    /* Seta para Menu Aberto à ESQUERDA (Ponteiro na DIREITA) */
+    .options-menu.open-left::after {
+        content: "";
+        position: absolute;
+        top: calc(50% - 6px);
+        right: -6px;
+        width: 12px;
+        height: 12px;
+        background: #ffffff;
+        /* Usamos border-right e border-top, e giramos para apontar para a direita */
+        border-right: 1px solid #e5e7eb;
+        border-top: 1px solid #e5e7eb;
+        transform: rotate(45deg); 
+        z-index: -1;
+    }
 
 
-    /* --- ESTILOS DA ÁREA DE EDIÇÃO (NOVO) --- */
+    .options-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        font-size: 0.9rem;
+        color: #374151;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: background 0.15s, color 0.15s;
+        text-decoration: none;
+    }
+    .options-item:hover { background: #eff6ff; color: #2563eb; }
+    
+    .options-item svg {
+        width: 18px;
+        height: 18px;
+        stroke-width: 2px;
+    }
+
+    /* Cores específicas para ícones no menu */
+    .options-item.retry-opt svg { color: #f59e0b; }
+    .options-item.var-opt svg { color: #3b82f6; }
+    .options-item.ctx-opt svg { color: #059669; }
+
+    /* -------------------------- */
+
+
+    /* --- ESTILOS DA ÁREA DE EDIÇÃO --- */
     @keyframes slideDown {
         from { opacity: 0; transform: translateY(-8px); }
         to { opacity: 1; transform: translateY(0); }
@@ -114,19 +191,18 @@
 
     .edit-area {
         animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-        background: #ffffff; /* Fundo branco para contraste na edição */
+        background: #ffffff; 
         border-radius: 12px;
         padding: 8px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.05);
         margin-top: 4px;
         border: 1px solid rgba(0,0,0,0.05);
         width: 100%;
-        min-width: 200px; /* Garante largura mínima para os botões */
+        min-width: 200px;
     }
 
-    /* Ajuste de cor de texto para o textarea dentro do container azul */
     .sent .edit-area textarea {
-        color: #1f2937; /* Cinza escuro */
+        color: #1f2937;
     }
 
     .edit-textarea {
@@ -161,7 +237,7 @@
 
     .edit-btn-action {
         padding: 6px 14px;
-        border-radius: 9999px; /* Pill shape */
+        border-radius: 9999px;
         font-size: 0.8rem;
         font-weight: 600;
         cursor: pointer;
@@ -227,60 +303,41 @@
     }
 
     @media (max-width: 640px) {
+      body {
+        align-items: stretch !important;
+        justify-content: flex-start !important;
+      }
+      body > div {
+        max-width: 100% !important;
+        height: 100dvh !important;
+        border-radius: 0 !important;
+      }
+      #chat {
+        position: fixed !important;
+        top: 52px;
+        bottom: 76px;
+        left: 0;
+        right: 0;
+        padding-bottom: 12px;
+      }
+      .message {
+        max-width: 90% !important;
+        font-size: 0.95rem;
+      }
+      .modal-content {
+        width: 95% !important;
+        max-height: 90dvh;
+      }
+      #msg {
+        font-size: 1rem;
+        padding: 14px;
+      }
+    }
 
-  /* Remove centralização de desktop */
-  body {
-    align-items: stretch !important;
-    justify-content: flex-start !important;
-  }
-
-  /* Container principal ocupa 100% da tela */
-  body > div {
-    max-width: 100% !important;
-    height: 100dvh !important; /* resolve bug do teclado mobile */
-    border-radius: 0 !important;
-  }
-
-  
-
-  /* Área do chat respeita header e input */
-  #chat {
-    position: fixed !important;
-    top: 52px;
-    bottom: 76px;
-    left: 0;
-    right: 0;
-    padding-bottom: 12px;
-  }
-
-
-  /* Mensagens mais confortáveis no toque */
-  .message {
-    max-width: 90% !important;
-    font-size: 0.95rem;
-  }
-
- 
-
-  /* Modal ocupa melhor a tela no celular */
-  .modal-content {
-    width: 95% !important;
-    max-height: 90dvh;
-  }
-
-  /* Input maior para digitação */
-  #msg {
-    font-size: 1rem;
-    padding: 14px;
-  }
-
-}
-
-
-.context-text {
-  font-style: italic;
-  color: #6366f1; /* indigo */
-  background-color: rgba(99, 102, 241, 0.08);
-  padding: 6px 8px;
-  border-radius: 8px;
-}
+    .context-text {
+      font-style: italic;
+      color: #6366f1; /* indigo */
+      background-color: rgba(99, 102, 241, 0.08);
+      padding: 6px 8px;
+      border-radius: 8px;
+    }
