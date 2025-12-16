@@ -1,10 +1,23 @@
-self.addEventListener("push", event => {
-  const data = event.data?.json() || {};
+const CACHE_NAME = "chat-global-v1";
+const OFFLINE_URLS = [
+  "./",
+  "./index.html",
+  "./manifest.json"
+];
 
-  self.registration.showNotification(data.title || "Nova mensagem", {
-    body: data.body || "",
-    icon: "https://cdn-icons-png.flaticon.com/512/724/724715.png",
-    badge: "https://cdn-icons-png.flaticon.com/512/724/724715.png",
-    tag: "chat-msg"
-  });
+self.addEventListener("install", event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(OFFLINE_URLS))
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", event => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener("fetch", event => {
+  event.respondWith(
+    fetch(event.request).catch(() => caches.match(event.request))
+  );
 });

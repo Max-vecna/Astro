@@ -12,21 +12,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Chat Global">
   
-  <link rel="manifest" href='data:application/manifest+json,{
-  "name": "Chat Global",
-  "short_name": "Chat",
-  "display": "standalone",
-  "start_url": ".",
-  "background_color": "#ffffff",
-  "theme_color": "#3b82f6",
-  "icons": [
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/724/724715.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
-}'/>  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/724/724715.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/724/724715.png">
 
   <script src="https://cdn.tailwindcss.com"></script>
 
@@ -329,7 +316,7 @@
     <div class="mt-4 flex justify-between items-center shrink-0 pt-3 border-t">
         <button id="loadMore" class="text-blue-600 text-sm font-semibold hover:bg-blue-50 px-3 py-2 rounded transition-colors flex items-center gap-1">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            Gerar +3 Variações
+            3 Variações
         </button>
         <button id="closeModal" class="text-gray-500 text-sm hover:bg-gray-100 px-3 py-2 rounded transition-colors">
             Cancelar
@@ -352,7 +339,7 @@
   import { getDatabase, ref, push, onChildAdded, set, get, query, orderByChild, remove, update, onValue, onDisconnect, onChildChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js");
+    navigator.serviceWorker.register("sw.js");
   }
 
   const firebaseConfig = {
