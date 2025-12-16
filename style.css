@@ -1,0 +1,104 @@
+:root {
+  --bg: #020617;
+  --panel: #0f172a;
+  --sent: #2563eb;
+  --received: #1e293b;
+  --text: #e5e7eb;
+  --radius: 16px;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  height: 100vh;
+}
+
+.container {
+  display: flex;
+  height: 100vh;
+}
+
+.chat-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #020617;
+}
+
+header {
+  background: var(--panel);
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text);
+}
+
+.chat {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+footer {
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  background: var(--panel);
+}
+
+input {
+  flex: 1;
+  background: #020617;
+  color: var(--text);
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+button {
+  background: var(--sent);
+  border: none;
+  color: white;
+  width: 42px;
+  border-radius: 50%;
+  font-size: 16px;
+}
+
+/* Mensagens */
+.msg {
+  max-width: 80%;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  font-size: 14px;
+}
+
+.fromA {
+  align-self: flex-start;
+  background: var(--received);
+}
+
+.fromB {
+  align-self: flex-end;
+  background: var(--sent);
+}
+
+/* Mobile */
+@media (max-width: 700px) {
+  .container {
+    flex-direction: column;
+  }
+  .chat-box {
+    height: 50vh;
+    border-right: none;
+    border-bottom: 1px solid #020617;
+  }
+}

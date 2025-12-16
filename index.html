@@ -57,8 +57,8 @@
         max-width: 80% !important;
     }
 
-    .sent { background: #3b82f6; color: #fff; margin-left: auto; }
-    .received { background: #e5e7eb; color: #111827; margin-right: auto; }
+    .sent { background: #3b82f6; color: #fff;  margin-top: 15px !important; margin-bottom: 15px !important; margin-left: auto;}
+    .received { background: #e5e7eb; color: #111827; margin: 15px 0 !important;}
 
     .original { font-size: 0.7rem; opacity: 0.6; margin-top: 4px; }
     
@@ -98,7 +98,7 @@
     /* Botão de Retentar Tradução */
     .retry-btn { 
         right: -10px;
-        bottom: 22px; 
+        bottom: 20px; 
         background: #f59e0b;
     }
     .retry-btn:hover { background: #d97706; }
@@ -255,15 +255,7 @@
     border-radius: 0 !important;
   }
 
-  /* Header fixo no topo */
-  body > div > div:first-child {
-    position: fixed !important;
-    top: 0;
-    left: 0;
-    height: 52px;
-    z-index: 40;
-    border-radius: 0 !important;
-  }
+  
 
   /* Área do chat respeita header e input */
   #chat {
@@ -275,14 +267,6 @@
     padding-bottom: 12px;
   }
 
-  /* Área de input fixa no rodapé */
-  body > div > div:last-child {
-    position: fixed !important;
-    bottom: 0;
-    left: 0;
-    border-radius: 0 !important;
-    z-index: 40;
-  }
 
   /* Mensagens mais confortáveis no toque */
   .message {
@@ -290,15 +274,7 @@
     font-size: 0.95rem;
   }
 
-  /* Botões de ação não saem da tela */
-  .retry-btn,
-  .variant-btn {
-    right: -4px;
-  }
-
-  .edit-btn {
-    left: -4px;
-  }
+ 
 
   /* Modal ocupa melhor a tela no celular */
   .modal-content {
