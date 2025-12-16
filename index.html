@@ -153,6 +153,98 @@
   
   let heartbeatInterval = null; 
 
+  async function gerarCorrespondencia(orig, trad) {
+  const prompt = encodeURIComponent(`Dado o texto original e sua tradução, gere um JSON estrito que relacione palavras individuais correspondentes; somente quando não for possível, relacione grupos de palavras semanticamente equivalentes.
+Formato EXATO:
+{
+  "map": [
+    { "orig": "palavra original", "trans": "palavra traduzida" }
+  ]
+}
+Sem comentários, sem explicações.
+
+Original: "${orig}"
+Tradução: "${trad}"
+`);
+
+  const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
+  const res = await fetch(url);
+  const txt = await res.text();
+  console.log("Mapa de correspondência recebido:", txt);
+  return JSON.parse(txt).map;
+}
+function aplicarHighlight(texto, map, side) {
+  let html = texto;
+
+  map.forEach((item, i) => {
+    const termo = side === 'orig' ? item.orig : item.trans;
+    if (!termo || termo.length < 1) return;
+
+    const color = HIGHLIGHT_COLORS[i % HIGHLIGHT_COLORS.length];
+    const safeTermo = escapeRegex(termo);
+
+    // Usa regex segura e unicode-aware
+    const regex = new RegExp(`(${safeTermo})`, 'giu');
+
+    html = html.replace(regex, match =>
+      `<span class="word-map" style="background:${color}">${match}</span>`
+    );
+  });
+
+  return html;
+}
+
+function escapeRegex(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function toggleCorrespondencia(key, contentEl, originalEl) {
+  const data = messageElements[key].data;
+
+  // Toggle OFF
+  if (contentEl.dataset.mapped === '1') {
+    contentEl.textContent = contentEl.dataset.originalTranslation;
+    originalEl.textContent = data.texto;
+    contentEl.dataset.mapped = '0';
+    return;
+  }
+
+  // 🔴 CAPTURA A TRADUÇÃO REAL ANTES
+  const traducaoReal = contentEl.textContent;
+
+  // Guarda para restaurar depois
+  contentEl.dataset.originalTranslation = traducaoReal;
+
+  // Agora sim pode mudar o texto
+  contentEl.textContent = 'Gerando correspondência...';
+  contentEl.classList.add('italic', 'text-gray-400');
+
+  let map;
+  try {
+    map = await gerarCorrespondencia(data.texto, traducaoReal);
+  } catch (e) {
+    contentEl.textContent = traducaoReal;
+    contentEl.classList.remove('italic', 'text-gray-400');
+    return;
+  }
+
+  // Aplica highlight
+  contentEl.innerHTML = aplicarHighlight(traducaoReal, map, 'trans');
+  originalEl.innerHTML = aplicarHighlight(data.texto, map, 'orig');
+
+  contentEl.classList.remove('italic', 'text-gray-400');
+  contentEl.dataset.mapped = '1';
+}
+
+
+  const HIGHLIGHT_COLORS = [
+  '#fde68a',
+  '#bfdbfe',
+  '#bbf7d0',
+  '#fecaca',
+  '#e9d5ff',
+  '#fed7aa'
+];
   const LANG_MAP = {
       'pt': 'português',
       'ar': 'árabe',
@@ -753,6 +845,23 @@
                 content.classList.remove("context-text");      
             };
         };
+
+        const optMap = document.createElement("div");
+optMap.className = "options-item";
+optMap.innerHTML = `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M3 3h18v18H3z"></path>
+  </svg>
+  <span>Correspondência</span>
+`;
+
+optMap.onclick = async (e) => {
+  e.stopPropagation();
+  menu.classList.remove('show');
+  await toggleCorrespondencia(key, content, original);
+};
+
+menu.appendChild(optMap);
 
         menu.appendChild(optRetry);
         menu.appendChild(optVar);

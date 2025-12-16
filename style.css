@@ -341,3 +341,10 @@
       padding: 6px 8px;
       border-radius: 8px;
     }
+
+    .word-map {
+  padding: 2px 4px;
+  border-radius: 4px;
+  margin: 0 1px;
+  line-height: 1.4;
+}
