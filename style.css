@@ -1,104 +1,286 @@
-:root {
-  --bg: #020617;
-  --panel: #0f172a;
-  --sent: #2563eb;
-  --received: #1e293b;
-  --text: #e5e7eb;
-  --radius: 16px;
-}
+ /* GARANTIA DE ALTURA TOTAL PARA ESTABILIDADE MÓVEL */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
 
-* {
-  box-sizing: border-box;
-  font-family: system-ui, sans-serif;
-}
+    .message, #msg, .selectable {
+      -webkit-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
+    }
 
-body {
-  margin: 0;
-  background: var(--bg);
-  height: 100vh;
-}
+    .message {
+      max-width: 85%;
+      padding: 10px 14px;
+      border-radius: 16px;
+      word-wrap: break-word;
+      width: fit-content;
+      position: relative;
+      /* Ajuste para permitir que botões fiquem para fora */
+      margin-top: 10px; 
+      margin-bottom: 10px; 
+      transition: all 0.2s ease;
+    }
 
-.container {
-  display: flex;
-  height: 100vh;
-}
+    /* ESTILO PARA MODO DE EDIÇÃO (Expandir largura) */
+    .message.editing {
+        width: 80% !important;
+        max-width: 80% !important;
+    }
 
-.chat-box {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid #020617;
-}
+    .sent { background: #3b82f6; color: #fff;  margin-top: 15px !important; margin-bottom: 15px !important; margin-left: auto; padding-left: 30px;}
+    .received { background: #e5e7eb; color: #111827; margin: 15px 0 !important; padding-right: 30px;}
 
-header {
-  background: var(--panel);
-  padding: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: var(--text);
-}
+    .original { font-size: 0.7rem; opacity: 0.6; margin-top: 4px; }
+    
+    .time-container {
+        font-size: 0.65rem; 
+        opacity: 0.8; 
+        margin-top: 2px; 
+        text-align: right; 
+        display: flex; 
+        align-items: center; 
+        justify-content: flex-end; 
+        gap: 4px;
+    }
+    .sent .time-container { color: rgba(255, 255, 255, 0.8); }
+    .received .time-container { color: #4b5563; }
+    .edited-tag { font-style: italic; opacity: 0.7; }
 
-.chat {
-  flex: 1;
-  padding: 10px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+    /* Botões de Ação Comuns */
+    .action-btn {
+        position: absolute;
+        width: 26px;
+        height: 26px;
+        color: #fff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        transition: all 0.2s;
+        z-index: 20;
+        border: 2px solid #fff;
+    }
+    .action-btn:hover { transform: scale(1.1); }
 
-footer {
-  display: flex;
-  gap: 6px;
-  padding: 10px;
-  background: var(--panel);
-}
 
-input {
-  flex: 1;
-  background: #020617;
-  color: var(--text);
-  border: 1px solid #1e293b;
-  border-radius: 12px;
-  padding: 10px;
-}
+    /* Botão de Retentar Tradução */
+    .retry-btn { 
+        right: -10px;
+        bottom: 20px; 
+        background: #f59e0b;
+    }
+    .retry-btn:hover { background: #d97706; }
 
-button {
-  background: var(--sent);
-  border: none;
-  color: white;
-  width: 42px;
-  border-radius: 50%;
-  font-size: 16px;
-}
+    .context-btn {
+      right: -10px;
+      bottom: 50px;
+      background-color: #059669;
+    }
 
-/* Mensagens */
-.msg {
-  max-width: 80%;
-  padding: 10px 12px;
-  border-radius: var(--radius);
-  font-size: 14px;
-}
+    /* Botão de Gerar Variações */
+    .variant-btn { 
+        right: -10px;
+        bottom: -10px; 
+        background: #6b7280;
+    }
+    .variant-btn:hover { background: #2563eb; }
+    
+    /* Botão de Edição */
+    .edit-btn {
+        left: -10px;
+        bottom: -10px;
+        background: #10b981; /* Verde para 'edit' */
+    }
+    .edit-btn:hover { background: #059669; }
 
-.fromA {
-  align-self: flex-start;
-  background: var(--received);
-}
 
-.fromB {
-  align-self: flex-end;
-  background: var(--sent);
-}
+    /* --- ESTILOS DA ÁREA DE EDIÇÃO (NOVO) --- */
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 
-/* Mobile */
-@media (max-width: 700px) {
-  .container {
-    flex-direction: column;
+    .edit-area {
+        animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        background: #ffffff; /* Fundo branco para contraste na edição */
+        border-radius: 12px;
+        padding: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.05);
+        margin-top: 4px;
+        border: 1px solid rgba(0,0,0,0.05);
+        width: 100%;
+        min-width: 200px; /* Garante largura mínima para os botões */
+    }
+
+    /* Ajuste de cor de texto para o textarea dentro do container azul */
+    .sent .edit-area textarea {
+        color: #1f2937; /* Cinza escuro */
+    }
+
+    .edit-textarea {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        line-height: 1.4;
+        color: #1f2937;
+        resize: none;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        font-family: inherit;
+        background: #f9fafb;
+        display: block;
+    }
+    
+    .edit-textarea:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        background: #fff;
+    }
+
+    .edit-controls {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 8px;
+        align-items: center;
+    }
+
+    .edit-btn-action {
+        padding: 6px 14px;
+        border-radius: 9999px; /* Pill shape */
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+    }
+    
+    .btn-cancel {
+        color: #6b7280;
+        background: transparent;
+    }
+    .btn-cancel:hover {
+        background: #f3f4f6;
+        color: #374151;
+    }
+    
+    .btn-save {
+        background: #3b82f6;
+        color: white;
+        box-shadow: 0 2px 5px rgba(59, 130, 246, 0.3);
+    }
+    .btn-save:hover {
+        background: #2563eb;
+        box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+        transform: translateY(-1px);
+    }
+    .btn-save:active {
+        transform: translateY(0);
+    }
+    /* ---------------------------------------- */
+
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 50; }
+    
+    .modal-content { 
+        background: #fff; 
+        max-width: 90%; 
+        width: 420px; 
+        max-height: 85vh;
+        border-radius: 12px; 
+        padding: 16px; 
+        display: flex;
+        flex-direction: column;
+    }
+
+    .variant-item {
+        cursor: pointer;
+        padding: 12px;
+        margin-bottom: 4px;
+        border-radius: 8px;
+        transition: background-color 0.15s;
+        border: 1px solid #f3f4f6;
+    }
+    .variant-item:hover { background-color: #f0f9ff; border-color: #3b82f6; }
+
+    /* Animação do indicador online */
+    @keyframes pulse-green {
+      0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+      70% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    }
+    .online-indicator {
+      animation: pulse-green 2s infinite;
+    }
+
+    @media (max-width: 640px) {
+
+  /* Remove centralização de desktop */
+  body {
+    align-items: stretch !important;
+    justify-content: flex-start !important;
   }
-  .chat-box {
-    height: 50vh;
-    border-right: none;
-    border-bottom: 1px solid #020617;
+
+  /* Container principal ocupa 100% da tela */
+  body > div {
+    max-width: 100% !important;
+    height: 100dvh !important; /* resolve bug do teclado mobile */
+    border-radius: 0 !important;
   }
+
+  
+
+  /* Área do chat respeita header e input */
+  #chat {
+    position: fixed !important;
+    top: 52px;
+    bottom: 76px;
+    left: 0;
+    right: 0;
+    padding-bottom: 12px;
+  }
+
+
+  /* Mensagens mais confortáveis no toque */
+  .message {
+    max-width: 90% !important;
+    font-size: 0.95rem;
+  }
+
+ 
+
+  /* Modal ocupa melhor a tela no celular */
+  .modal-content {
+    width: 95% !important;
+    max-height: 90dvh;
+  }
+
+  /* Input maior para digitação */
+  #msg {
+    font-size: 1rem;
+    padding: 14px;
+  }
+
+}
+
+
+.context-text {
+  font-style: italic;
+  color: #6366f1; /* indigo */
+  background-color: rgba(99, 102, 241, 0.08);
+  padding: 6px 8px;
+  border-radius: 8px;
 }
