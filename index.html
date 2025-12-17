@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Chat Global – Sala Fixa</title>
   
-  <!-- Configurações para Mobile / PWA -->
   <meta name="theme-color" content="#3b82f6">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes"> 
@@ -33,7 +32,6 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path><line x1="2" y1="2" x2="22" y2="22"></line></svg>
         </button>
         
-        <!-- Indicador de Presença -->
         <div id="presenceBadge" class="hidden flex items-center gap-1.5 px-2 py-1 bg-white border rounded-full shadow-sm">
             <span class="w-2 h-2 rounded-full bg-green-500 online-indicator"></span>
             <span id="onlineCount" class="text-xs font-semibold text-gray-600">1 Online</span>
@@ -60,9 +58,15 @@
     <div id="loadingOld" class="absolute top-2 left-1/2 -translate-x-1/2 text-xs text-gray-500 hidden">
       Carregando mensagens antigas…
     </div>
+    
+    <!-- Indicador de Digitação (Movido para dentro do chat) -->
+    <div id="typingIndicator" class="hidden w-fit bg-gray-100 rounded-full px-3 py-1.5 text-xs text-gray-500 italic mb-2 transition-all duration-300 flex items-center gap-1">
+        <span class="animate-pulse">●</span>
+        <span id="typingText">Alguém está a escrever...</span>
+    </div>
   </div>
 
-  <div class="p-3 border-t flex flex-col gap-2 bg-gray-50 rounded-b-xl"  style="
+  <div class="p-3 border-t flex flex-col gap-1 bg-gray-50 rounded-b-xl"  style="
     position: absolute;
     width: 100%;
     bottom: 0;
@@ -78,7 +82,6 @@
   </div>
 </div>
 
-<!-- Modal de Variações -->
 <div id="modal" class="modal">
   <div class="modal-content shadow-2xl">
     <h2 class="font-bold text-lg mb-1 shrink-0 text-gray-800">Escolha uma tradução</h2>
@@ -106,6 +109,7 @@
         }
     });
 
+    // Listener Unificado para cliques globais
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.menu-trigger') && !e.target.closest('.options-menu')) {
             document.querySelectorAll('.options-menu.show').forEach(menu => {
@@ -113,6 +117,9 @@
                 menu.classList.remove('open-left');
                 menu.classList.remove('open-right');
             });
+        }
+        if (!e.target.classList.contains('context-text') && !e.target.closest('.ctx-opt')) {
+            // resetAllContexts será chamado via bubble ou eventos específicos
         }
     });
 
@@ -129,11 +136,8 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
   import { getDatabase, ref, push, onChildAdded, set, get, query, orderByChild, remove, update, onValue, onDisconnect, onChildChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
   
-  // Importando a lógica de tradução do novo arquivo
   import {
   traduzir,
-  gerarCorrespondencia,
-  processarMarcacao,
   gerarVariacoes,
   analisarContexto
 } from './translationService.js';
@@ -157,65 +161,14 @@
   const SALA_ID = "sala_fixa";
   const chatEl = document.getElementById("chat");
   const msgEl = document.getElementById("msg");
+  const typingIndicator = document.getElementById("typingIndicator");
+  const typingText = document.getElementById("typingText");
   
   let heartbeatInterval = null; 
-
-  // HIGHLIGHT COLORS permanece aqui pois é puramente visual (UI)
-  const HIGHLIGHT_COLORS = [
-    '#fde68a', '#bfdbfe', '#bbf7d0', '#fecaca', '#e9d5ff', '#fed7aa'
-  ];
-
-  
+  let typingTimeout = null;
 
   function escapeRegex(text) {
     return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
-  async function toggleCorrespondencia(key, contentEl, originalEl) {
-    const data = messageElements[key].data;
-    if (contentEl.dataset.mapped === '1') {
-      contentEl.textContent = contentEl.dataset.originalTranslation;
-      originalEl.textContent = data.texto;
-      contentEl.dataset.mapped = '0';
-      return;
-    }
-    const traducaoReal = contentEl.textContent;
-    contentEl.dataset.originalTranslation = traducaoReal;
-    contentEl.textContent = 'Gerando correspondência...';
-    contentEl.classList.add('italic', 'text-gray-400');
-
-    let map;
-    try {
-      // API call now imported
-      map = await gerarCorrespondencia(data.texto, traducaoReal);
-    } catch (e) {
-      contentEl.textContent = traducaoReal;
-      contentEl.classList.remove('italic', 'text-gray-400');
-      return;
-    }
-
-    contentEl.innerHTML = processarMarcacao(
-traducaoReal,
-map,
-'trans',
-(trecho, i) => {
-const color = HIGHLIGHT_COLORS[i % HIGHLIGHT_COLORS.length];
-return `<span class="word-map" style="background:${color}">${trecho}</span>`;
-}
-);
-
-
-originalEl.innerHTML = processarMarcacao(
-data.texto,
-map,
-'orig',
-(trecho, i) => {
-const color = HIGHLIGHT_COLORS[i % HIGHLIGHT_COLORS.length];
-return `<span class="word-map" style="background:${color}">${trecho}</span>`;
-}
-);
-    contentEl.classList.remove('italic', 'text-gray-400');
-    contentEl.dataset.mapped = '1';
   }
 
   let messageElements = {}; 
@@ -233,7 +186,8 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
 
   function updatePresence() {
     if (document.visibilityState === 'visible' || heartbeatInterval) { 
-        set(presenceRef, { 
+        // Usamos update para não sobrescrever o status de "typing" se ele existir
+        update(presenceRef, { 
             online: true, 
             lastChanged: Date.now() 
         });
@@ -275,6 +229,17 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
 
   onValue(presenceListRef, (snap) => {
       const count = snap.size; 
+      const typingUsers = [];
+
+      snap.forEach(child => {
+          const userData = child.val();
+          // Verifica se o usuário está digitando e não é o próprio usuário atual
+          if (child.key !== nick && userData.typing) {
+              typingUsers.push(child.key);
+          }
+      });
+
+      // Atualiza Badge de Online
       if (count > 0) {
           presenceBadge.classList.remove('hidden');
           presenceBadge.classList.add('flex');
@@ -283,6 +248,38 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
       } else {
           presenceBadge.classList.add('hidden');
       }
+
+      // Atualiza Indicador de Digitação
+      if (typingUsers.length > 0) {
+          const text = typingUsers.length === 1 
+            ? `${typingUsers[0]} está a escrever...` 
+            : typingUsers.length === 2
+                ? `${typingUsers[0]} e ${typingUsers[1]} estão a escrever...`
+                : `${typingUsers.length} pessoas estão a escrever...`;
+          
+          typingText.textContent = text;
+          typingIndicator.classList.remove('hidden');
+          
+          // Move o indicador para o final do chat sempre que ele aparecer
+          chatEl.appendChild(typingIndicator);
+          chatEl.scrollTop = chatEl.scrollHeight;
+      } else {
+          typingIndicator.classList.add('hidden');
+      }
+  });
+
+  // Lógica de Digitação do Usuário Local
+  msgEl.addEventListener("input", () => {
+      // Atualiza status para typing: true
+      update(presenceRef, { typing: true });
+
+      // Limpa timeout anterior
+      if (typingTimeout) clearTimeout(typingTimeout);
+
+      // Define timeout para remover status de typing após 2 segundos de inatividade
+      typingTimeout = setTimeout(() => {
+          update(presenceRef, { typing: false });
+      }, 2000);
   });
 
   const loadTime = Date.now();
@@ -354,8 +351,30 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
   const langSelect = document.getElementById("lang");
   langSelect.value = TARGET_LANG;
   
+  function resetAllContexts() {
+    const contextElements = document.querySelectorAll('.context-text');
+    contextElements.forEach(el => {
+        const messageDiv = el.closest('.message');
+        if (messageDiv) {
+            const key = messageDiv.dataset.key;
+            if (messageElements[key]) {
+                updateMessageDOM(messageElements[key].dom, messageElements[key].data, key);
+            }
+        }
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+     if (!e.target.classList.contains('context-text') && !e.target.closest('.ctx-opt')) {
+         resetAllContexts();
+     }
+  });
+
+  msgEl.onfocus = resetAllContexts;
+  msgEl.onclick = resetAllContexts;
+
   langSelect.onchange = () => {
-    Object.keys(messageElements).forEach(resetarCorrespondencia);
+    resetAllContexts();
     TARGET_LANG = langSelect.value;
     localStorage.setItem("chat_lang", TARGET_LANG);
     fila.length = 0; 
@@ -396,8 +415,6 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
     document.getElementById("modal").style.display = "none";
   }
 
-  // --- Funções movidas para translationService.js foram removidas daqui ---
-  
  async function retraduzirMensagem(key, contentElement) {
   const snap = await get(ref(db, `salas/${SALA_ID}/mensagens/${key}`));
   const data = snap.val();
@@ -407,11 +424,8 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
 
   contentElement.textContent = "Traduzindo novamente...";
   contentElement.classList.add("italic", "text-gray-400");
-
-  const messageDiv = contentElement.parentElement;
   
   try {
-    // API call now imported, passing TARGET_LANG explicitly
     const novaTraducao = await traduzir(textoOriginal, TARGET_LANG, true);
     contentElement.textContent = novaTraducao;
     contentElement.classList.remove("italic", "text-gray-400");
@@ -430,7 +444,6 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
 
     const item = fila.shift(); 
     try {
-      // API call now imported
       const traduzido = await traduzir(item.texto, item.lang);
       if (item.element.textContent === "traduzindo...") {
           item.element.textContent = traduzido;
@@ -452,6 +465,7 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
   }
   
   function startEdit(key, currentText, contentElement) {
+    resetAllContexts();
     const messageDiv = contentElement.parentElement;
     const timeContainer = messageDiv.querySelector('.time-container');
     
@@ -542,29 +556,6 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
     textarea.focus();
   }
   
-  function resetarCorrespondencia(key) {
-    const item = messageElements[key];
-    if (!item) return;
-
-    const { dom, data } = item;
-    const contentEl = dom.querySelector('.message-content');
-    const originalEl = dom.querySelector('.original');
-
-    if (contentEl?.dataset.mapped === '1') {
-      // restaura tradução
-      contentEl.textContent = contentEl.dataset.originalTranslation;
-      contentEl.dataset.mapped = '0';
-    }
-
-    if (originalEl) {
-      // restaura texto original
-      originalEl.textContent = data.texto;
-    }
-
-    contentEl?.classList.remove('italic', 'text-gray-400');
-  }
-
-
   function updateMessageDOM(div, data, key) {
     const { nick: from, texto, traducoes, edited } = data;
     const isReceived = from !== nick;
@@ -573,6 +564,9 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
     const original = div.querySelector('.original');
     const timeContainer = div.querySelector('.time-container');
     
+    content.classList.remove("context-text", "italic", "text-gray-400");
+    content.onclick = null;
+
     div.querySelectorAll('.edited-tag').forEach(el => el.remove());
     
     if (isReceived) {
@@ -596,7 +590,6 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
         const editBtn = div.querySelector('.edit-btn');
         if (editBtn) {
             editBtn.onclick = () => {
-              Object.keys(messageElements).forEach(resetarCorrespondencia);
               startEdit(key, content.textContent, content);
             };
         }
@@ -672,7 +665,7 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
         `;
         optRetry.onclick = (e) => {
             e.stopPropagation(); 
-            resetarCorrespondencia(key);
+            resetAllContexts(); 
             retraduzirMensagem(key, content);
             menu.classList.remove('show', 'open-left', 'open-right');
         };
@@ -685,7 +678,7 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
         `;
         optVar.onclick = async (e) => {
             e.stopPropagation();
-            resetarCorrespondencia(key);
+            resetAllContexts(); 
             menu.classList.remove('show', 'open-left', 'open-right');
 
             const currentContentElement = content;
@@ -709,7 +702,6 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
             };
 
             try {
-                // API call now imported, explicitly passing TARGET_LANG
                 const vars = await gerarVariacoes(originalText, TARGET_LANG);
                 variantsUl.innerHTML = '';
                 addItems(vars);
@@ -723,7 +715,6 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
                   loadMoreBtn.disabled = true;
                   loadMoreBtn.classList.add('opacity-50', 'cursor-not-allowed');
                   try {
-                      // API call now imported
                       const moreVars = await gerarVariacoes(originalText, TARGET_LANG, 3);
                       addItems(moreVars);
                       variantsUl.scrollTo({ top: variantsUl.scrollHeight, behavior: 'smooth' });
@@ -743,7 +734,7 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
         `;
         optCtx.onclick = async (e) => {
             e.stopPropagation();
-            resetarCorrespondencia(key);
+            resetAllContexts();
             menu.classList.remove('show', 'open-left', 'open-right');
 
             const latestData = messageElements[key]?.data;
@@ -754,45 +745,34 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
             content.classList.add("italic", "text-gray-400");
 
             try {
-                // API call now imported, explicitly passing TARGET_LANG
                 const contexto = await analisarContexto(textoOriginal, TARGET_LANG);
                 content.textContent = contexto;
                 content.classList.add("context-text");
                 content.classList.remove("italic", "text-gray-400");
+                
+                content.onclick = () => {
+                   const currentData = messageElements[key]?.data;
+                   if (currentData) {
+                       updateMessageDOM(div, currentData, key);
+                   }
+                };
+
             } catch (e) {
                 content.textContent = "Erro ao analisar contexto.";
+                setTimeout(() => {
+                   const currentData = messageElements[key]?.data;
+                   if (currentData) updateMessageDOM(div, currentData, key);
+                }, 3000);
             }
-
-            content.onclick = () => {
-                updateMessageDOM(div, latestData, key);
-                content.onclick = null;
-                content.classList.remove("context-text");      
-            };
         };
 
-        const optMap = document.createElement("div");
-        optMap.className = "options-item";
-        optMap.innerHTML = `
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-            <path d="M3 3h18v18H3z"></path>
-          </svg>
-          <span>Correspondência</span>
-        `;
-
-        optMap.onclick = async (e) => {
-          e.stopPropagation();
-          menu.classList.remove('show');
-          await toggleCorrespondencia(key, content, original);
-        };
-
-        //menu.appendChild(optMap);
         menu.appendChild(optRetry);
         menu.appendChild(optVar);
         menu.appendChild(optCtx);
 
         menuTrigger.onclick = (e) => {
-            e.stopPropagation();  Object.keys(messageElements).forEach(resetarCorrespondencia);
-
+            e.stopPropagation();
+            resetAllContexts(); 
 
             const isShown = menu.classList.contains('show');
             
@@ -863,7 +843,10 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
     if (!messageElements[key]) {
         const div = createMessageDom(data, key);
         messageElements[key] = { dom: div, data: data };
+        
+        // Adiciona a mensagem e garante que o indicador de digitação fique por último
         chatEl.appendChild(div);
+        chatEl.appendChild(typingIndicator); 
     }
     chatEl.scrollTop = chatEl.scrollHeight;
   });
@@ -879,7 +862,12 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
   });
 
   document.getElementById("send").onclick = async () => {
-    Object.keys(messageElements).forEach(resetarCorrespondencia);
+    // Forçar paragem do estado de typing imediatamente
+    if (typingTimeout) clearTimeout(typingTimeout);
+    update(presenceRef, { typing: false });
+
+    resetAllContexts();
+    
     const texto = msgEl.value.trim();
     if (!texto) return;
 
@@ -922,7 +910,6 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
   
   msgEl.addEventListener("keypress", (e) => {
       if(e.key === "Enter") document.getElementById("send").click();
-      Object.keys(messageElements).forEach(resetarCorrespondencia);
   });
 
   document.getElementById("closeModal").onclick = () => {

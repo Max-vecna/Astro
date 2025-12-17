@@ -45,7 +45,7 @@ async function fetchWithTimeout(resource, options = {}) {
  */
 export async function traduzir(texto, langCode, tentarNovamente = true) {
     const idioma = LANG_MAP[langCode] || langCode; 
-    const prompt = encodeURIComponent(`traduza apenas para ${idioma}: ${texto}. responda apenas com a tradução o mais fielmente`);
+    const prompt = encodeURIComponent(`traduza apenas para ${idioma}: ${texto}. responda apenas com a tradução o mais fielmente, se o texto já estiver em ${idioma}, responda exatamente o mesmo texto.`);
     const url = `https://text.pollinations.ai/${prompt}`;
     const timeout = getTranslationTimeout(texto);
 
@@ -63,94 +63,6 @@ export async function traduzir(texto, langCode, tentarNovamente = true) {
         }
         throw e;
     }
-}
-
-/**
- * Gera um mapa de correspondência palavra-por-palavra.
- */
-export async function gerarCorrespondencia(orig, trad) {
-    const prompt = encodeURIComponent(`Dado o texto original, gere um JSON estrito com a tradução de cada palavra dele.
-  Formato EXATO:
-  {
-    "map": [
-      { "orig": "palavra original", "trans": "palavra traduzida" }
-    ]
-  }
-  Sem comentários, sem explicações.
-  
-  Original: "${orig}"
-  `);
-
-    const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
-    const res = await fetch(url);
-    const txt = await res.text();
-    console.log("Mapa de correspondência recebido:", txt);
-    
-    try {
-        return JSON.parse(txt).map;
-    } catch (e) {
-        const cleanTxt = txt.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(cleanTxt).map;
-    }
-}
-
-/**
- * Processa o texto e aplica uma função de formatação nas palavras encontradas.
- * Resolve conflitos de sobreposição e evita corrupção de HTML.
- * Esta função constrói uma nova string linearmente para evitar substituições recursivas.
- * @param {string} texto - Texto base (deve ser texto puro, sem tags HTML).
- * @param {Array} map - Array de objetos {orig, trans}.
- * @param {string} side - 'orig' ou 'trans'.
- * @param {Function} formatFn - Função callback(trecho, indexDoMap) => string substituída.
- */
-export function processarMarcacao(texto, map, side, formatFn) {
-    if (!map || !Array.isArray(map)) return texto;
-
-    const matches = [];
-    map.forEach((item, i) => {
-        const termo = side === 'orig' ? item.orig : item.trans;
-        if (!termo || termo.length < 1) return;
-        
-        const regex = new RegExp(escapeRegex(termo), 'gi');
-        let match;
-        // Encontra todas as ocorrências do termo na string original
-        while ((match = regex.exec(texto)) !== null) {
-            matches.push({
-                start: match.index,
-                end: match.index + match[0].length,
-                text: match[0],
-                index: i
-            });
-        }
-    });
-
-    // Ordena por posição inicial.
-    // Lógica crucial: Prioriza matches que aparecem antes. 
-    // Em caso de empate no início, prioriza o match mais longo (greedy).
-    matches.sort((a, b) => {
-        const startDiff = a.start - b.start;
-        if (startDiff !== 0) return startDiff;
-        return b.end - a.end; // Maior comprimento primeiro se começarem juntos
-    });
-
-    let resultado = "";
-    let cursor = 0;
-
-    matches.forEach(m => {
-        if (m.start < cursor) return; // Ignora se já estiver dentro de um trecho processado (sobreposição)
-
-        // Adiciona texto "normal" antes do match
-        resultado += texto.substring(cursor, m.start);
-        
-        // Adiciona o texto formatado pela função callback
-        resultado += formatFn(m.text, m.index);
-        
-        cursor = m.end;
-    });
-
-    // Adiciona o resto do texto
-    resultado += texto.substring(cursor);
-    return resultado;
 }
 
 export async function analisarContexto(texto, targetLangCode) {
