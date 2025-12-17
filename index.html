@@ -398,7 +398,6 @@
 
     async function traduzir(texto, langCode, tentarNovamente = true) {
         const idioma = LANG_MAP[langCode] || langCode; 
-        // Prompt otimizado: Instruções em inglês e estrutura clara para evitar que a IA repita a instrução em mensagens curtas (ex: "Oi")
         const prompt = encodeURIComponent(`Translate the following text to ${idioma}. Output ONLY the translation, no explanations. Text: "${texto}"`);
         const url = `https://text.pollinations.ai/${prompt}`;
         const timeout = getTranslationTimeout(texto);
@@ -467,7 +466,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-  import { getDatabase, ref, push, onChildAdded, set, get, query, orderByChild, remove, update, onValue, onDisconnect, onChildChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+  import { getDatabase, ref, push, onChildAdded, set, get, query, orderByChild, remove, update, onValue, onDisconnect, onChildChanged, limitToLast } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js");
@@ -491,8 +490,6 @@
   const typingIndicator = document.getElementById("typingIndicator");
   const typingText = document.getElementById("typingText");
   
-  // Limpeza solicitada: apagar tudo do localStorage exceto o nick
-  // (Mantemos o nick para identificar o usuário, como solicitado)
   const savedNick = localStorage.getItem("chat_nick");
   localStorage.clear(); 
   if (savedNick) localStorage.setItem("chat_nick", savedNick);
@@ -504,30 +501,24 @@
   }
 
   // --- GESTÃO DE IDIOMA VIA FIREBASE ---
-  let TARGET_LANG = "pt"; // Default temporário
+  let TARGET_LANG = "pt"; 
   const langSelect = document.getElementById("lang");
   const welcomeModal = document.getElementById("welcomeModal");
   const userSettingsRef = ref(db, `users/${nick}/settings`);
 
-  // Carregar configurações do usuário
   onValue(userSettingsRef, (snap) => {
     const data = snap.val();
     if (data && data.lang) {
         TARGET_LANG = data.lang;
         langSelect.value = TARGET_LANG;
         welcomeModal.style.display = 'none';
-        
-        // Atualiza traduções da tela se o idioma mudou
         updateAllTranslations();
     } else {
-        // Se não tem idioma salvo, mostra modal
         welcomeModal.style.display = 'flex';
     }
   });
 
-  // Função global para o modal de boas-vindas
   window.setInitialLang = (selectedLang) => {
-      // Salva no Firebase
       update(userSettingsRef, { lang: selectedLang })
         .then(() => {
             welcomeModal.style.display = 'none';
@@ -535,7 +526,6 @@
         .catch(err => console.error("Erro ao salvar idioma", err));
   };
 
-  // Quando mudar o select superior, atualiza Firebase
   langSelect.onchange = () => {
     const newLang = langSelect.value;
     update(userSettingsRef, { lang: newLang });
@@ -734,7 +724,6 @@
     Object.keys(messageElements).forEach(key => {
         const item = messageElements[key];
         if (item.data.nick !== nick) {
-            // Se não tem a tradução para o novo idioma
             if (!item.data.traducoes || !item.data.traducoes[TARGET_LANG]) {
                 const contentEl = item.dom.querySelector('.message-content');
                 contentEl.textContent = "traduzindo...";
@@ -801,7 +790,6 @@
     const item = fila.shift(); 
     try {
       const traduzido = await traduzir(item.texto, item.lang);
-      // Verifica se o elemento ainda está esperando tradução
       if (item.element.textContent === "traduzindo...") {
           item.element.textContent = traduzido;
       }
@@ -977,6 +965,7 @@
 
     const div = document.createElement("div");
     div.dataset.key = key; 
+    div.dataset.timestamp = timestamp || 0; // Garante que tenha valor
     div.className = `message flex flex-col gap-1 ${from === nick ? 'sent' : 'received'}`; 
 
     const content = document.createElement("div");
@@ -1192,7 +1181,36 @@
     return div;
   }
   
-  onChildAdded(query(ref(db, `salas/${SALA_ID}/mensagens`), orderByChild("timestamp")), snap => {
+  // --- FUNÇÃO DE SEGURANÇA PARA REORDENAR VISUALMENTE ---
+  // Caso as mensagens cheguem fora de ordem ou o DOM fique bagunçado
+  let sortTimeout;
+  function scheduleSort() {
+      if (sortTimeout) clearTimeout(sortTimeout);
+      sortTimeout = setTimeout(() => {
+          const messages = Array.from(chatEl.querySelectorAll(".message"));
+          const typing = document.getElementById("typingIndicator");
+          const loading = document.getElementById("loadingOld");
+
+          // Ordena baseado no timestamp do dataset
+          messages.sort((a, b) => {
+              const tsA = parseInt(a.dataset.timestamp) || 0;
+              const tsB = parseInt(b.dataset.timestamp) || 0;
+              return tsA - tsB;
+          });
+          
+          // Reinsere ordenado (o browser otimiza isso, não recria os elementos)
+          messages.forEach(msg => chatEl.appendChild(msg));
+          
+          // Garante elementos de sistema nas posições certas
+          if (loading) chatEl.prepend(loading);
+          if (typing) chatEl.appendChild(typing);
+          
+          chatEl.scrollTop = chatEl.scrollHeight;
+      }, 300); // Executa 300ms após a última mensagem recebida (bom para o carregamento inicial)
+  }
+
+  // CONSULTA COM LIMIT E ORDER
+  onChildAdded(query(ref(db, `salas/${SALA_ID}/mensagens`), orderByChild("timestamp"), limitToLast(50)), snap => {
     const key = snap.key;
     const data = snap.val();
     
@@ -1200,8 +1218,43 @@
         const div = createMessageDom(data, key);
         messageElements[key] = { dom: div, data: data };
         
-        chatEl.appendChild(div);
-        chatEl.appendChild(typingIndicator); 
+        // --- LÓGICA DE INSERÇÃO ORDENADA NO DOM ---
+        // Tenta inserir na posição correta imediatamente
+        const currentTs = parseInt(data.timestamp) || 0; // Força inteiro
+        let inserted = false;
+        
+        const children = Array.from(chatEl.children);
+        for (let i = children.length - 1; i >= 0; i--) {
+            const child = children[i];
+            if (!child.classList.contains('message')) continue;
+            
+            const childTs = parseInt(child.dataset.timestamp || 0);
+            if (childTs <= currentTs) {
+                if (child.nextSibling) {
+                    chatEl.insertBefore(div, child.nextSibling);
+                } else {
+                    chatEl.appendChild(div);
+                }
+                inserted = true;
+                break;
+            }
+        }
+
+        if (!inserted) {
+            const loadingOld = document.getElementById('loadingOld');
+            if (loadingOld && loadingOld.nextSibling) {
+                 chatEl.insertBefore(div, loadingOld.nextSibling);
+            } else if (chatEl.firstChild) {
+                 chatEl.insertBefore(div, chatEl.firstChild);
+            } else {
+                 chatEl.appendChild(div);
+            }
+        }
+        
+        chatEl.appendChild(typingIndicator);
+        
+        // Agenda uma reordenação completa para garantir (arruma o bug "um usuário depois do outro")
+        scheduleSort();
     }
     chatEl.scrollTop = chatEl.scrollHeight;
   });
