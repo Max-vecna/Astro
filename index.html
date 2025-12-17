@@ -398,7 +398,8 @@
 
     async function traduzir(texto, langCode, tentarNovamente = true) {
         const idioma = LANG_MAP[langCode] || langCode; 
-        const prompt = encodeURIComponent(`traduza apenas para ${idioma}: ${texto}. responda apenas com a tradução o mais fielmente, se o texto já estiver em ${idioma}, responda exatamente o mesmo texto.`);
+        // Prompt otimizado: Instruções em inglês e estrutura clara para evitar que a IA repita a instrução em mensagens curtas (ex: "Oi")
+        const prompt = encodeURIComponent(`Translate the following text to ${idioma}. Output ONLY the translation, no explanations. Text: "${texto}"`);
         const url = `https://text.pollinations.ai/${prompt}`;
         const timeout = getTranslationTimeout(texto);
 
