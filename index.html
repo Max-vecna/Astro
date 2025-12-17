@@ -99,14 +99,13 @@
 </div>
 
 <script>
-    // Proteção adicional contra teclas de atalho
+    // Proteção adicional contra teclas de atalho e comportamentos UI
     document.addEventListener('keydown', function(e) {
         if (e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 's' || e.key === 'S')) {
             e.preventDefault();
         }
     });
 
-    // Fecha menus ao clicar fora
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.menu-trigger') && !e.target.closest('.options-menu')) {
             document.querySelectorAll('.options-menu.show').forEach(menu => {
@@ -117,19 +116,27 @@
         }
     });
 
-    // Fecha menus ao rolar (scroll) para garantir que o menu fixo não fique flutuando sozinho
     document.addEventListener('scroll', function() {
         document.querySelectorAll('.options-menu.show').forEach(menu => {
             menu.classList.remove('show');
             menu.classList.remove('open-left');
             menu.classList.remove('open-right');
         });
-    }, true); // Capture true para pegar scrolls dentro de divs também
+    }, true);
 </script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
   import { getDatabase, ref, push, onChildAdded, set, get, query, orderByChild, remove, update, onValue, onDisconnect, onChildChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+  
+  // Importando a lógica de tradução do novo arquivo
+  import {
+  traduzir,
+  gerarCorrespondencia,
+  processarMarcacao,
+  gerarVariacoes,
+  analisarContexto
+} from './translationService.js';
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js");
@@ -153,108 +160,65 @@
   
   let heartbeatInterval = null; 
 
-  async function gerarCorrespondencia(orig, trad) {
-  const prompt = encodeURIComponent(`Dado o texto original e sua tradução, gere um JSON estrito que relacione palavras individuais correspondentes; somente quando não for possível, relacione grupos de palavras semanticamente equivalentes.
-Formato EXATO:
-{
-  "map": [
-    { "orig": "palavra original", "trans": "palavra traduzida" }
-  ]
-}
-Sem comentários, sem explicações.
-
-Original: "${orig}"
-Tradução: "${trad}"
-`);
-
-  const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
-  const res = await fetch(url);
-  const txt = await res.text();
-  console.log("Mapa de correspondência recebido:", txt);
-  return JSON.parse(txt).map;
-}
-function aplicarHighlight(texto, map, side) {
-  let html = texto;
-
-  map.forEach((item, i) => {
-    const termo = side === 'orig' ? item.orig : item.trans;
-    if (!termo || termo.length < 1) return;
-
-    const color = HIGHLIGHT_COLORS[i % HIGHLIGHT_COLORS.length];
-    const safeTermo = escapeRegex(termo);
-
-    // Usa regex segura e unicode-aware
-    const regex = new RegExp(`(${safeTermo})`, 'giu');
-
-    html = html.replace(regex, match =>
-      `<span class="word-map" style="background:${color}">${match}</span>`
-    );
-  });
-
-  return html;
-}
-
-function escapeRegex(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-async function toggleCorrespondencia(key, contentEl, originalEl) {
-  const data = messageElements[key].data;
-
-  // Toggle OFF
-  if (contentEl.dataset.mapped === '1') {
-    contentEl.textContent = contentEl.dataset.originalTranslation;
-    originalEl.textContent = data.texto;
-    contentEl.dataset.mapped = '0';
-    return;
-  }
-
-  // 🔴 CAPTURA A TRADUÇÃO REAL ANTES
-  const traducaoReal = contentEl.textContent;
-
-  // Guarda para restaurar depois
-  contentEl.dataset.originalTranslation = traducaoReal;
-
-  // Agora sim pode mudar o texto
-  contentEl.textContent = 'Gerando correspondência...';
-  contentEl.classList.add('italic', 'text-gray-400');
-
-  let map;
-  try {
-    map = await gerarCorrespondencia(data.texto, traducaoReal);
-  } catch (e) {
-    contentEl.textContent = traducaoReal;
-    contentEl.classList.remove('italic', 'text-gray-400');
-    return;
-  }
-
-  // Aplica highlight
-  contentEl.innerHTML = aplicarHighlight(traducaoReal, map, 'trans');
-  originalEl.innerHTML = aplicarHighlight(data.texto, map, 'orig');
-
-  contentEl.classList.remove('italic', 'text-gray-400');
-  contentEl.dataset.mapped = '1';
-}
-
-
+  // HIGHLIGHT COLORS permanece aqui pois é puramente visual (UI)
   const HIGHLIGHT_COLORS = [
-  '#fde68a',
-  '#bfdbfe',
-  '#bbf7d0',
-  '#fecaca',
-  '#e9d5ff',
-  '#fed7aa'
-];
-  const LANG_MAP = {
-      'pt': 'português',
-      'ar': 'árabe',
-      'es': 'espanhol',
-      'ja': 'japonês',
-      'zh': 'chinês'
-  };
+    '#fde68a', '#bfdbfe', '#bbf7d0', '#fecaca', '#e9d5ff', '#fed7aa'
+  ];
+
+  
+
+  function escapeRegex(text) {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  async function toggleCorrespondencia(key, contentEl, originalEl) {
+    const data = messageElements[key].data;
+    if (contentEl.dataset.mapped === '1') {
+      contentEl.textContent = contentEl.dataset.originalTranslation;
+      originalEl.textContent = data.texto;
+      contentEl.dataset.mapped = '0';
+      return;
+    }
+    const traducaoReal = contentEl.textContent;
+    contentEl.dataset.originalTranslation = traducaoReal;
+    contentEl.textContent = 'Gerando correspondência...';
+    contentEl.classList.add('italic', 'text-gray-400');
+
+    let map;
+    try {
+      // API call now imported
+      map = await gerarCorrespondencia(data.texto, traducaoReal);
+    } catch (e) {
+      contentEl.textContent = traducaoReal;
+      contentEl.classList.remove('italic', 'text-gray-400');
+      return;
+    }
+
+    contentEl.innerHTML = processarMarcacao(
+traducaoReal,
+map,
+'trans',
+(trecho, i) => {
+const color = HIGHLIGHT_COLORS[i % HIGHLIGHT_COLORS.length];
+return `<span class="word-map" style="background:${color}">${trecho}</span>`;
+}
+);
+
+
+originalEl.innerHTML = processarMarcacao(
+data.texto,
+map,
+'orig',
+(trecho, i) => {
+const color = HIGHLIGHT_COLORS[i % HIGHLIGHT_COLORS.length];
+return `<span class="word-map" style="background:${color}">${trecho}</span>`;
+}
+);
+    contentEl.classList.remove('italic', 'text-gray-400');
+    contentEl.dataset.mapped = '1';
+  }
 
   let messageElements = {}; 
-
   let nick = localStorage.getItem("chat_nick");
   if (!nick) {
     nick = "User-" + Math.floor(Math.random() * 9000 + 1000);
@@ -282,12 +246,9 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
     if (snap.val() === true) {
       updatePresence();
       onDisconnect(presenceRef).remove();
-      
       if (!heartbeatInterval) {
           heartbeatInterval = setInterval(() => {
-              if (document.hidden) { 
-                  updatePresence();
-              }
+              if (document.hidden) { updatePresence(); }
           }, 30000); 
       }
     } else {
@@ -302,9 +263,7 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
       updatePresence(); 
       if (document.hidden) {
           if (!heartbeatInterval) {
-              heartbeatInterval = setInterval(() => {
-                  updatePresence();
-              }, 30000);
+              heartbeatInterval = setInterval(() => { updatePresence(); }, 30000);
           }
       } else {
           if (heartbeatInterval) {
@@ -396,6 +355,7 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
   langSelect.value = TARGET_LANG;
   
   langSelect.onchange = () => {
+    Object.keys(messageElements).forEach(resetarCorrespondencia);
     TARGET_LANG = langSelect.value;
     localStorage.setItem("chat_lang", TARGET_LANG);
     fila.length = 0; 
@@ -436,68 +396,7 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
     document.getElementById("modal").style.display = "none";
   }
 
-  function getTranslationTimeout(text) {
-    return text.length > 100 ? 10000 : 5000; 
-  }
-
-  async function fetchWithTimeout(resource, options = {}) {
-    const { timeout = 5000 } = options; 
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-    try {
-      const response = await fetch(resource, { ...options, signal: controller.signal });
-      clearTimeout(id);
-      return response;
-    } catch (error) {
-      clearTimeout(id);
-      throw error;
-    }
-  }
-
-  async function analisarContexto(texto) {
-    const idioma = LANG_MAP[TARGET_LANG] || "português";
-    const prompt = encodeURIComponent( `Explique de forma curta qual é o provável contexto e intenção da seguinte mensagem. Responda exclusivamente em ${idioma}. Mensagem:"${texto}"` );
-    const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
-    const res = await fetch(url); 
-    if (!res.ok) throw new Error("Erro ao analisar contexto");
-    return await res.text();
-  }
-
-  async function traduzir(texto, langCode = TARGET_LANG, tentarNovamente = true) {
-    const idioma = LANG_MAP[langCode]; 
-    const prompt = encodeURIComponent(`traduza apenas para ${idioma}: ${texto}. responda apenas com a tradução`);
-    const url = `https://text.pollinations.ai/${prompt}`;
-    const timeout = getTranslationTimeout(texto); 
-
-    try {
-        const res = await fetchWithTimeout(url, { timeout: timeout });
-        if (!res.ok) throw new Error("Erro na API");
-        return await res.text();
-    } catch(e) {
-        if (e.name === 'AbortError') console.warn("Falha na tradução por timeout.");
-        else console.error("Erro desconhecido na tradução:", e);
-        
-        if (tentarNovamente) {
-            return await traduzir(texto, langCode, false);
-        }
-        throw e; 
-    }
-  }
-
-  async function gerarVariacoes(texto, qtd = 3) {
-    const idioma = LANG_MAP[TARGET_LANG]; 
-    const prompt = encodeURIComponent(`gere ${qtd} variações diferentes de tradução para ${idioma} (seja criativo): "${texto}". responda apenas as variações em linhas separadas sem numeração.`);
-    const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
-
-    try {
-      const res = await fetchWithTimeout(url, { timeout: 8000 }); 
-      if (!res.ok) throw new Error("Erro API variações");
-      const txt = await res.text();
-      return txt.split("\n").filter(l => l.trim().length > 0).map(l => l.replace(/^[-*•]\s*/, ''));
-    } catch(e) {
-      throw e;
-    }
-  }
+  // --- Funções movidas para translationService.js foram removidas daqui ---
   
  async function retraduzirMensagem(key, contentElement) {
   const snap = await get(ref(db, `salas/${SALA_ID}/mensagens/${key}`));
@@ -512,6 +411,7 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
   const messageDiv = contentElement.parentElement;
   
   try {
+    // API call now imported, passing TARGET_LANG explicitly
     const novaTraducao = await traduzir(textoOriginal, TARGET_LANG, true);
     contentElement.textContent = novaTraducao;
     contentElement.classList.remove("italic", "text-gray-400");
@@ -530,6 +430,7 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
 
     const item = fila.shift(); 
     try {
+      // API call now imported
       const traduzido = await traduzir(item.texto, item.lang);
       if (item.element.textContent === "traduzindo...") {
           item.element.textContent = traduzido;
@@ -558,7 +459,6 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
     contentElement.style.display = 'none';
     timeContainer.style.display = 'none';
     
-    // Esconde botões de ação se houver
     messageDiv.querySelectorAll('.action-btn').forEach(btn => btn.style.display = 'none');
 
     const editArea = document.createElement('div');
@@ -642,6 +542,29 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
     textarea.focus();
   }
   
+  function resetarCorrespondencia(key) {
+    const item = messageElements[key];
+    if (!item) return;
+
+    const { dom, data } = item;
+    const contentEl = dom.querySelector('.message-content');
+    const originalEl = dom.querySelector('.original');
+
+    if (contentEl?.dataset.mapped === '1') {
+      // restaura tradução
+      contentEl.textContent = contentEl.dataset.originalTranslation;
+      contentEl.dataset.mapped = '0';
+    }
+
+    if (originalEl) {
+      // restaura texto original
+      originalEl.textContent = data.texto;
+    }
+
+    contentEl?.classList.remove('italic', 'text-gray-400');
+  }
+
+
   function updateMessageDOM(div, data, key) {
     const { nick: from, texto, traducoes, edited } = data;
     const isReceived = from !== nick;
@@ -672,7 +595,10 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
         content.classList.remove('italic', 'text-gray-400');
         const editBtn = div.querySelector('.edit-btn');
         if (editBtn) {
-            editBtn.onclick = () => startEdit(key, content.textContent, content);
+            editBtn.onclick = () => {
+              Object.keys(messageElements).forEach(resetarCorrespondencia);
+              startEdit(key, content.textContent, content);
+            };
         }
     }
 
@@ -684,7 +610,6 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
     }
   }
   
-
   function createMessageDom(data, key) {
     const { nick: from, texto, timestamp, edited } = data;
 
@@ -710,7 +635,6 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
     div.appendChild(content);
 
     if (from === nick) {
-        // --- BOTÃO DE EDIÇÃO (Remetente) ---
         const editBtn = document.createElement("div");
         editBtn.className = "action-btn edit-btn";
         editBtn.title = "Editar Mensagem";
@@ -723,12 +647,10 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
         div.appendChild(editBtn);
         
     } else {
-        // --- MENSAGEM RECEBIDA ---
         const original = document.createElement("div");
         original.className = "original";
         div.appendChild(original);
 
-        // --- MENU TRIGGER (Três Pontos) ---
         const menuTrigger = document.createElement("div");
         menuTrigger.className = "action-btn menu-trigger";
         menuTrigger.innerHTML = `
@@ -739,11 +661,9 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
             </svg>
         `;
 
-        // --- MENU CONTAINER ---
         const menu = document.createElement("div");
         menu.className = "options-menu";
         
-        // Opção 1: Retraduzir
         const optRetry = document.createElement("div");
         optRetry.className = "options-item retry-opt";
         optRetry.innerHTML = `
@@ -751,12 +671,12 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
             <span>Retraduzir</span>
         `;
         optRetry.onclick = (e) => {
-            e.stopPropagation();
+            e.stopPropagation(); 
+            resetarCorrespondencia(key);
             retraduzirMensagem(key, content);
             menu.classList.remove('show', 'open-left', 'open-right');
         };
 
-        // Opção 2: Variações
         const optVar = document.createElement("div");
         optVar.className = "options-item var-opt";
         optVar.innerHTML = `
@@ -765,7 +685,8 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
         `;
         optVar.onclick = async (e) => {
             e.stopPropagation();
-            menu.classList.remove('show', 'open-left', 'open-right'); // Fecha menu
+            resetarCorrespondencia(key);
+            menu.classList.remove('show', 'open-left', 'open-right');
 
             const currentContentElement = content;
             const latestData = messageElements[key]?.data;
@@ -782,26 +703,28 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
                     const li = document.createElement('li');
                     li.className = 'variant-item text-gray-800'; 
                     li.textContent = v;
-                    li.onclick = () => selectTranslation(key, v, currentContentElement); 
+                    //li.onclick = () => selectTranslation(key, v, currentContentElement); 
                     variantsUl.appendChild(li);
                 });
             };
 
             try {
-                const vars = await gerarVariacoes(originalText);
+                // API call now imported, explicitly passing TARGET_LANG
+                const vars = await gerarVariacoes(originalText, TARGET_LANG);
                 variantsUl.innerHTML = '';
                 addItems(vars);
             } catch (e) {
                 variantsUl.innerHTML = "<li class='text-red-500 text-center'>Erro ao gerar. Tente novamente.</li>";
             }
-             // Lógica do botão "Carregar Mais" dentro do modal...
+             
              loadMoreBtn.onclick = async () => {
                   const originalBtnText = loadMoreBtn.innerHTML;
                   loadMoreBtn.innerHTML = `<span class="animate-spin inline-block mr-1">↻</span> Gerando...`;
                   loadMoreBtn.disabled = true;
                   loadMoreBtn.classList.add('opacity-50', 'cursor-not-allowed');
                   try {
-                      const moreVars = await gerarVariacoes(originalText, 3);
+                      // API call now imported
+                      const moreVars = await gerarVariacoes(originalText, TARGET_LANG, 3);
                       addItems(moreVars);
                       variantsUl.scrollTo({ top: variantsUl.scrollHeight, behavior: 'smooth' });
                   } catch (e) { console.error(e); } finally {
@@ -812,7 +735,6 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
               };
         };
 
-        // Opção 3: Contexto
         const optCtx = document.createElement("div");
         optCtx.className = "options-item ctx-opt";
         optCtx.innerHTML = `
@@ -821,6 +743,7 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
         `;
         optCtx.onclick = async (e) => {
             e.stopPropagation();
+            resetarCorrespondencia(key);
             menu.classList.remove('show', 'open-left', 'open-right');
 
             const latestData = messageElements[key]?.data;
@@ -831,7 +754,8 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
             content.classList.add("italic", "text-gray-400");
 
             try {
-                const contexto = await analisarContexto(textoOriginal);
+                // API call now imported, explicitly passing TARGET_LANG
+                const contexto = await analisarContexto(textoOriginal, TARGET_LANG);
                 content.textContent = contexto;
                 content.classList.add("context-text");
                 content.classList.remove("italic", "text-gray-400");
@@ -847,75 +771,63 @@ async function toggleCorrespondencia(key, contentEl, originalEl) {
         };
 
         const optMap = document.createElement("div");
-optMap.className = "options-item";
-optMap.innerHTML = `
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <path d="M3 3h18v18H3z"></path>
-  </svg>
-  <span>Correspondência</span>
-`;
+        optMap.className = "options-item";
+        optMap.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M3 3h18v18H3z"></path>
+          </svg>
+          <span>Correspondência</span>
+        `;
 
-optMap.onclick = async (e) => {
-  e.stopPropagation();
-  menu.classList.remove('show');
-  await toggleCorrespondencia(key, content, original);
-};
+        optMap.onclick = async (e) => {
+          e.stopPropagation();
+          menu.classList.remove('show');
+          await toggleCorrespondencia(key, content, original);
+        };
 
-menu.appendChild(optMap);
-
+        //menu.appendChild(optMap);
         menu.appendChild(optRetry);
         menu.appendChild(optVar);
         menu.appendChild(optCtx);
 
-        // Toggle do Menu com Lógica de Posicionamento Centralizado/Inteligente
         menuTrigger.onclick = (e) => {
-            e.stopPropagation();
+            e.stopPropagation();  Object.keys(messageElements).forEach(resetarCorrespondencia);
+
+
             const isShown = menu.classList.contains('show');
             
-            // Fecha outros menus abertos
             document.querySelectorAll('.options-menu.show').forEach(m => {
                 m.classList.remove('show', 'open-left', 'open-right');
             });
 
-            if (isShown) return; // Se clicou no mesmo que já estava aberto, apenas fecha
+            if (isShown) return; 
 
-            // Abre o menu (display flex para permitir cálculos)
             menu.classList.add('show');
 
-            // --- Cálculos de Posição ---
             const btnRect = menuTrigger.getBoundingClientRect();
             const menuRect = menu.getBoundingClientRect();
             
             const viewportWidth = window.innerWidth;
             const viewportHeight = window.innerHeight;
             
-            // 1. Centralizar verticalmente em relação ao botão
             let top = btnRect.top + (btnRect.height / 2) - (menuRect.height / 2);
             
-            // Ajuste Bordas Verticais (Padding de segurança 10px)
             if (top < 10) top = 10;
             if (top + menuRect.height > viewportHeight - 10) {
                 top = viewportHeight - menuRect.height - 10;
             }
             
             let openedLeft = false;
+            let left = btnRect.right + 10; 
             
-            // 2. Tentar posicionar à direita do botão
-            let left = btnRect.right + 10; // 10px de gap
-            
-            // Se não couber à direita (borda direita do menu > largura da tela)
-            // OU se estiver muito perto da borda
             if (left + menuRect.width > viewportWidth - 5) {
-                // Posiciona à esquerda do botão
                 left = btnRect.left - menuRect.width - 10;
                 openedLeft = true;
             }
             
-            // Aplica as posições fixas
             menu.style.top = `${top}px`;
             menu.style.left = `${left}px`;
             
-            // Adiciona a classe para o estilo do ponteiro (::after)
             if (openedLeft) {
                 menu.classList.add('open-left');
                 menu.classList.remove('open-right');
@@ -967,6 +879,7 @@ menu.appendChild(optMap);
   });
 
   document.getElementById("send").onclick = async () => {
+    Object.keys(messageElements).forEach(resetarCorrespondencia);
     const texto = msgEl.value.trim();
     if (!texto) return;
 
@@ -1009,6 +922,7 @@ menu.appendChild(optMap);
   
   msgEl.addEventListener("keypress", (e) => {
       if(e.key === "Enter") document.getElementById("send").click();
+      Object.keys(messageElements).forEach(resetarCorrespondencia);
   });
 
   document.getElementById("closeModal").onclick = () => {
