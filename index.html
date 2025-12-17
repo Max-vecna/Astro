@@ -16,17 +16,251 @@
 
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <link rel="stylesheet" href="style.css">
+  <style>
+    /* --- STYLE.CSS INTEGRADO --- */
+    /* GARANTIA DE ALTURA TOTAL PARA ESTABILIDADE MÓVEL */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+
+    .message, #msg, .selectable {
+      -webkit-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 10px 14px;
+      border-radius: 16px;
+      word-wrap: break-word;
+      width: fit-content;
+      position: relative;
+      margin-top: 10px; 
+      margin-bottom: 10px; 
+      transition: all 0.2s ease;
+    }
+
+    .message.editing {
+        width: 80% !important;
+        max-width: 80% !important;
+    }
+
+    .sent { background: #3b82f6; color: #fff;  margin-top: 15px !important; margin-bottom: 15px !important; margin-left: auto; padding-left: 30px;}
+    .received { background: #e5e7eb; color: #111827; margin: 15px 0 !important; padding-right: 30px;}
+
+    .original { font-size: 0.7rem; opacity: 0.6; margin-top: 4px; }
+    
+    .time-container {
+        font-size: 0.65rem; 
+        opacity: 0.8; 
+        margin-top: 2px; 
+        text-align: right; 
+        display: flex; 
+        align-items: center; 
+        justify-content: flex-end; 
+        gap: 4px;
+    }
+    .sent .time-container { color: rgba(255, 255, 255, 0.8); }
+    .received .time-container { color: #4b5563; }
+    .edited-tag { font-style: italic; opacity: 0.7; }
+
+    .action-btn {
+        position: absolute;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        transition: all 0.2s;
+        z-index: 20;
+        background: #fff;
+        color: #4b5563;
+        border: 1px solid #e5e7eb;
+    }
+    .action-btn:hover { transform: scale(1.05); background: #f9fafb; }
+    .action-btn:active { transform: scale(0.95); }
+
+    .menu-trigger { right: -14px; top: 50%; transform: translateY(-50%); }
+    .menu-trigger:hover { transform: translateY(-50%) scale(1.05); }
+
+    .edit-btn { left: -14px; bottom: -10px; background: #fff; color: #10b981; }
+    
+    .options-menu {
+        position: fixed; 
+        top: 0; left: 0; 
+        margin: 0; 
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        padding: 4px;
+        display: none; 
+        flex-direction: column;
+        z-index: 9999; 
+        min-width: 160px;
+        border: 1px solid #e5e7eb;
+        animation: menuFadeIn 0.15s ease-out;
+    }
+    
+    @keyframes menuFadeIn {
+        from { opacity: 0; transform: translateY(-5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .options-menu.show { display: flex; }
+    
+    .options-menu.open-right::after {
+        content: ""; position: absolute; top: calc(50% - 6px); left: -6px; width: 12px; height: 12px;
+        background: #ffffff; border-left: 1px solid #e5e7eb; border-top: 1px solid #e5e7eb;
+        transform: rotate(-45deg); z-index: -1; 
+    }
+
+    .options-menu.open-left::after {
+        content: ""; position: absolute; top: calc(50% - 6px); right: -6px; width: 12px; height: 12px;
+        background: #ffffff; border-right: 1px solid #e5e7eb; border-top: 1px solid #e5e7eb;
+        transform: rotate(45deg); z-index: -1;
+    }
+
+    .options-item {
+        display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+        font-size: 0.9rem; color: #374151; cursor: pointer; border-radius: 8px;
+        transition: background 0.15s, color 0.15s; text-decoration: none;
+    }
+    .options-item:hover { background: #eff6ff; color: #2563eb; }
+    .options-item svg { width: 18px; height: 18px; stroke-width: 2px; }
+    .options-item.retry-opt svg { color: #f59e0b; }
+    .options-item.var-opt svg { color: #3b82f6; }
+    .options-item.ctx-opt svg { color: #059669; }
+
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .edit-area {
+        animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        background: #ffffff; border-radius: 12px; padding: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.05);
+        margin-top: 4px; border: 1px solid rgba(0,0,0,0.05); width: 100%; min-width: 200px;
+    }
+
+    .sent .edit-area textarea { color: #1f2937; }
+
+    .edit-textarea {
+        width: 100%; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px;
+        font-size: 0.95rem; line-height: 1.4; color: #1f2937; resize: none; outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s; font-family: inherit; background: #f9fafb; display: block;
+    }
+    .edit-textarea:focus {
+        border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); background: #fff;
+    }
+
+    .edit-controls { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; align-items: center; }
+
+    .edit-btn-action {
+        padding: 6px 14px; border-radius: 9999px; font-size: 0.8rem; font-weight: 600;
+        cursor: pointer; transition: all 0.2s; border: none;
+    }
+    
+    .btn-cancel { color: #6b7280; background: transparent; }
+    .btn-cancel:hover { background: #f3f4f6; color: #374151; }
+    
+    .btn-save { background: #3b82f6; color: white; box-shadow: 0 2px 5px rgba(59, 130, 246, 0.3); }
+    .btn-save:hover { background: #2563eb; box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4); transform: translateY(-1px); }
+    .btn-save:active { transform: translateY(0); }
+
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(2px); }
+    
+    .modal-content { 
+        background: #fff; max-width: 90%; width: 420px; max-height: 85vh;
+        border-radius: 16px; padding: 20px; display: flex; flex-direction: column;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+
+    .variant-item {
+        cursor: pointer; padding: 12px; margin-bottom: 4px; border-radius: 8px;
+        transition: background-color 0.15s; border: 1px solid #f3f4f6;
+    }
+    .variant-item:hover { background-color: #f0f9ff; border-color: #3b82f6; }
+    
+    /* Welcome Modal Specifics */
+    .lang-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-top: 10px;
+    }
+    
+    .lang-option {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 15px;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .lang-option:hover {
+        border-color: #3b82f6;
+        background-color: #eff6ff;
+        transform: translateY(-2px);
+    }
+    
+    .lang-option span {
+        font-size: 24px;
+        margin-bottom: 8px;
+    }
+    
+    .lang-option label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #374151;
+        cursor: pointer;
+    }
+
+    @keyframes pulse-green {
+      0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+      70% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    }
+    .online-indicator { animation: pulse-green 2s infinite; }
+
+    @media (max-width: 640px) {
+      body { align-items: stretch !important; justify-content: flex-start !important; }
+      body > div { max-width: 100% !important; height: 100dvh !important; border-radius: 0 !important; }
+      #chat { position: fixed !important; top: 52px; bottom: 76px; left: 0; right: 0; padding-bottom: 12px; }
+      .message { max-width: 90% !important; font-size: 0.95rem; }
+      .modal-content { width: 95% !important; max-height: 90dvh; }
+      #msg { font-size: 1rem; padding: 14px; }
+    }
+
+    .context-text {
+      font-style: italic; color: #6366f1; background-color: rgba(99, 102, 241, 0.08);
+      padding: 6px 8px; border-radius: 8px;
+    }
+  </style>
 </head>
 <body class="bg-gray-900">
 
 <div class="w-full h-[100dvh] bg-white flex flex-col overflow-hidden">
 
-  <div class="p-2 border-b flex items-center justify-between text-sm bg-gray-50 rounded-t-xl" style="
-    position: absolute;
-    top: 0;
-    width: 100%;
-">
+  <!-- HEADER -->
+  <div class="p-2 border-b flex items-center justify-between text-sm bg-gray-50 rounded-t-xl" style="position: absolute; top: 0; width: 100%;">
     <div class="flex items-center gap-2">
         <button id="notifBtn" class="p-2 rounded-full hover:bg-gray-200 transition-colors text-gray-500" title="Ativar Notificações">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path><line x1="2" y1="2" x2="22" y2="22"></line></svg>
@@ -50,27 +284,20 @@
     </select>
   </div>
 
-  <div id="chat" class="flex-1 overflow-y-auto p-3 space-y-4 relative bg-white" style="
-    position: absolute;
-    top: 51px;
-    bottom: 75px; width: 100%;
-">
+  <!-- CHAT AREA -->
+  <div id="chat" class="flex-1 overflow-y-auto p-3 space-y-4 relative bg-white" style="position: absolute; top: 51px; bottom: 75px; width: 100%;">
     <div id="loadingOld" class="absolute top-2 left-1/2 -translate-x-1/2 text-xs text-gray-500 hidden">
       Carregando mensagens antigas…
     </div>
     
-    <!-- Indicador de Digitação (Movido para dentro do chat) -->
     <div id="typingIndicator" class="hidden w-fit bg-gray-100 rounded-full px-3 py-1.5 text-xs text-gray-500 italic mb-2 transition-all duration-300 flex items-center gap-1">
         <span class="animate-pulse">●</span>
         <span id="typingText">Alguém está a escrever...</span>
     </div>
   </div>
 
-  <div class="p-3 border-t flex flex-col gap-1 bg-gray-50 rounded-b-xl"  style="
-    position: absolute;
-    width: 100%;
-    bottom: 0;
-">
+  <!-- INPUT AREA -->
+  <div class="p-3 border-t flex flex-col gap-1 bg-gray-50 rounded-b-xl" style="position: absolute; width: 100%; bottom: 0;">
     <div class="flex gap-2 items-center w-full">
       <input id="msg" placeholder="Digite sua mensagem" class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm" autocomplete="off" />
       <button id="send" class="bg-blue-600 hover:bg-blue-700 text-white w-12 h-12 flex items-center justify-center rounded-full shrink-0 shadow-md transition-all active:scale-95">
@@ -82,6 +309,7 @@
   </div>
 </div>
 
+<!-- MODAL VARIAÇÕES -->
 <div id="modal" class="modal">
   <div class="modal-content shadow-2xl">
     <h2 class="font-bold text-lg mb-1 shrink-0 text-gray-800">Escolha uma tradução</h2>
@@ -101,33 +329,137 @@
   </div>
 </div>
 
+<!-- MODAL BOAS-VINDAS (IDIOMA) -->
+<div id="welcomeModal" class="modal" data-backdrop="static">
+    <div class="modal-content shadow-2xl items-center text-center">
+        <div class="mb-4 bg-blue-100 p-3 rounded-full text-blue-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+        </div>
+        <h2 class="font-bold text-xl mb-2 text-gray-800">Bem-vindo ao Chat Global!</h2>
+        <p class="text-sm text-gray-500 mb-6">Para começarmos, qual é o seu idioma nativo? Todas as mensagens serão traduzidas para ele automaticamente.</p>
+        
+        <div class="lang-grid w-full">
+            <div class="lang-option" onclick="setInitialLang('pt')">
+                <span>🇧🇷</span>
+                <label>Português</label>
+            </div>
+            <div class="lang-option" onclick="setInitialLang('en')">
+                <span>🇺🇸</span>
+                <label>English</label>
+            </div>
+            <div class="lang-option" onclick="setInitialLang('es')">
+                <span>🇪🇸</span>
+                <label>Español</label>
+            </div>
+            <div class="lang-option" onclick="setInitialLang('ja')">
+                <span>🇯🇵</span>
+                <label>日本語</label>
+            </div>
+             <div class="lang-option" onclick="setInitialLang('zh')">
+                <span>🇨🇳</span>
+                <label>中文</label>
+            </div>
+             <div class="lang-option" onclick="setInitialLang('ar')">
+                <span>🇸🇦</span>
+                <label>العربية</label>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-    // Proteção adicional contra teclas de atalho e comportamentos UI
+    // --- TRANSLATION SERVICE LÓGICA (INTEGRADA) ---
+    const LANG_MAP = {
+        'ar': 'árabe',
+        'pt': 'português',
+        'es': 'espanhol',
+        'ja': 'japonês',
+        'zh': 'chinês',
+        'en': 'inglês'
+    };
+
+    function getTranslationTimeout(text) {
+        return text.length > 100 ? 10000 : 5000;
+    }
+
+    async function fetchWithTimeout(resource, options = {}) {
+        const { timeout = 5000 } = options;
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), timeout);
+        try {
+            const response = await fetch(resource, { ...options, signal: controller.signal });
+            clearTimeout(id);
+            return response;
+        } catch (error) {
+            clearTimeout(id);
+            throw error;
+        }
+    }
+
+    async function traduzir(texto, langCode, tentarNovamente = true) {
+        const idioma = LANG_MAP[langCode] || langCode; 
+        const prompt = encodeURIComponent(`traduza apenas para ${idioma}: ${texto}. responda apenas com a tradução o mais fielmente, se o texto já estiver em ${idioma}, responda exatamente o mesmo texto.`);
+        const url = `https://text.pollinations.ai/${prompt}`;
+        const timeout = getTranslationTimeout(texto);
+
+        try {
+            const res = await fetchWithTimeout(url, { timeout: timeout });
+            if (!res.ok) throw new Error("Erro na API de tradução");
+            return await res.text();
+        } catch (e) {
+            if (e.name === 'AbortError') console.warn(`Falha na tradução por timeout (${texto.substring(0, 20)}...)`);
+            else console.error("Erro desconhecido na tradução:", e);
+
+            if (tentarNovamente) {
+                console.log("Tentando traduzir novamente...");
+                return await traduzir(texto, langCode, false);
+            }
+            throw e;
+        }
+    }
+
+    async function analisarContexto(texto, targetLangCode) {
+        const idioma = LANG_MAP[targetLangCode] || "português";
+        const prompt = encodeURIComponent(`Explique de forma curta qual é o provável contexto e intenção da seguinte mensagem. Responda exclusivamente em ${idioma}. Mensagem:"${texto}"`);
+        const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Erro ao analisar contexto");
+        return await res.text();
+    }
+
+    async function gerarVariacoes(texto, targetLangCode, qtd = 3) {
+        const idioma = LANG_MAP[targetLangCode] || "português";
+        const prompt = encodeURIComponent(`gere ${qtd} variações diferentes de tradução para ${idioma} (seja criativo): "${texto}". responda apenas as variações em linhas separadas sem numeração.`);
+        const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
+
+        try {
+            const res = await fetchWithTimeout(url, { timeout: 8000 });
+            if (!res.ok) throw new Error("Erro API variações");
+            const txt = await res.text();
+            return txt.split("\n").filter(l => l.trim().length > 0).map(l => l.replace(/^[-*•]\s*/, ''));
+        } catch (e) {
+            throw e;
+        }
+    }
+
+    // --- UI HELPERS ---
     document.addEventListener('keydown', function(e) {
         if (e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 's' || e.key === 'S')) {
             e.preventDefault();
         }
     });
 
-    // Listener Unificado para cliques globais
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.menu-trigger') && !e.target.closest('.options-menu')) {
             document.querySelectorAll('.options-menu.show').forEach(menu => {
-                menu.classList.remove('show');
-                menu.classList.remove('open-left');
-                menu.classList.remove('open-right');
+                menu.classList.remove('show', 'open-left', 'open-right');
             });
-        }
-        if (!e.target.classList.contains('context-text') && !e.target.closest('.ctx-opt')) {
-            // resetAllContexts será chamado via bubble ou eventos específicos
         }
     });
 
     document.addEventListener('scroll', function() {
         document.querySelectorAll('.options-menu.show').forEach(menu => {
-            menu.classList.remove('show');
-            menu.classList.remove('open-left');
-            menu.classList.remove('open-right');
+            menu.classList.remove('show', 'open-left', 'open-right');
         });
     }, true);
 </script>
@@ -135,12 +467,6 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
   import { getDatabase, ref, push, onChildAdded, set, get, query, orderByChild, remove, update, onValue, onDisconnect, onChildChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
-  
-  import {
-  traduzir,
-  gerarVariacoes,
-  analisarContexto
-} from './translationService.js';
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js");
@@ -164,19 +490,61 @@
   const typingIndicator = document.getElementById("typingIndicator");
   const typingText = document.getElementById("typingText");
   
-  let heartbeatInterval = null; 
-  let typingTimeout = null;
+  // Limpeza solicitada: apagar tudo do localStorage exceto o nick
+  // (Mantemos o nick para identificar o usuário, como solicitado)
+  const savedNick = localStorage.getItem("chat_nick");
+  localStorage.clear(); 
+  if (savedNick) localStorage.setItem("chat_nick", savedNick);
 
-  function escapeRegex(text) {
-    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
-  let messageElements = {}; 
   let nick = localStorage.getItem("chat_nick");
   if (!nick) {
     nick = "User-" + Math.floor(Math.random() * 9000 + 1000);
     localStorage.setItem("chat_nick", nick);
   }
+
+  // --- GESTÃO DE IDIOMA VIA FIREBASE ---
+  let TARGET_LANG = "pt"; // Default temporário
+  const langSelect = document.getElementById("lang");
+  const welcomeModal = document.getElementById("welcomeModal");
+  const userSettingsRef = ref(db, `users/${nick}/settings`);
+
+  // Carregar configurações do usuário
+  onValue(userSettingsRef, (snap) => {
+    const data = snap.val();
+    if (data && data.lang) {
+        TARGET_LANG = data.lang;
+        langSelect.value = TARGET_LANG;
+        welcomeModal.style.display = 'none';
+        
+        // Atualiza traduções da tela se o idioma mudou
+        updateAllTranslations();
+    } else {
+        // Se não tem idioma salvo, mostra modal
+        welcomeModal.style.display = 'flex';
+    }
+  });
+
+  // Função global para o modal de boas-vindas
+  window.setInitialLang = (selectedLang) => {
+      // Salva no Firebase
+      update(userSettingsRef, { lang: selectedLang })
+        .then(() => {
+            welcomeModal.style.display = 'none';
+        })
+        .catch(err => console.error("Erro ao salvar idioma", err));
+  };
+
+  // Quando mudar o select superior, atualiza Firebase
+  langSelect.onchange = () => {
+    const newLang = langSelect.value;
+    update(userSettingsRef, { lang: newLang });
+  };
+
+  // --- RESTO DA LÓGICA DO CHAT ---
+
+  let heartbeatInterval = null; 
+  let typingTimeout = null;
+  let messageElements = {}; 
 
   const presenceRef = ref(db, `salas/${SALA_ID}/presenca/${nick}`);
   const connectedRef = ref(db, ".info/connected");
@@ -186,7 +554,6 @@
 
   function updatePresence() {
     if (document.visibilityState === 'visible' || heartbeatInterval) { 
-        // Usamos update para não sobrescrever o status de "typing" se ele existir
         update(presenceRef, { 
             online: true, 
             lastChanged: Date.now() 
@@ -233,13 +600,11 @@
 
       snap.forEach(child => {
           const userData = child.val();
-          // Verifica se o usuário está digitando e não é o próprio usuário atual
           if (child.key !== nick && userData.typing) {
               typingUsers.push(child.key);
           }
       });
 
-      // Atualiza Badge de Online
       if (count > 0) {
           presenceBadge.classList.remove('hidden');
           presenceBadge.classList.add('flex');
@@ -249,7 +614,6 @@
           presenceBadge.classList.add('hidden');
       }
 
-      // Atualiza Indicador de Digitação
       if (typingUsers.length > 0) {
           const text = typingUsers.length === 1 
             ? `${typingUsers[0]} está a escrever...` 
@@ -259,8 +623,6 @@
           
           typingText.textContent = text;
           typingIndicator.classList.remove('hidden');
-          
-          // Move o indicador para o final do chat sempre que ele aparecer
           chatEl.appendChild(typingIndicator);
           chatEl.scrollTop = chatEl.scrollHeight;
       } else {
@@ -268,15 +630,9 @@
       }
   });
 
-  // Lógica de Digitação do Usuário Local
   msgEl.addEventListener("input", () => {
-      // Atualiza status para typing: true
       update(presenceRef, { typing: true });
-
-      // Limpa timeout anterior
       if (typingTimeout) clearTimeout(typingTimeout);
-
-      // Define timeout para remover status de typing após 2 segundos de inatividade
       typingTimeout = setTimeout(() => {
           update(presenceRef, { typing: false });
       }, 2000);
@@ -347,10 +703,8 @@
     });
   }
 
-  let TARGET_LANG = localStorage.getItem("chat_lang") || "pt";
-  const langSelect = document.getElementById("lang");
-  langSelect.value = TARGET_LANG;
-  
+  // --- FUNÇÕES DE UPDATE DE UI ---
+
   function resetAllContexts() {
     const contextElements = document.querySelectorAll('.context-text');
     contextElements.forEach(el => {
@@ -373,14 +727,13 @@
   msgEl.onfocus = resetAllContexts;
   msgEl.onclick = resetAllContexts;
 
-  langSelect.onchange = () => {
+  function updateAllTranslations() {
     resetAllContexts();
-    TARGET_LANG = langSelect.value;
-    localStorage.setItem("chat_lang", TARGET_LANG);
     fila.length = 0; 
     Object.keys(messageElements).forEach(key => {
         const item = messageElements[key];
         if (item.data.nick !== nick) {
+            // Se não tem a tradução para o novo idioma
             if (!item.data.traducoes || !item.data.traducoes[TARGET_LANG]) {
                 const contentEl = item.dom.querySelector('.message-content');
                 contentEl.textContent = "traduzindo...";
@@ -396,14 +749,16 @@
         updateMessageDOM(item.dom, item.data, key);
     });
     processarFila(); 
-  };
-
-  const salaRef = ref(db, `salas/${SALA_ID}`);
-  if (!(await get(salaRef)).exists()) {
-    await set(salaRef, { nome: "Sala Principal", criadaEm: Date.now() });
   }
 
-  async function selectTranslation(key, newTranslation, contentElement) {
+  const salaRef = ref(db, `salas/${SALA_ID}`);
+  get(salaRef).then(snap => {
+    if (!snap.exists()) {
+       set(salaRef, { nome: "Sala Principal", criadaEm: Date.now() });
+    }
+  });
+
+  window.selectTranslation = async function(key, newTranslation, contentElement) {
     contentElement.textContent = newTranslation;
     try {
       const updates = {};
@@ -445,6 +800,7 @@
     const item = fila.shift(); 
     try {
       const traduzido = await traduzir(item.texto, item.lang);
+      // Verifica se o elemento ainda está esperando tradução
       if (item.element.textContent === "traduzindo...") {
           item.element.textContent = traduzido;
       }
@@ -530,7 +886,6 @@
         }
         
         if (newText.length === 0) {
-            console.error("A mensagem não pode estar vazia.");
             return;
         }
 
@@ -696,7 +1051,7 @@
                     const li = document.createElement('li');
                     li.className = 'variant-item text-gray-800'; 
                     li.textContent = v;
-                    li.onclick = () => selectTranslation(key, v, currentContentElement); 
+                    li.onclick = () => window.selectTranslation(key, v, currentContentElement); 
                     variantsUl.appendChild(li);
                 });
             };
@@ -844,7 +1199,6 @@
         const div = createMessageDom(data, key);
         messageElements[key] = { dom: div, data: data };
         
-        // Adiciona a mensagem e garante que o indicador de digitação fique por último
         chatEl.appendChild(div);
         chatEl.appendChild(typingIndicator); 
     }
@@ -862,7 +1216,6 @@
   });
 
   document.getElementById("send").onclick = async () => {
-    // Forçar paragem do estado de typing imediatamente
     if (typingTimeout) clearTimeout(typingTimeout);
     update(presenceRef, { typing: false });
 

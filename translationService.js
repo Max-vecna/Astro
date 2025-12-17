@@ -88,3 +88,4 @@ export async function gerarVariacoes(texto, targetLangCode, qtd = 3) {
         throw e;
     }
 }
+
