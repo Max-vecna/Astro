@@ -5,8 +5,8 @@
  */
 
 const LANG_MAP = {
-    'pt': 'português',
     'ar': 'árabe',
+    'pt': 'português',
     'es': 'espanhol',
     'ja': 'japonês',
     'zh': 'chinês'
