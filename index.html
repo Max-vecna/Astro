@@ -1322,6 +1322,32 @@
   document.getElementById("closeModal").onclick = () => {
     document.getElementById("modal").style.display = "none";
   };
+const salaMensagensRef = ref(db, `salas/${SALA_ID}/mensagens`);
+
+onValue(salaMensagensRef, (snap) => {
+  if (!snap.exists()) {
+    // Sala ou mensagens foram apagadas
+    resetChatUI();
+  }
+});
+function resetChatUI() {
+  // Limpa DOM
+  chatEl.innerHTML = '';
+  
+  // Limpa cache local de mensagens
+  messageElements = {};
+  fila.length = 0;
+
+  // Força scroll para topo
+  chatEl.scrollTop = 0;
+
+  // Opcional: mensagem de sistema
+  const info = document.createElement('div');
+  info.className = 'text-xs text-gray-400 text-center py-4 italic';
+  info.textContent = 'O histórico foi reiniciado.';
+  chatEl.appendChild(info);
+}
+
 </script>
 </body>
 </html>
