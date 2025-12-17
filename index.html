@@ -703,7 +703,7 @@ return `<span class="word-map" style="background:${color}">${trecho}</span>`;
                     const li = document.createElement('li');
                     li.className = 'variant-item text-gray-800'; 
                     li.textContent = v;
-                    //li.onclick = () => selectTranslation(key, v, currentContentElement); 
+                    li.onclick = () => selectTranslation(key, v, currentContentElement); 
                     variantsUl.appendChild(li);
                 });
             };
