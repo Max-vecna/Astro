@@ -15,10 +15,15 @@
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/724/724715.png">
 
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Habilitar Dark Mode Manual no Tailwind -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+    }
+  </script>
 
   <style>
     /* --- STYLE.CSS INTEGRADO --- */
-    /* GARANTIA DE ALTURA TOTAL PARA ESTABILIDADE MÓVEL */
     html, body {
       height: 100%;
       margin: 0;
@@ -56,7 +61,37 @@
     }
 
     .sent { background: #3b82f6; color: #fff;  margin-top: 15px !important; margin-bottom: 15px !important; margin-left: auto; padding-left: 30px;}
+    
+    /* LIGHT MODE PADRÃO */
     .received { background: #e5e7eb; color: #111827; margin: 15px 0 !important; padding-right: 30px;}
+    .received .time-container { color: #4b5563; }
+
+    /* DARK MODE OVERRIDES */
+    html.dark .received { background: #374151; color: #f3f4f6; }
+    html.dark .received .time-container { color: #9ca3af; }
+    
+    /* MODAIS E MENUS DARK MODE */
+    html.dark .options-menu { background: #1f2937; border-color: #374151; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); }
+    html.dark .options-item { color: #d1d5db; }
+    html.dark .options-item:hover { background: #374151; color: #60a5fa; }
+    html.dark .modal-content { background: #1f2937; color: #f3f4f6; }
+    html.dark .modal-header-bg { background: #1e3a8a; } /* Um azul mais escuro para header de modal */
+    html.dark h2 { color: #f3f4f6 !important; }
+    html.dark p { color: #9ca3af !important; }
+    html.dark .edit-area { background: #1f2937; border-color: #374151; }
+    html.dark .edit-textarea { background: #374151; color: #f3f4f6; border-color: #4b5563; }
+    html.dark .action-btn { background: #374151; color: #d1d5db; border-color: #4b5563; }
+    html.dark .action-btn:hover { background: #4b5563; }
+    html.dark .context-text { background-color: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+    
+    /* Setinhas dos menus em dark mode */
+    html.dark .options-menu.open-right::after { background: #1f2937; border-color: #374151; }
+    html.dark .options-menu.open-left::after { background: #1f2937; border-color: #374151; }
+
+    /* Seleção de idioma no modal */
+    html.dark .lang-option { border-color: #4b5563; }
+    html.dark .lang-option:hover { background-color: #374151; border-color: #3b82f6; }
+    html.dark .lang-option label { color: #d1d5db; }
 
     .original { font-size: 0.7rem; opacity: 0.6; margin-top: 4px; }
     
@@ -71,7 +106,6 @@
         gap: 4px;
     }
     .sent .time-container { color: rgba(255, 255, 255, 0.8); }
-    .received .time-container { color: #4b5563; }
     .edited-tag { font-style: italic; opacity: 0.7; }
 
     .action-btn {
@@ -176,6 +210,7 @@
     
     .btn-cancel { color: #6b7280; background: transparent; }
     .btn-cancel:hover { background: #f3f4f6; color: #374151; }
+    html.dark .btn-cancel:hover { background: #374151; color: #f3f4f6; }
     
     .btn-save { background: #3b82f6; color: white; box-shadow: 0 2px 5px rgba(59, 130, 246, 0.3); }
     .btn-save:hover { background: #2563eb; box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4); transform: translateY(-1px); }
@@ -194,6 +229,8 @@
         transition: background-color 0.15s; border: 1px solid #f3f4f6;
     }
     .variant-item:hover { background-color: #f0f9ff; border-color: #3b82f6; }
+    html.dark .variant-item { border-color: #374151; color: #d1d5db; }
+    html.dark .variant-item:hover { background-color: #374151; border-color: #60a5fa; color: #fff; }
     
     /* Welcome Modal Specifics */
     .lang-grid {
@@ -246,7 +283,7 @@
       #chat { position: fixed !important; top: 52px; bottom: 76px; left: 0; right: 0; padding-bottom: 12px; }
       .message { max-width: 90% !important; font-size: 0.95rem; }
       .modal-content { width: 95% !important; max-height: 90dvh; }
-      #msg { font-size: 1rem; padding: 14px; }
+      #msg { font-size: 1rem; padding: 10px; }
     }
 
     .context-text {
@@ -255,27 +292,38 @@
     }
   </style>
 </head>
-<body class="bg-gray-900">
+<body class="bg-gray-900 dark:bg-gray-950 transition-colors duration-200">
 
-<div class="w-full h-[100dvh] bg-white flex flex-col overflow-hidden">
+<div class="w-full h-[100dvh] bg-white dark:bg-gray-900 flex flex-col overflow-hidden transition-colors duration-200">
 
   <!-- HEADER -->
-  <div class="p-2 border-b flex items-center justify-between text-sm bg-gray-50 rounded-t-xl" style="position: absolute; top: 0; width: 100%;">
+  <div class="p-2 dark:border-gray-700 flex items-center justify-between text-sm bg-gray-50 dark:bg-gray-800  transition-colors duration-200" style="position: absolute; top: 0; width: 100%;">
     <div class="flex items-center gap-2">
-        <button id="notifBtn" class="p-2 rounded-full hover:bg-gray-200 transition-colors text-gray-500" title="Ativar Notificações">
+        <div id="presenceBadge" class="hidden flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-gray-700 dark:border-gray-600 border rounded-full shadow-sm">
+            <span class="w-2 h-2 rounded-full bg-green-500 online-indicator"></span>
+            <span id="onlineCount" class="text-xs font-semibold text-gray-600 dark:text-gray-300">1 On</span>
+        </div>
+        <button id="notifBtn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400" title="Ativar Notificações">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path><line x1="2" y1="2" x2="22" y2="22"></line></svg>
         </button>
+        <button id="helpBtn" class="hidden p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-blue-500 dark:text-blue-400" title="Como funciona?">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        </button>
         
-        <div id="presenceBadge" class="hidden flex items-center gap-1.5 px-2 py-1 bg-white border rounded-full shadow-sm">
-            <span class="w-2 h-2 rounded-full bg-green-500 online-indicator"></span>
-            <span id="onlineCount" class="text-xs font-semibold text-gray-600">1 Online</span>
-        </div>
-        <div class="text-[10px] text-gray-400 leading-tight">
+        <!-- DARK MODE TOGGLE -->
+        <button id="darkModeBtn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-yellow-300" title="Alternar tema">
+           <!-- Ícone Sol (aparece no dark mode) -->
+           <svg id="iconSun" class="hidden dark:block" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+           <!-- Ícone Lua (aparece no light mode) -->
+           <svg id="iconMoon" class="block dark:hidden" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </button>
+        
+        <div class="text-[10px] text-gray-400 leading-tight sm:block">
             &copy; <span id="year"></span> Chat Global.<br>Todos os direitos reservados.
         </div>
     </div>
     
-    <select id="lang" class="border rounded p-1 selectable text-xs font-medium bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none">
+    <select id="lang" class="border dark:border-gray-600 rounded p-1 selectable text-xs font-medium bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 outline-none">
       <option value="ar">Árabe</option>
       <option value="pt">Português</option>      
       <option value="es">Espanhol</option>
@@ -283,27 +331,62 @@
       <option value="zh">Chinês</option>
     </select>
   </div>
+<div id="helpModal" class="modal">
+  <div class="modal-content shadow-2xl overflow-hidden">
+    <div class="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-blue-50 dark:bg-blue-900/20 modal-header-bg">
+        <h2 class="font-bold text-lg text-blue-800 dark:text-blue-300">Guia de Uso - Chat Global</h2>
+        <button id="closeHelp" class="text-gray-500 hover:text-red-500 text-2xl">&times;</button>
+    </div>
+    
+    <div class="p-4 overflow-y-auto custom-scrollbar space-y-4 text-sm text-gray-700 dark:text-gray-300">
+        <section>
+            <h3 class="font-bold text-blue-600 dark:text-blue-400 mb-1">🌍 Tradução Automática</h3>
+            <p>Todas as mensagens são traduzidas para o seu idioma escolhido no topo da tela.</p>
+        </section>
 
+        <section>
+            <h3 class="font-bold text-blue-600 dark:text-blue-400 mb-1">⚙️ Menu de Mensagens (⋮)</h3>
+            <p>Ao clicar nos três pontos em uma mensagem recebida, você pode:</p>
+            <ul class="list-disc ml-5 mt-1 space-y-1">
+                <li><strong>Retraduzir:</strong> Tenta uma nova tradução com a IA.</li>
+                <li><strong>Variações:</strong> Veja 3 formas diferentes de traduzir a frase.</li>
+                <li><strong>Contexto:</strong> A IA explica a intenção ou gírias da mensagem original.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h3 class="font-bold text-blue-600 dark:text-blue-400 mb-1">✍️ Suas Mensagens</h3>
+            <p>Você pode editar o que enviou clicando no ícone de lápis verde ao lado da sua mensagem.</p>
+        </section>
+
+        <section class="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg text-xs italic">
+            <strong>Dica:</strong> O chat mantém apenas as últimas 20 mensagens para garantir velocidade.
+        </section>
+    </div>
+  </div>
+</div>
   <!-- CHAT AREA -->
-  <div id="chat" class="flex-1 overflow-y-auto p-3 space-y-4 relative bg-white" style="position: absolute; top: 51px; bottom: 75px; width: 100%;">
+  <div id="chat" class="flex-1 overflow-y-auto p-3 space-y-4 relative bg-white dark:bg-gray-900 transition-colors duration-200" style="position: absolute; top: 51px; bottom: 75px; width: 100%;">
     <div id="loadingOld" class="absolute top-2 left-1/2 -translate-x-1/2 text-xs text-gray-500 hidden">
       Carregando mensagens antigas…
     </div>
     
-    <div id="typingIndicator" class="hidden w-fit bg-gray-100 rounded-full px-3 py-1.5 text-xs text-gray-500 italic mb-2 transition-all duration-300 flex items-center gap-1">
+    <div id="typingIndicator" class="hidden w-fit bg-gray-100 dark:bg-gray-800 rounded-full px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 italic mb-2 transition-all duration-300 flex items-center gap-1">
         <span class="animate-pulse">●</span>
         <span id="typingText">Alguém está a escrever...</span>
     </div>
   </div>
 
   <!-- INPUT AREA -->
-  <div class="p-3 border-t flex flex-col gap-1 bg-gray-50 rounded-b-xl" style="position: absolute; width: 100%; bottom: 0;">
+  <div class="p-3 border-t dark:border-gray-700 flex flex-col gap-1 bg-gray-50 dark:bg-gray-800 transition-colors duration-200" style="position: absolute; width: 100%; bottom: 0;">
     <div class="flex gap-2 items-center w-full">
-      <input id="msg" placeholder="Digite sua mensagem" class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm" autocomplete="off" />
-      <button id="send" class="bg-blue-600 hover:bg-blue-700 text-white w-12 h-12 flex items-center justify-center rounded-full shrink-0 shadow-md transition-all active:scale-95">
+      <input id="msg" placeholder="Digite sua mensagem" class="flex-1 p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm placeholder-gray-500 dark:placeholder-gray-400" autocomplete="off" />
+      <button id="send" class="bg-blue-600 hover:bg-blue-700 text-white w-11 h-11 flex items-center justify-center rounded-full shrink-0 shadow-md transition-all active:scale-95">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3 21l18-9L3 3l3 9zm0 0h6" />
           </svg>
+
+          
       </button>
     </div>    
   </div>
@@ -312,17 +395,17 @@
 <!-- MODAL VARIAÇÕES -->
 <div id="modal" class="modal">
   <div class="modal-content shadow-2xl">
-    <h2 class="font-bold text-lg mb-1 shrink-0 text-gray-800">Escolha uma tradução</h2>
-    <p class="text-xs text-gray-500 mb-4 shrink-0">Selecione a melhor opção para substituir a mensagem.</p>
+    <h2 class="font-bold text-lg mb-1 shrink-0 text-gray-800 dark:text-gray-100">Escolha uma tradução</h2>
+    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4 shrink-0">Selecione a melhor opção para substituir a mensagem.</p>
     
     <ul id="variants" class="text-sm space-y-2 selectable overflow-y-auto flex-1 pr-1 custom-scrollbar" style="min-height: 120px;"></ul>
     
-    <div class="mt-4 flex justify-between items-center shrink-0 pt-3 border-t">
-        <button id="loadMore" class="text-blue-600 text-sm font-semibold hover:bg-blue-50 px-3 py-2 rounded transition-colors flex items-center gap-1">
+    <div class="mt-4 flex justify-between items-center shrink-0 pt-3 border-t dark:border-gray-700">
+        <button id="loadMore" class="text-blue-600 dark:text-blue-400 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-gray-700 px-3 py-2 rounded transition-colors flex items-center gap-1">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             3 Variações
         </button>
-        <button id="closeModal" class="text-gray-500 text-sm hover:bg-gray-100 px-3 py-2 rounded transition-colors">
+        <button id="closeModal" class="text-gray-500 dark:text-gray-400 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 px-3 py-2 rounded transition-colors">
             Cancelar
         </button>
     </div>
@@ -332,11 +415,11 @@
 <!-- MODAL BOAS-VINDAS (IDIOMA) -->
 <div id="welcomeModal" class="modal" data-backdrop="static">
     <div class="modal-content shadow-2xl items-center text-center">
-        <div class="mb-4 bg-blue-100 p-3 rounded-full text-blue-600">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+        <div class="mb-4 bg-blue-100 dark:bg-blue-900/30 p-3 rounded-full text-blue-600 dark:text-blue-400">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path></svg>
         </div>
-        <h2 class="font-bold text-xl mb-2 text-gray-800">Bem-vindo ao Chat Global!</h2>
-        <p class="text-sm text-gray-500 mb-6">Para começarmos, qual é o seu idioma nativo? Todas as mensagens serão traduzidas para ele automaticamente.</p>
+        <h2 class="font-bold text-xl mb-2 text-gray-800 dark:text-white">Bem-vindo ao Chat Global!</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Para começarmos, qual é o seu idioma nativo? Todas as mensagens serão traduzidas para ele automaticamente.</p>
         
         <div class="lang-grid w-full">
             <div class="lang-option" onclick="setInitialLang('pt')">
@@ -368,6 +451,42 @@
 </div>
 
 <script>
+    // --- LÓGICA DO DARK MODE ---
+    const darkModeBtn = document.getElementById('darkModeBtn');
+    const htmlEl = document.documentElement;
+
+    // Verificar preferência salva
+    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      htmlEl.classList.add('dark');
+    } else {
+      htmlEl.classList.remove('dark');
+    }
+
+    darkModeBtn.addEventListener('click', () => {
+        if (htmlEl.classList.contains('dark')) {
+            htmlEl.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        } else {
+            htmlEl.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        }
+    });
+
+    // Lógica do Modal de Ajuda
+    const helpBtn = document.getElementById('helpBtn');
+    const helpModal = document.getElementById('helpModal');
+    const closeHelp = document.getElementById('closeHelp');
+
+    helpBtn.onclick = () => helpModal.style.display = 'flex';
+    closeHelp.onclick = () => helpModal.style.display = 'none';
+
+    // Fecha modal se clicar fora dele
+    window.addEventListener('click', (event) => {
+        if (event.target == helpModal) {
+            helpModal.style.display = 'none';
+        }
+    });
+
     // --- TRANSLATION SERVICE LÓGICA (INTEGRADA) ---
     const LANG_MAP = {
         'ar': 'árabe',
@@ -492,7 +611,10 @@
   
   const savedNick = localStorage.getItem("chat_nick");
   localStorage.clear(); 
+  // Restore theme after clear
+  const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
   if (savedNick) localStorage.setItem("chat_nick", savedNick);
+  localStorage.setItem("theme", currentTheme);
 
   let nick = localStorage.getItem("chat_nick");
   if (!nick) {
@@ -599,7 +721,7 @@
       if (count > 0) {
           presenceBadge.classList.remove('hidden');
           presenceBadge.classList.add('flex');
-          const text = count === 1 ? "Só você" : `${count} Online`;
+          const text = count === 1 ? "Só você" : `${count} On`;
           onlineCountEl.textContent = text;
       } else {
           presenceBadge.classList.add('hidden');
