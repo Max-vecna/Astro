@@ -398,6 +398,7 @@
       <option value="es">Espanhol</option>
       <option value="ja">Japonês</option>
       <option value="zh">Chinês</option>
+      <option value="en">Inglês</option>
     </select>
   </div>
 
@@ -644,6 +645,12 @@
         return text.length > 100 ? 10000 : 5000;
     }
 
+    function checkInternet() {
+        if (!navigator.onLine) {
+            throw new Error("Sem conexão com a internet. Verifique sua rede.");
+        }
+    }
+
     async function fetchWithTimeout(resource, options = {}) {
         const { timeout = 5000 } = options;
         const controller = new AbortController();
@@ -659,8 +666,9 @@
     }
 
     async function traduzir(texto, langCode, tentarNovamente = true) {
+        checkInternet();
         const idioma = LANG_MAP[langCode] || langCode; 
-        const prompt = encodeURIComponent(`Traduza o seguinte texto para ${idioma}. Produza SOMENTE a tradução, sem explicações. Texto: "${texto}", `);
+        const prompt = encodeURIComponent(`Traduza o seguinte texto para ${idioma}. Produza SOMENTE a tradução, sem explicações. Texto: "${texto}", se necessário, traduza para a frase que mais se encaixa no contexto da frase original`);
         const url = `https://text.pollinations.ai/${prompt}`;
         const timeout = getTranslationTimeout(texto);
 
@@ -681,6 +689,7 @@
     }
 
     async function analisarContexto(texto, targetLangCode) {
+        checkInternet();
         const idioma = LANG_MAP[targetLangCode] || "português";
         const prompt = encodeURIComponent(`Explique de forma curta qual é o provável contexto e intenção da seguinte mensagem. Responda exclusivamente em ${idioma}. Mensagem:"${texto}"`);
         const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
@@ -690,6 +699,7 @@
     }
 
     async function gerarVariacoes(texto, targetLangCode, qtd = 3) {
+        checkInternet();
         const idioma = LANG_MAP[targetLangCode] || "português";
         const prompt = encodeURIComponent(`gere ${qtd} variações diferentes de tradução para ${idioma} (seja criativo): "${texto}". responda apenas as variações em linhas separadas sem numeração.`);
         const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
@@ -705,39 +715,27 @@
     }
 
     async function otimizarTextoParaTraducao(texto, targetLangCode) {
-        const idiomaAlvo = LANG_MAP[targetLangCode] || "inglês";
-        // Captura o idioma do usuário diretamente do select
+        checkInternet();
+        // 1. Identificar idioma do usuário
         const userLangCode = document.getElementById('lang').value || 'pt'; 
-        const idiomaUsuario = LANG_MAP[userLangCode] || "português";
-
-        // Prompt engenhado para reescrever mantendo o idioma original (do usuário) explicitamente
-const prompt = encodeURIComponent(
-  `Execute o seguinte processo com a frase fornecida:
-
-1. Reformule a frase original (em ${idiomaUsuario}) para deixá-la clara, direta e sem ambiguidades, gírias ou construções confusas.
-2. Traduza essa versão reformulada para ${idiomaAlvo}.
-3. Retraduza o resultado de volta para ${idiomaUsuario}, mantendo o significado mais claro e preciso possível.
-
-REGRAS IMPORTANTES:
-- O RESULTADO FINAL DEVE ESTAR EM ${idiomaUsuario}.
-- Retorne APENAS a frase final, sem explicações, comentários ou etapas intermediárias.
-- A frase não precisa ser formal, apenas natural, clara e semanticamente equivalente.
-
-Frase original: "${texto}"`
-);
-        
-        const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
 
         try {
-            const res = await fetchWithTimeout(url, { timeout: 8000 });
-            if (!res.ok) throw new Error("Erro API otimização");
-            return await res.text();
+            // 2. Passo 1: Traduzir para o idioma alvo (Ida)
+            const traducaoIntermediaria = await traduzir(texto, targetLangCode);
+            
+            // 3. Passo 2: Traduzir de volta para o idioma do usuário (Volta)
+            // Isso valida se a tradução de ida manteve o sentido correto
+            const resultadoFinal = await traduzir(traducaoIntermediaria, userLangCode);
+
+            return resultadoFinal;
         } catch (e) {
+            console.error("Erro no fluxo de otimização:", e);
             throw e;
         }
     }
 
     async function gerarCorrespondencia(original, traduzido, targetLangCode) {
+  checkInternet();
   const idioma = LANG_MAP[targetLangCode] || "português";
 
   const prompt = encodeURIComponent(`
@@ -1565,7 +1563,7 @@ pairs.forEach(p => {
         };
 
         // Ordem do menu: Estudar primeiro
-        menu.appendChild(optStudy);
+        //menu.appendChild(optStudy);
         menu.appendChild(optVar);
         menu.appendChild(optCtx);
         menu.appendChild(optRetry);
