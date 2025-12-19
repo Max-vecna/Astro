@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Chat Global – Sala Fixa</title>
+  <title>Chat Global – Modo Estudo</title>
   
   <meta name="theme-color" content="#3b82f6">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,7 +15,6 @@
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/724/724715.png">
 
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Habilitar Dark Mode Manual no Tailwind -->
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -75,7 +74,7 @@
     html.dark .options-item { color: #d1d5db; }
     html.dark .options-item:hover { background: #374151; color: #60a5fa; }
     html.dark .modal-content { background: #1f2937; color: #f3f4f6; }
-    html.dark .modal-header-bg { background: #1e3a8a; } /* Um azul mais escuro para header de modal */
+    html.dark .modal-header-bg { background: #1e3a8a; } 
     html.dark h2 { color: #f3f4f6 !important; }
     html.dark p { color: #9ca3af !important; }
     html.dark .edit-area { background: #1f2937; border-color: #374151; }
@@ -84,16 +83,14 @@
     html.dark .action-btn:hover { background: #4b5563; }
     html.dark .context-text { background-color: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
     
-    /* Setinhas dos menus em dark mode */
     html.dark .options-menu.open-right::after { background: #1f2937; border-color: #374151; }
     html.dark .options-menu.open-left::after { background: #1f2937; border-color: #374151; }
 
-    /* Seleção de idioma no modal */
     html.dark .lang-option { border-color: #4b5563; }
     html.dark .lang-option:hover { background-color: #374151; border-color: #3b82f6; }
     html.dark .lang-option label { color: #d1d5db; }
 
-    .original { font-size: 0.7rem; opacity: 0.6; margin-top: 4px; }
+    .original { font-size: 0.7rem; opacity: 0.6; margin-top: 4px; display: block; }
     
     .time-container {
         font-size: 0.65rem; 
@@ -143,7 +140,7 @@
         display: none; 
         flex-direction: column;
         z-index: 9999; 
-        min-width: 160px;
+        min-width: 170px;
         border: 1px solid #e5e7eb;
         animation: menuFadeIn 0.15s ease-out;
     }
@@ -177,6 +174,7 @@
     .options-item.retry-opt svg { color: #f59e0b; }
     .options-item.var-opt svg { color: #3b82f6; }
     .options-item.ctx-opt svg { color: #059669; }
+    .options-item.study-opt svg { color: #8b5cf6; }
 
     @keyframes slideDown {
         from { opacity: 0; transform: translateY(-8px); }
@@ -270,12 +268,79 @@
         cursor: pointer;
     }
 
+    /* Study Mode Styles */
+    .study-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    html.dark .study-card {
+        background: #1e293b;
+        border-color: #334155;
+    }
+    .study-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #64748b;
+        margin-bottom: 4px;
+        font-weight: 600;
+    }
+    .study-text {
+        font-size: 1.1rem;
+        color: #1e293b;
+        margin-bottom: 12px;
+        line-height: 1.5;
+    }
+    html.dark .study-text { color: #e2e8f0; }
+    
+    .vocab-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .vocab-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.95rem;
+    }
+    html.dark .vocab-item {
+        background: #0f172a;
+        border-color: #1e293b;
+        color: #cbd5e1;
+    }
+    .vocab-arrow {
+        color: #94a3b8;
+        padding: 0 8px;
+    }
+
     @keyframes pulse-green {
       0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
       70% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
       100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
     }
     .online-indicator { animation: pulse-green 2s infinite; }
+
+    /* REFORMULATE BUTTON STYLES */
+    .btn-reformulate {
+      background: #8b5cf6; 
+      color: white; 
+      transition: all 0.2s;
+    }
+    .btn-reformulate:hover {
+      background: #7c3aed;
+      transform: scale(1.05);
+    }
+    .btn-reformulate:active {
+      transform: scale(0.95);
+    }
 
     @media (max-width: 640px) {
       body { align-items: stretch !important; justify-content: flex-start !important; }
@@ -290,6 +355,10 @@
       font-style: italic; color: #6366f1; background-color: rgba(99, 102, 241, 0.08);
       padding: 6px 8px; border-radius: 8px;
     }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    html.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
   </style>
 </head>
 <body class="bg-gray-900 dark:bg-gray-950 transition-colors duration-200">
@@ -331,40 +400,40 @@
       <option value="zh">Chinês</option>
     </select>
   </div>
-<div id="helpModal" class="modal">
-  <div class="modal-content shadow-2xl overflow-hidden">
-    <div class="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-blue-50 dark:bg-blue-900/20 modal-header-bg">
-        <h2 class="font-bold text-lg text-blue-800 dark:text-blue-300">Guia de Uso - Chat Global</h2>
-        <button id="closeHelp" class="text-gray-500 hover:text-red-500 text-2xl">&times;</button>
-    </div>
-    
-    <div class="p-4 overflow-y-auto custom-scrollbar space-y-4 text-sm text-gray-700 dark:text-gray-300">
-        <section>
-            <h3 class="font-bold text-blue-600 dark:text-blue-400 mb-1">🌍 Tradução Automática</h3>
-            <p>Todas as mensagens são traduzidas para o seu idioma escolhido no topo da tela.</p>
-        </section>
 
-        <section>
-            <h3 class="font-bold text-blue-600 dark:text-blue-400 mb-1">⚙️ Menu de Mensagens (⋮)</h3>
-            <p>Ao clicar nos três pontos em uma mensagem recebida, você pode:</p>
-            <ul class="list-disc ml-5 mt-1 space-y-1">
-                <li><strong>Retraduzir:</strong> Tenta uma nova tradução com a IA.</li>
-                <li><strong>Variações:</strong> Veja 3 formas diferentes de traduzir a frase.</li>
-                <li><strong>Contexto:</strong> A IA explica a intenção ou gírias da mensagem original.</li>
-            </ul>
-        </section>
+  <!-- HELP MODAL -->
+  <div id="helpModal" class="modal">
+    <div class="modal-content shadow-2xl overflow-hidden">
+        <div class="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-blue-50 dark:bg-blue-900/20 modal-header-bg">
+            <h2 class="font-bold text-lg text-blue-800 dark:text-blue-300">Guia de Uso - Chat Global</h2>
+            <button id="closeHelp" class="text-gray-500 hover:text-red-500 text-2xl">&times;</button>
+        </div>
+        
+        <div class="p-4 overflow-y-auto custom-scrollbar space-y-4 text-sm text-gray-700 dark:text-gray-300">
+            <section>
+                <h3 class="font-bold text-blue-600 dark:text-blue-400 mb-1">🌍 Tradução Automática</h3>
+                <p>Todas as mensagens são traduzidas para o seu idioma escolhido no topo da tela.</p>
+            </section>
 
-        <section>
-            <h3 class="font-bold text-blue-600 dark:text-blue-400 mb-1">✍️ Suas Mensagens</h3>
-            <p>Você pode editar o que enviou clicando no ícone de lápis verde ao lado da sua mensagem.</p>
-        </section>
+            <section>
+                <h3 class="font-bold text-blue-600 dark:text-blue-400 mb-1">✨ Otimização (Novo)</h3>
+                <p>Use o botão de varinha mágica ao lado do campo de texto para reescrever sua mensagem. Isso torna a tradução para outros idiomas muito mais precisa!</p>
+            </section>
 
-        <section class="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg text-xs italic">
-            <strong>Dica:</strong> O chat mantém apenas as últimas 20 mensagens para garantir velocidade.
-        </section>
+            <section>
+                <h3 class="font-bold text-blue-600 dark:text-blue-400 mb-1">⚙️ Menu de Mensagens (⋮)</h3>
+                <p>Ao clicar nos três pontos em uma mensagem recebida, você pode:</p>
+                <ul class="list-disc ml-5 mt-1 space-y-1">
+                    <li><strong>Estudar:</strong> Veja a correspondência palavra por palavra.</li>
+                    <li><strong>Retraduzir:</strong> Tenta uma nova tradução com a IA.</li>
+                    <li><strong>Variações:</strong> Veja 3 formas diferentes de traduzir a frase.</li>
+                    <li><strong>Contexto:</strong> A IA explica a intenção ou gírias da mensagem original.</li>
+                </ul>
+            </section>
+        </div>
     </div>
   </div>
-</div>
+
   <!-- CHAT AREA -->
   <div id="chat" class="flex-1 overflow-y-auto p-3 space-y-4 relative bg-white dark:bg-gray-900 transition-colors duration-200" style="position: absolute; top: 51px; bottom: 75px; width: 100%;">
     <div id="loadingOld" class="absolute top-2 left-1/2 -translate-x-1/2 text-xs text-gray-500 hidden">
@@ -381,12 +450,22 @@
   <div class="p-3 border-t dark:border-gray-700 flex flex-col gap-1 bg-gray-50 dark:bg-gray-800 transition-colors duration-200" style="position: absolute; width: 100%; bottom: 0;">
     <div class="flex gap-2 items-center w-full">
       <input id="msg" placeholder="Digite sua mensagem" class="flex-1 p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm placeholder-gray-500 dark:placeholder-gray-400" autocomplete="off" />
+      
+      <!-- BUTTON REFORMULAR -->
+      <button id="btnReformulate" class="btn-reformulate w-11 h-11 flex items-center justify-center rounded-full shrink-0 shadow-md" title="Otimizar para tradução">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            <path d="M9 9l6 6"></path>
+            <path d="M15 9l-6 6"></path>
+            <path d="M15 3v4"></path>
+            <path d="M19 7h-4"></path>
+          </svg>
+      </button>
+
       <button id="send" class="bg-blue-600 hover:bg-blue-700 text-white w-11 h-11 flex items-center justify-center rounded-full shrink-0 shadow-md transition-all active:scale-95">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3 21l18-9L3 3l3 9zm0 0h6" />
           </svg>
-
-          
       </button>
     </div>    
   </div>
@@ -409,6 +488,73 @@
             Cancelar
         </button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL DE ESTUDO (NOVO) -->
+<div id="studyModal" class="modal">
+    <div class="modal-content shadow-2xl" style="width: 500px;">
+      <div class="flex justify-between items-center mb-4 pb-2 border-b dark:border-gray-700">
+        <div class="flex items-center gap-2">
+            <div class="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-full text-purple-600 dark:text-purple-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+            </div>
+            <h2 class="font-bold text-lg text-gray-800 dark:text-gray-100">Modo Estudo</h2>
+        </div>
+        <button id="closeStudy" class="text-gray-400 hover:text-red-500 text-2xl transition-colors">&times;</button>
+      </div>
+  
+      <div id="studyContent" class="overflow-y-auto custom-scrollbar flex-1 pr-1" style="max-height: 60vh;">
+        <!-- Conteúdo Injetado via JS -->
+        <div class="flex flex-col items-center justify-center h-40 space-y-3">
+             <div class="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+             <p class="text-sm text-gray-500 animate-pulse">Analisando correspondência...</p>
+        </div>
+      </div>
+      
+      <div class="mt-4 pt-3 border-t dark:border-gray-700 text-xs text-center text-gray-400">
+          Análise gerada por IA para auxiliar no aprendizado.
+      </div>
+    </div>
+  </div>
+
+<!-- MODAL REFORMULAR (NOVO) -->
+<div id="reformulateModal" class="modal">
+  <div class="modal-content shadow-2xl items-center text-center">
+      <div class="mb-4 bg-violet-100 dark:bg-violet-900/30 p-3 rounded-full text-violet-600 dark:text-violet-400">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M9 9l6 6"></path><path d="M15 9l-6 6"></path></svg>
+      </div>
+      <h2 class="font-bold text-xl mb-2 text-gray-800 dark:text-white">Otimizar Mensagem</h2>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Para qual idioma essa mensagem será traduzida? A IA vai reescrever sua frase para garantir que a tradução fique perfeita.</p>
+      
+      <div class="lang-grid w-full" id="reformulateLangGrid">
+          <!-- Opções preenchidas via JS para reutilizar estilos -->
+          <div class="lang-option" onclick="processReformulation('en')">
+              <span>🇺🇸</span>
+              <label>English</label>
+          </div>
+          <div class="lang-option" onclick="processReformulation('es')">
+              <span>🇪🇸</span>
+              <label>Español</label>
+          </div>
+          <div class="lang-option" onclick="processReformulation('ja')">
+              <span>🇯🇵</span>
+              <label>日本語</label>
+          </div>
+           <div class="lang-option" onclick="processReformulation('zh')">
+              <span>🇨🇳</span>
+              <label>中文</label>
+          </div>
+           <div class="lang-option" onclick="processReformulation('ar')">
+              <span>🇸🇦</span>
+              <label>العربية</label>
+          </div>
+           <div class="lang-option" onclick="processReformulation('pt')">
+              <span>🇧🇷</span>
+              <label>Português</label>
+          </div>
+      </div>
+      <button id="closeReformulate" class="mt-4 text-gray-500 text-sm hover:underline">Cancelar</button>
   </div>
 </div>
 
@@ -455,7 +601,6 @@
     const darkModeBtn = document.getElementById('darkModeBtn');
     const htmlEl = document.documentElement;
 
-    // Verificar preferência salva
     if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       htmlEl.classList.add('dark');
     } else {
@@ -472,7 +617,6 @@
         }
     });
 
-    // Lógica do Modal de Ajuda
     const helpBtn = document.getElementById('helpBtn');
     const helpModal = document.getElementById('helpModal');
     const closeHelp = document.getElementById('closeHelp');
@@ -480,14 +624,13 @@
     helpBtn.onclick = () => helpModal.style.display = 'flex';
     closeHelp.onclick = () => helpModal.style.display = 'none';
 
-    // Fecha modal se clicar fora dele
     window.addEventListener('click', (event) => {
         if (event.target == helpModal) {
             helpModal.style.display = 'none';
         }
     });
 
-    // --- TRANSLATION SERVICE LÓGICA (INTEGRADA) ---
+    // --- TRANSLATION SERVICE LÓGICA ---
     const LANG_MAP = {
         'ar': 'árabe',
         'pt': 'português',
@@ -517,7 +660,7 @@
 
     async function traduzir(texto, langCode, tentarNovamente = true) {
         const idioma = LANG_MAP[langCode] || langCode; 
-        const prompt = encodeURIComponent(`Translate the following text to ${idioma}. Output ONLY the translation, no explanations. Text: "${texto}"`);
+        const prompt = encodeURIComponent(`Traduza o seguinte texto para ${idioma}. Produza SOMENTE a tradução, sem explicações. Texto: "${texto}", `);
         const url = `https://text.pollinations.ai/${prompt}`;
         const timeout = getTranslationTimeout(texto);
 
@@ -560,6 +703,117 @@
             throw e;
         }
     }
+
+    async function otimizarTextoParaTraducao(texto, targetLangCode) {
+        const idiomaAlvo = LANG_MAP[targetLangCode] || "inglês";
+        // Captura o idioma do usuário diretamente do select
+        const userLangCode = document.getElementById('lang').value || 'pt'; 
+        const idiomaUsuario = LANG_MAP[userLangCode] || "português";
+
+        // Prompt engenhado para reescrever mantendo o idioma original (do usuário) explicitamente
+const prompt = encodeURIComponent(
+  `Execute o seguinte processo com a frase fornecida:
+
+1. Reformule a frase original (em ${idiomaUsuario}) para deixá-la clara, direta e sem ambiguidades, gírias ou construções confusas.
+2. Traduza essa versão reformulada para ${idiomaAlvo}.
+3. Retraduza o resultado de volta para ${idiomaUsuario}, mantendo o significado mais claro e preciso possível.
+
+REGRAS IMPORTANTES:
+- O RESULTADO FINAL DEVE ESTAR EM ${idiomaUsuario}.
+- Retorne APENAS a frase final, sem explicações, comentários ou etapas intermediárias.
+- A frase não precisa ser formal, apenas natural, clara e semanticamente equivalente.
+
+Frase original: "${texto}"`
+);
+        
+        const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
+
+        try {
+            const res = await fetchWithTimeout(url, { timeout: 8000 });
+            if (!res.ok) throw new Error("Erro API otimização");
+            return await res.text();
+        } catch (e) {
+            throw e;
+        }
+    }
+
+    async function gerarCorrespondencia(original, traduzido, targetLangCode) {
+  const idioma = LANG_MAP[targetLangCode] || "português";
+
+  const prompt = encodeURIComponent(`
+Gere um JSON estrito de correspondência linguística.
+
+Regras:
+- Retorne APENAS JSON válido
+- Preserve pontuação e números
+- Priorize palavras individuais
+- Use grupos apenas quando necessário
+- Não explique nada
+
+Formato EXATO:
+{
+  "pairs": [
+    { "orig": "texto", "trans": "texto", "type": "word|group|punctuation|number" }
+  ]
+}
+
+Texto original:
+"${original}"
+
+Tradução:
+"${traduzido}"
+`);
+
+  const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Erro API");
+
+    const raw = await res.text();
+    return parseCorrespondencia(raw, original, traduzido);
+
+  } catch (e) {
+    console.error("Erro correspondência:", e);
+    return fallbackCorrespondencia(original, traduzido);
+  }
+}
+function parseCorrespondencia(raw, original, traduzido) {
+  try {
+    const json = JSON.parse(raw);
+
+    if (!json.pairs || !Array.isArray(json.pairs)) {
+      throw new Error("JSON inválido");
+    }
+
+    return json.pairs.filter(p =>
+      p.orig && p.trans && p.type
+    );
+
+  } catch (e) {
+    console.warn("Fallback ativado");
+    return fallbackCorrespondencia(original, traduzido);
+  }
+}
+function tokenize(text) {
+  return text.match(/[\p{L}]+|\d+|[^\s\p{L}\d]/gu) || [];
+}
+function fallbackCorrespondencia(original, traduzido) {
+  const o = tokenize(original);
+  const t = tokenize(traduzido);
+
+  const len = Math.min(o.length, t.length);
+
+  return Array.from({ length: len }).map((_, i) => ({
+    orig: o[i],
+    trans: t[i],
+    type: /^\d+$/.test(o[i])
+      ? "number"
+      : /[^\p{L}\d]/u.test(o[i])
+        ? "punctuation"
+        : "word"
+  }));
+}
 
     // --- UI HELPERS ---
     document.addEventListener('keydown', function(e) {
@@ -611,7 +865,6 @@
   
   const savedNick = localStorage.getItem("chat_nick");
   localStorage.clear(); 
-  // Restore theme after clear
   const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
   if (savedNick) localStorage.setItem("chat_nick", savedNick);
   localStorage.setItem("theme", currentTheme);
@@ -902,33 +1155,44 @@
   }
 }
 
+  // --- FILA DE TRADUÇÃO OTIMIZADA ---
   const fila = [];
-  let processando = false;
+  let activeRequests = 0;
+  const MAX_CONCURRENT = 3; // Permitir 3 requests ao mesmo tempo
 
   async function processarFila() {
-    if (processando || fila.length === 0) return;
-    processando = true;
+    if (fila.length === 0) return;
+    if (activeRequests >= MAX_CONCURRENT) return;
 
-    const item = fila.shift(); 
-    try {
-      const traduzido = await traduzir(item.texto, item.lang);
-      if (item.element.textContent === "traduzindo...") {
-          item.element.textContent = traduzido;
-      }
-      item.element.classList.remove('italic', 'text-gray-400');
+    while (activeRequests < MAX_CONCURRENT && fila.length > 0) {
+        const item = fila.shift();
+        activeRequests++;
+        
+        traduzir(item.texto, item.lang)
+            .then(async (traduzido) => {
+                 if (item.element.textContent === "traduzindo...") {
+                    item.element.textContent = traduzido;
+                 }
+                 item.element.classList.remove('italic', 'text-gray-400');
 
-      if (item.key) {
-        const updates = {};
-        updates[item.lang] = traduzido;
-        await update(ref(db, `salas/${SALA_ID}/mensagens/${item.key}/traducoes`), updates);
-      }
-    } catch (e) {
-      item.element.textContent = item.texto; 
-      item.element.classList.remove('italic', 'text-gray-400');
+                 if (item.key) {
+                    const updates = {};
+                    updates[item.lang] = traduzido;
+                    // Tenta salvar sem bloquear UI
+                    try {
+                        await update(ref(db, `salas/${SALA_ID}/mensagens/${item.key}/traducoes`), updates);
+                    } catch(e) {}
+                 }
+            })
+            .catch(e => {
+                 item.element.textContent = item.texto; 
+                 item.element.classList.remove('italic', 'text-gray-400');
+            })
+            .finally(() => {
+                activeRequests--;
+                processarFila(); // Chama próximo imediatamente
+            });
     }
-
-    processando = false;
-    setTimeout(processarFila, 400); 
   }
   
   function startEdit(key, currentText, contentElement) {
@@ -1087,7 +1351,7 @@
 
     const div = document.createElement("div");
     div.dataset.key = key; 
-    div.dataset.timestamp = timestamp || 0; // Garante que tenha valor
+    div.dataset.timestamp = timestamp || 0;
     div.className = `message flex flex-col gap-1 ${from === nick ? 'sent' : 'received'}`; 
 
     const content = document.createElement("div");
@@ -1124,6 +1388,73 @@
         const menu = document.createElement("div");
         menu.className = "options-menu";
         
+        // OPÇÃO ESTUDAR (NOVA)
+        const optStudy = document.createElement("div");
+        optStudy.className = "options-item study-opt";
+        optStudy.innerHTML = `
+             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+             <span>Estudar</span>
+        `;
+        optStudy.onclick = async (e) => {
+            e.stopPropagation();
+            resetAllContexts();
+            menu.classList.remove('show', 'open-left', 'open-right');
+            
+            const studyModal = document.getElementById("studyModal");
+            const studyContent = document.getElementById("studyContent");
+            
+            const latestData = messageElements[key]?.data;
+            const originalText = latestData?.texto;
+            const translatedText = content.textContent;
+            
+            if (!originalText) return;
+
+            studyModal.style.display = 'flex';
+            studyContent.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-40 space-y-3">
+                     <div class="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                     <p class="text-sm text-gray-500 animate-pulse">Analisando correspondência...</p>
+                </div>
+            `;
+            
+            try {
+               const pairs = await gerarCorrespondencia(
+  originalText,
+  translatedText,
+  TARGET_LANG
+);
+
+let listHtml = '';
+
+pairs.forEach(p => {
+  listHtml += `
+    <div class="vocab-item">
+      <span class="font-medium">${p.orig}</span>
+      <span class="vocab-arrow">➝</span>
+      <span class="text-blue-600 font-bold">${p.trans}</span>
+    </div>
+  `;
+});
+
+
+                studyContent.innerHTML = `
+                    <div class="study-card">
+                        <div class="study-label">Original</div>
+                        <div class="study-text border-b pb-2 border-gray-200 dark:border-gray-700">${originalText}</div>
+                        <div class="study-label mt-2">Tradução</div>
+                        <div class="study-text text-blue-600 dark:text-blue-400">${translatedText}</div>
+                    </div>
+                    <div class="study-label mb-2">Correspondência de Vocabulário</div>
+                    <div class="vocab-list">
+                        ${listHtml || '<div class="text-center text-gray-500 py-4">Nenhuma correspondência direta encontrada.</div>'}
+                    </div>
+                `;
+
+            } catch (err) {
+                studyContent.innerHTML = `<div class="p-4 text-center text-red-500">Erro ao carregar estudo. Tente novamente.</div>`;
+            }
+        };
+
         const optRetry = document.createElement("div");
         optRetry.className = "options-item retry-opt";
         optRetry.innerHTML = `
@@ -1233,9 +1564,11 @@
             }
         };
 
-        menu.appendChild(optRetry);
+        // Ordem do menu: Estudar primeiro
+        menu.appendChild(optStudy);
         menu.appendChild(optVar);
         menu.appendChild(optCtx);
+        menu.appendChild(optRetry);
 
         menuTrigger.onclick = (e) => {
             e.stopPropagation();
@@ -1303,8 +1636,6 @@
     return div;
   }
   
-  // --- FUNÇÃO DE SEGURANÇA PARA REORDENAR VISUALMENTE ---
-  // Caso as mensagens cheguem fora de ordem ou o DOM fique bagunçado
   let sortTimeout;
   function scheduleSort() {
       if (sortTimeout) clearTimeout(sortTimeout);
@@ -1313,25 +1644,21 @@
           const typing = document.getElementById("typingIndicator");
           const loading = document.getElementById("loadingOld");
 
-          // Ordena baseado no timestamp do dataset
           messages.sort((a, b) => {
               const tsA = parseInt(a.dataset.timestamp) || 0;
               const tsB = parseInt(b.dataset.timestamp) || 0;
               return tsA - tsB;
           });
           
-          // Reinsere ordenado (o browser otimiza isso, não recria os elementos)
           messages.forEach(msg => chatEl.appendChild(msg));
           
-          // Garante elementos de sistema nas posições certas
           if (loading) chatEl.prepend(loading);
           if (typing) chatEl.appendChild(typing);
           
           chatEl.scrollTop = chatEl.scrollHeight;
-      }, 300); // Executa 300ms após a última mensagem recebida (bom para o carregamento inicial)
+      }, 300); 
   }
 
-  // CONSULTA COM LIMIT E ORDER
   onChildAdded(query(ref(db, `salas/${SALA_ID}/mensagens`), orderByChild("timestamp"), limitToLast(50)), snap => {
     const key = snap.key;
     const data = snap.val();
@@ -1340,9 +1667,7 @@
         const div = createMessageDom(data, key);
         messageElements[key] = { dom: div, data: data };
         
-        // --- LÓGICA DE INSERÇÃO ORDENADA NO DOM ---
-        // Tenta inserir na posição correta imediatamente
-        const currentTs = parseInt(data.timestamp) || 0; // Força inteiro
+        const currentTs = parseInt(data.timestamp) || 0; 
         let inserted = false;
         
         const children = Array.from(chatEl.children);
@@ -1374,8 +1699,6 @@
         }
         
         chatEl.appendChild(typingIndicator);
-        
-        // Agenda uma reordenação completa para garantir (arruma o bug "um usuário depois do outro")
         scheduleSort();
     }
     chatEl.scrollTop = chatEl.scrollHeight;
@@ -1444,27 +1767,84 @@
   document.getElementById("closeModal").onclick = () => {
     document.getElementById("modal").style.display = "none";
   };
+  
+  const studyModal = document.getElementById("studyModal");
+  document.getElementById("closeStudy").onclick = () => {
+    studyModal.style.display = "none";
+  };
+  
+  window.addEventListener('click', (event) => {
+    if (event.target == studyModal) {
+        studyModal.style.display = 'none';
+    }
+  });
+
+// --- LÓGICA DO MODAL DE REFORMULAÇÃO ---
+const reformulateModal = document.getElementById("reformulateModal");
+const btnReformulate = document.getElementById("btnReformulate");
+const closeReformulate = document.getElementById("closeReformulate");
+
+btnReformulate.onclick = () => {
+    if (msgEl.value.trim().length === 0) {
+        // Se estiver vazio, foca e anima levemente para mostrar que precisa de texto
+        msgEl.focus();
+        msgEl.classList.add('ring-2', 'ring-red-400');
+        setTimeout(() => msgEl.classList.remove('ring-2', 'ring-red-400'), 500);
+        return;
+    }
+    reformulateModal.style.display = "flex";
+};
+
+closeReformulate.onclick = () => {
+    reformulateModal.style.display = "none";
+};
+
+window.addEventListener('click', (event) => {
+    if (event.target == reformulateModal) {
+        reformulateModal.style.display = 'none';
+    }
+});
+
+window.processReformulation = async (targetLang) => {
+    reformulateModal.style.display = "none";
+    
+    const originalText = msgEl.value;
+    const oldPlaceholder = msgEl.placeholder;
+    
+    msgEl.value = "";
+    msgEl.placeholder = "Otimizando frase com IA...";
+    msgEl.disabled = true;
+    
+    try {
+        const optimizedText = await otimizarTextoParaTraducao(originalText, targetLang);
+        // Tira as aspas se a IA colocou
+        msgEl.value = optimizedText.replace(/^"|"$/g, '').trim();
+    } catch (error) {
+        console.error("Erro na otimização:", error);
+        msgEl.value = originalText; // Restaura original se falhar
+        alert("Não foi possível otimizar agora. Tente novamente.");
+    } finally {
+        msgEl.disabled = false;
+        msgEl.placeholder = oldPlaceholder;
+        msgEl.focus();
+    }
+};
+
 const salaMensagensRef = ref(db, `salas/${SALA_ID}/mensagens`);
 
-onValue(salaMensagensRef, (snap) => {
+// OTIMIZAÇÃO CRÍTICA: Verifica apenas a ÚLTIMA mensagem para saber se a sala existe
+// Em vez de baixar o banco inteiro
+onValue(query(salaMensagensRef, limitToLast(1)), (snap) => {
   if (!snap.exists()) {
-    // Sala ou mensagens foram apagadas
     resetChatUI();
   }
 });
 function resetChatUI() {
-  // Limpa DOM
   chatEl.innerHTML = '';
-  
-  // Limpa cache local de mensagens
   messageElements = {};
   fila.length = 0;
-
-  // Força scroll para topo
   chatEl.scrollTop = 0;
-
 }
-
 </script>
 </body>
 </html>
