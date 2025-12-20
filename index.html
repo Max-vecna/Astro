@@ -21,345 +21,7 @@
     }
   </script>
 
-  <style>
-    /* --- STYLE.CSS INTEGRADO --- */
-    html, body {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-    }
-    
-    body {
-      font-family: Inter, system-ui, sans-serif;
-      -webkit-user-select: none;
-      -ms-user-select: none;
-      user-select: none;
-    }
-
-    .message, #msg, .selectable {
-      -webkit-user-select: text;
-      -ms-user-select: text;
-      user-select: text;
-    }
-
-    .message {
-      max-width: 85%;
-      padding: 10px 14px;
-      border-radius: 16px;
-      word-wrap: break-word;
-      width: fit-content;
-      position: relative;
-      margin-top: 10px; 
-      margin-bottom: 10px; 
-      transition: all 0.2s ease;
-    }
-
-    .message.editing {
-        width: 80% !important;
-        max-width: 80% !important;
-    }
-
-    .sent { background: #3b82f6; color: #fff;  margin-top: 15px !important; margin-bottom: 15px !important; margin-left: auto; padding-left: 30px;}
-    
-    /* LIGHT MODE PADRÃO */
-    .received { background: #e5e7eb; color: #111827; margin: 15px 0 !important; padding-right: 30px;}
-    .received .time-container { color: #4b5563; }
-
-    /* DARK MODE OVERRIDES */
-    html.dark .received { background: #374151; color: #f3f4f6; }
-    html.dark .received .time-container { color: #9ca3af; }
-    
-    /* MODAIS E MENUS DARK MODE */
-    html.dark .options-menu { background: #1f2937; border-color: #374151; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); }
-    html.dark .options-item { color: #d1d5db; }
-    html.dark .options-item:hover { background: #374151; color: #60a5fa; }
-    html.dark .modal-content { background: #1f2937; color: #f3f4f6; }
-    html.dark .modal-header-bg { background: #1e3a8a; } 
-    html.dark h2 { color: #f3f4f6 !important; }
-    html.dark p { color: #9ca3af !important; }
-    html.dark .edit-area { background: #1f2937; border-color: #374151; }
-    html.dark .edit-textarea { background: #374151; color: #f3f4f6; border-color: #4b5563; }
-    html.dark .action-btn { background: #374151; color: #d1d5db; border-color: #4b5563; }
-    html.dark .action-btn:hover { background: #4b5563; }
-    html.dark .context-text { background-color: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
-    
-    html.dark .options-menu.open-right::after { background: #1f2937; border-color: #374151; }
-    html.dark .options-menu.open-left::after { background: #1f2937; border-color: #374151; }
-
-    html.dark .lang-option { border-color: #4b5563; }
-    html.dark .lang-option:hover { background-color: #374151; border-color: #3b82f6; }
-    html.dark .lang-option label { color: #d1d5db; }
-
-    .original { font-size: 0.7rem; opacity: 0.6; margin-top: 4px; display: block; }
-    
-    .time-container {
-        font-size: 0.65rem; 
-        opacity: 0.8; 
-        margin-top: 2px; 
-        text-align: right; 
-        display: flex; 
-        align-items: center; 
-        justify-content: flex-end; 
-        gap: 4px;
-    }
-    .sent .time-container { color: rgba(255, 255, 255, 0.8); }
-    .edited-tag { font-style: italic; opacity: 0.7; }
-
-    .action-btn {
-        position: absolute;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-        transition: all 0.2s;
-        z-index: 20;
-        background: #fff;
-        color: #4b5563;
-        border: 1px solid #e5e7eb;
-    }
-    .action-btn:hover { transform: scale(1.05); background: #f9fafb; }
-    .action-btn:active { transform: scale(0.95); }
-
-    .menu-trigger { right: -14px; top: 50%; transform: translateY(-50%); }
-    .menu-trigger:hover { transform: translateY(-50%) scale(1.05); }
-
-    .edit-btn { left: -14px; bottom: -10px; background: #fff; color: #10b981; }
-    
-    .options-menu {
-        position: fixed; 
-        top: 0; left: 0; 
-        margin: 0; 
-        background: #ffffff;
-        border-radius: 12px;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        padding: 4px;
-        display: none; 
-        flex-direction: column;
-        z-index: 9999; 
-        min-width: 170px;
-        border: 1px solid #e5e7eb;
-        animation: menuFadeIn 0.15s ease-out;
-    }
-    
-    @keyframes menuFadeIn {
-        from { opacity: 0; transform: translateY(-5px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    .options-menu.show { display: flex; }
-    
-    .options-menu.open-right::after {
-        content: ""; position: absolute; top: calc(50% - 6px); left: -6px; width: 12px; height: 12px;
-        background: #ffffff; border-left: 1px solid #e5e7eb; border-top: 1px solid #e5e7eb;
-        transform: rotate(-45deg); z-index: -1; 
-    }
-
-    .options-menu.open-left::after {
-        content: ""; position: absolute; top: calc(50% - 6px); right: -6px; width: 12px; height: 12px;
-        background: #ffffff; border-right: 1px solid #e5e7eb; border-top: 1px solid #e5e7eb;
-        transform: rotate(45deg); z-index: -1;
-    }
-
-    .options-item {
-        display: flex; align-items: center; gap: 10px; padding: 10px 12px;
-        font-size: 0.9rem; color: #374151; cursor: pointer; border-radius: 8px;
-        transition: background 0.15s, color 0.15s; text-decoration: none;
-    }
-    .options-item:hover { background: #eff6ff; color: #2563eb; }
-    .options-item svg { width: 18px; height: 18px; stroke-width: 2px; }
-    .options-item.retry-opt svg { color: #f59e0b; }
-    .options-item.var-opt svg { color: #3b82f6; }
-    .options-item.ctx-opt svg { color: #059669; }
-    .options-item.study-opt svg { color: #8b5cf6; }
-
-    @keyframes slideDown {
-        from { opacity: 0; transform: translateY(-8px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    .edit-area {
-        animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-        background: #ffffff; border-radius: 12px; padding: 8px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.05);
-        margin-top: 4px; border: 1px solid rgba(0,0,0,0.05); width: 100%; min-width: 200px;
-    }
-
-    .sent .edit-area textarea { color: #1f2937; }
-
-    .edit-textarea {
-        width: 100%; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px;
-        font-size: 0.95rem; line-height: 1.4; color: #1f2937; resize: none; outline: none;
-        transition: border-color 0.2s, box-shadow 0.2s; font-family: inherit; background: #f9fafb; display: block;
-    }
-    .edit-textarea:focus {
-        border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); background: #fff;
-    }
-
-    .edit-controls { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; align-items: center; }
-
-    .edit-btn-action {
-        padding: 6px 14px; border-radius: 9999px; font-size: 0.8rem; font-weight: 600;
-        cursor: pointer; transition: all 0.2s; border: none;
-    }
-    
-    .btn-cancel { color: #6b7280; background: transparent; }
-    .btn-cancel:hover { background: #f3f4f6; color: #374151; }
-    html.dark .btn-cancel:hover { background: #374151; color: #f3f4f6; }
-    
-    .btn-save { background: #3b82f6; color: white; box-shadow: 0 2px 5px rgba(59, 130, 246, 0.3); }
-    .btn-save:hover { background: #2563eb; box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4); transform: translateY(-1px); }
-    .btn-save:active { transform: translateY(0); }
-
-    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(2px); }
-    
-    .modal-content { 
-        background: #fff; max-width: 90%; width: 420px; max-height: 85vh;
-        border-radius: 16px; padding: 20px; display: flex; flex-direction: column;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    }
-
-    .variant-item {
-        cursor: pointer; padding: 12px; margin-bottom: 4px; border-radius: 8px;
-        transition: background-color 0.15s; border: 1px solid #f3f4f6;
-    }
-    .variant-item:hover { background-color: #f0f9ff; border-color: #3b82f6; }
-    html.dark .variant-item { border-color: #374151; color: #d1d5db; }
-    html.dark .variant-item:hover { background-color: #374151; border-color: #60a5fa; color: #fff; }
-    
-    /* Welcome Modal Specifics */
-    .lang-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-        margin-top: 10px;
-    }
-    
-    .lang-option {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 15px;
-        border: 2px solid #e5e7eb;
-        border-radius: 12px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    
-    .lang-option:hover {
-        border-color: #3b82f6;
-        background-color: #eff6ff;
-        transform: translateY(-2px);
-    }
-    
-    .lang-option span {
-        font-size: 24px;
-        margin-bottom: 8px;
-    }
-    
-    .lang-option label {
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: #374151;
-        cursor: pointer;
-    }
-
-    /* Study Mode Styles */
-    .study-card {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 16px;
-    }
-    html.dark .study-card {
-        background: #1e293b;
-        border-color: #334155;
-    }
-    .study-label {
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #64748b;
-        margin-bottom: 4px;
-        font-weight: 600;
-    }
-    .study-text {
-        font-size: 1.1rem;
-        color: #1e293b;
-        margin-bottom: 12px;
-        line-height: 1.5;
-    }
-    html.dark .study-text { color: #e2e8f0; }
-    
-    .vocab-list {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-    .vocab-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px 12px;
-        background: #fff;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        font-size: 0.95rem;
-    }
-    html.dark .vocab-item {
-        background: #0f172a;
-        border-color: #1e293b;
-        color: #cbd5e1;
-    }
-    .vocab-arrow {
-        color: #94a3b8;
-        padding: 0 8px;
-    }
-
-    @keyframes pulse-green {
-      0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-      70% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-    }
-    .online-indicator { animation: pulse-green 2s infinite; }
-
-    /* REFORMULATE BUTTON STYLES */
-    .btn-reformulate {
-      background: #8b5cf6; 
-      color: white; 
-      transition: all 0.2s;
-    }
-    .btn-reformulate:hover {
-      background: #7c3aed;
-      transform: scale(1.05);
-    }
-    .btn-reformulate:active {
-      transform: scale(0.95);
-    }
-
-    @media (max-width: 640px) {
-      body { align-items: stretch !important; justify-content: flex-start !important; }
-      body > div { max-width: 100% !important; height: 100dvh !important; border-radius: 0 !important; }
-      #chat { position: fixed !important; top: 52px; bottom: 76px; left: 0; right: 0; padding-bottom: 12px; }
-      .message { max-width: 90% !important; font-size: 0.95rem; }
-      .modal-content { width: 95% !important; max-height: 90dvh; }
-      #msg { font-size: 1rem; padding: 10px; }
-    }
-
-    .context-text {
-      font-style: italic; color: #6366f1; background-color: rgba(99, 102, 241, 0.08);
-      padding: 6px 8px; border-radius: 8px;
-    }
-    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-    html.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
-  </style>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body class="bg-gray-900 dark:bg-gray-950 transition-colors duration-200">
 
@@ -426,6 +88,7 @@
                 <p>Ao clicar nos três pontos em uma mensagem recebida, você pode:</p>
                 <ul class="list-disc ml-5 mt-1 space-y-1">
                     <li><strong>Estudar:</strong> Veja a correspondência palavra por palavra.</li>
+                    <li><strong>Explorar:</strong> Clique nas palavras para ver definições e gramática.</li>
                     <li><strong>Retraduzir:</strong> Tenta uma nova tradução com a IA.</li>
                     <li><strong>Variações:</strong> Veja 3 formas diferentes de traduzir a frase.</li>
                     <li><strong>Contexto:</strong> A IA explica a intenção ou gírias da mensagem original.</li>
@@ -455,11 +118,14 @@
       <!-- BUTTON REFORMULAR -->
       <button id="btnReformulate" class="btn-reformulate w-11 h-11 flex items-center justify-center rounded-full shrink-0 shadow-md" title="Otimizar para tradução">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            <path d="M9 9l6 6"></path>
-            <path d="M15 9l-6 6"></path>
-            <path d="M15 3v4"></path>
-            <path d="M19 7h-4"></path>
+            <path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/>
+            <path d="m14 7 3 3"/>
+            <path d="M5 6v4"/>
+            <path d="M19 14v4"/>
+            <path d="M10 2v2"/>
+            <path d="M7 8H3"/>
+            <path d="M21 16h-4"/>
+            <path d="M11 3H9"/>
           </svg>
       </button>
 
@@ -507,10 +173,6 @@
   
       <div id="studyContent" class="overflow-y-auto custom-scrollbar flex-1 pr-1" style="max-height: 60vh;">
         <!-- Conteúdo Injetado via JS -->
-        <div class="flex flex-col items-center justify-center h-40 space-y-3">
-             <div class="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-             <p class="text-sm text-gray-500 animate-pulse">Analisando correspondência...</p>
-        </div>
       </div>
       
       <div class="mt-4 pt-3 border-t dark:border-gray-700 text-xs text-center text-gray-400">
@@ -518,6 +180,60 @@
       </div>
     </div>
   </div>
+
+<!-- MODAL DE EXPLORAÇÃO INTERATIVA (NOVO) -->
+<div id="exploreModal" class="modal">
+    <div class="modal-content shadow-2xl" style="width: 500px;">
+      <div class="flex justify-between items-center mb-4 pb-2 border-b dark:border-gray-700">
+        <div class="flex items-center gap-2">
+            <div class="p-2 bg-pink-100 dark:bg-pink-900/30 rounded-full text-pink-600 dark:text-pink-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+            </div>
+            <h2 class="font-bold text-lg text-gray-800 dark:text-gray-100">Explorador de Palavras</h2>
+        </div>
+        <button id="closeExplore" class="text-gray-400 hover:text-red-500 text-2xl transition-colors">&times;</button>
+      </div>
+  
+      <div class="flex-1 overflow-y-auto custom-scrollbar pr-1">
+         <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Clique em qualquer palavra para ver o significado, classe gramatical e exemplos.</p>
+         
+         <!-- Texto Interativo -->
+         <div id="exploreText" class="text-xl leading-relaxed text-gray-800 dark:text-gray-200 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-700 mb-4">
+             <!-- Palavras injetadas aqui -->
+         </div>
+
+         <!-- Cartão de Definição -->
+         <div id="wordDetail" class="hidden definition-card">
+             <div id="wordLoading" class="hidden flex justify-center py-4">
+                 <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-pink-500"></div>
+             </div>
+             
+             <div id="wordContent">
+                 <div class="flex justify-between items-baseline mb-2">
+                    <h3 id="detailWord" class="text-2xl font-bold text-pink-600 dark:text-pink-400"></h3>
+                    <span id="detailClass" class="text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded"></span>
+                 </div>
+                 
+                 <div class="mb-3">
+                     <p class="text-xs font-bold text-gray-400 uppercase mb-1">Significado</p>
+                     <p id="detailMeaning" class="text-gray-800 dark:text-gray-200"></p>
+                 </div>
+
+                 <!-- SINÔNIMOS FIELD (UPDATED) -->
+                 <div class="mb-3 p-2 bg-gray-50 dark:bg-gray-800 rounded border border-gray-100 dark:border-gray-700" id="detailSynonymsContainer">
+                     <p class="text-xs font-bold text-pink-500 uppercase mb-1">Sinônimos / Similares</p>
+                     <p id="detailSynonyms" class="text-gray-700 dark:text-gray-300 font-medium"></p>
+                 </div>
+                 
+                 <div>
+                     <p class="text-xs font-bold text-gray-400 uppercase mb-1">Exemplo de Uso</p>
+                     <p id="detailExample" class="text-gray-600 dark:text-gray-400 italic border-l-2 border-pink-200 dark:border-pink-800 pl-3"></p>
+                 </div>
+             </div>
+         </div>
+      </div>
+    </div>
+</div>
 
 <!-- MODAL REFORMULAR (NOVO) -->
 <div id="reformulateModal" class="modal">
@@ -598,7 +314,9 @@
 </div>
 
 <script>
-    // --- LÓGICA DO DARK MODE ---
+    // --- LÓGICA DO DARK MODE E UI ---
+    // (A lógica de tradução foi movida para translationService.js)
+    
     const darkModeBtn = document.getElementById('darkModeBtn');
     const htmlEl = document.documentElement;
 
@@ -631,188 +349,6 @@
         }
     });
 
-    // --- TRANSLATION SERVICE LÓGICA ---
-    const LANG_MAP = {
-        'ar': 'árabe',
-        'pt': 'português',
-        'es': 'espanhol',
-        'ja': 'japonês',
-        'zh': 'chinês',
-        'en': 'inglês'
-    };
-
-    function getTranslationTimeout(text) {
-        return text.length > 100 ? 10000 : 5000;
-    }
-
-    function checkInternet() {
-        if (!navigator.onLine) {
-            throw new Error("Sem conexão com a internet. Verifique sua rede.");
-        }
-    }
-
-    async function fetchWithTimeout(resource, options = {}) {
-        const { timeout = 5000 } = options;
-        const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), timeout);
-        try {
-            const response = await fetch(resource, { ...options, signal: controller.signal });
-            clearTimeout(id);
-            return response;
-        } catch (error) {
-            clearTimeout(id);
-            throw error;
-        }
-    }
-
-    async function traduzir(texto, langCode, tentarNovamente = true) {
-        checkInternet();
-        const idioma = LANG_MAP[langCode] || langCode; 
-        const prompt = encodeURIComponent(`Traduza o seguinte texto para ${idioma}. Produza SOMENTE a tradução, sem explicações. Texto: "${texto}", se necessário, traduza para a frase que mais se encaixa no contexto da frase original`);
-        const url = `https://text.pollinations.ai/${prompt}`;
-        const timeout = getTranslationTimeout(texto);
-
-        try {
-            const res = await fetchWithTimeout(url, { timeout: timeout });
-            if (!res.ok) throw new Error("Erro na API de tradução");
-            return await res.text();
-        } catch (e) {
-            if (e.name === 'AbortError') console.warn(`Falha na tradução por timeout (${texto.substring(0, 20)}...)`);
-            else console.error("Erro desconhecido na tradução:", e);
-
-            if (tentarNovamente) {
-                console.log("Tentando traduzir novamente...");
-                return await traduzir(texto, langCode, false);
-            }
-            throw e;
-        }
-    }
-
-    async function analisarContexto(texto, targetLangCode) {
-        checkInternet();
-        const idioma = LANG_MAP[targetLangCode] || "português";
-        const prompt = encodeURIComponent(`Explique de forma curta qual é o provável contexto e intenção da seguinte mensagem. Responda exclusivamente em ${idioma}. Mensagem:"${texto}"`);
-        const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("Erro ao analisar contexto");
-        return await res.text();
-    }
-
-    async function gerarVariacoes(texto, targetLangCode, qtd = 3) {
-        checkInternet();
-        const idioma = LANG_MAP[targetLangCode] || "português";
-        const prompt = encodeURIComponent(`gere ${qtd} variações diferentes de tradução para ${idioma} (seja criativo): "${texto}". responda apenas as variações em linhas separadas sem numeração.`);
-        const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
-
-        try {
-            const res = await fetchWithTimeout(url, { timeout: 8000 });
-            if (!res.ok) throw new Error("Erro API variações");
-            const txt = await res.text();
-            return txt.split("\n").filter(l => l.trim().length > 0).map(l => l.replace(/^[-*•]\s*/, ''));
-        } catch (e) {
-            throw e;
-        }
-    }
-
-    async function otimizarTextoParaTraducao(texto, targetLangCode) {
-        checkInternet();
-        // 1. Identificar idioma do usuário
-        const userLangCode = document.getElementById('lang').value || 'pt'; 
-
-        try {
-            // 2. Passo 1: Traduzir para o idioma alvo (Ida)
-            const traducaoIntermediaria = await traduzir(texto, targetLangCode);
-            
-            // 3. Passo 2: Traduzir de volta para o idioma do usuário (Volta)
-            // Isso valida se a tradução de ida manteve o sentido correto
-            const resultadoFinal = await traduzir(traducaoIntermediaria, userLangCode);
-
-            return resultadoFinal;
-        } catch (e) {
-            console.error("Erro no fluxo de otimização:", e);
-            throw e;
-        }
-    }
-
-    async function gerarCorrespondencia(original, traduzido, targetLangCode) {
-  checkInternet();
-  const idioma = LANG_MAP[targetLangCode] || "português";
-
-  const prompt = encodeURIComponent(`
-Gere um JSON estrito de correspondência linguística.
-
-Regras:
-- Retorne APENAS JSON válido
-- Preserve pontuação e números
-- Priorize palavras individuais
-- Use grupos apenas quando necessário
-- Não explique nada
-
-Formato EXATO:
-{
-  "pairs": [
-    { "orig": "texto", "trans": "texto", "type": "word|group|punctuation|number" }
-  ]
-}
-
-Texto original:
-"${original}"
-
-Tradução:
-"${traduzido}"
-`);
-
-  const url = `https://text.pollinations.ai/${prompt}?seed=${Math.random()}`;
-
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("Erro API");
-
-    const raw = await res.text();
-    return parseCorrespondencia(raw, original, traduzido);
-
-  } catch (e) {
-    console.error("Erro correspondência:", e);
-    return fallbackCorrespondencia(original, traduzido);
-  }
-}
-function parseCorrespondencia(raw, original, traduzido) {
-  try {
-    const json = JSON.parse(raw);
-
-    if (!json.pairs || !Array.isArray(json.pairs)) {
-      throw new Error("JSON inválido");
-    }
-
-    return json.pairs.filter(p =>
-      p.orig && p.trans && p.type
-    );
-
-  } catch (e) {
-    console.warn("Fallback ativado");
-    return fallbackCorrespondencia(original, traduzido);
-  }
-}
-function tokenize(text) {
-  return text.match(/[\p{L}]+|\d+|[^\s\p{L}\d]/gu) || [];
-}
-function fallbackCorrespondencia(original, traduzido) {
-  const o = tokenize(original);
-  const t = tokenize(traduzido);
-
-  const len = Math.min(o.length, t.length);
-
-  return Array.from({ length: len }).map((_, i) => ({
-    orig: o[i],
-    trans: t[i],
-    type: /^\d+$/.test(o[i])
-      ? "number"
-      : /[^\p{L}\d]/u.test(o[i])
-        ? "punctuation"
-        : "word"
-  }));
-}
-
     // --- UI HELPERS ---
     document.addEventListener('keydown', function(e) {
         if (e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 's' || e.key === 'S')) {
@@ -838,6 +374,9 @@ function fallbackCorrespondencia(original, traduzido) {
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
   import { getDatabase, ref, push, onChildAdded, set, get, query, orderByChild, remove, update, onValue, onDisconnect, onChildChanged, limitToLast } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+  
+  // IMPORTANDO O SERVIÇO DE TRADUÇÃO
+  import { traduzir, analisarContexto, gerarVariacoes, otimizarTextoParaTraducao, gerarCorrespondencia, explorarPalavra } from './translationService.js';
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js");
@@ -1386,7 +925,7 @@ function fallbackCorrespondencia(original, traduzido) {
         const menu = document.createElement("div");
         menu.className = "options-menu";
         
-        // OPÇÃO ESTUDAR (NOVA)
+        // OPÇÃO ESTUDAR
         const optStudy = document.createElement("div");
         optStudy.className = "options-item study-opt";
         optStudy.innerHTML = `
@@ -1451,6 +990,78 @@ pairs.forEach(p => {
             } catch (err) {
                 studyContent.innerHTML = `<div class="p-4 text-center text-red-500">Erro ao carregar estudo. Tente novamente.</div>`;
             }
+        };
+
+        // OPÇÃO EXPLORAR (NOVO)
+        const optExplore = document.createElement("div");
+        optExplore.className = "options-item explore-opt";
+        optExplore.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+            <span>Explorar</span>
+        `;
+        optExplore.onclick = (e) => {
+            e.stopPropagation();
+            resetAllContexts();
+            menu.classList.remove('show', 'open-left', 'open-right');
+            
+            const exploreModal = document.getElementById("exploreModal");
+            const exploreText = document.getElementById("exploreText");
+            const wordDetail = document.getElementById("wordDetail");
+            
+            // MUDANÇA: Usar texto original para exploração
+            const latestData = messageElements[key]?.data;
+            const textToExplore = latestData ? latestData.texto : content.textContent;
+            
+            exploreModal.style.display = 'flex';
+            wordDetail.classList.add('hidden'); // Reset card
+            
+            // Tokenizar (separar por espaços simples, mantendo pontuação se possível seria ideal, mas split simples funciona para MVP)
+            const tokens = textToExplore.split(/\s+/);
+            
+            exploreText.innerHTML = '';
+            tokens.forEach(token => {
+                const span = document.createElement('span');
+                span.textContent = token;
+                span.className = 'word-token';
+                
+                // Limpa pontuação para análise
+                const cleanWord = token.replace(/[.,!?;:"()]/g, "");
+                
+                if (cleanWord.length > 0) {
+                    span.onclick = async () => {
+                        // UI Update
+                        document.querySelectorAll('.word-token').forEach(el => el.classList.remove('selected'));
+                        span.classList.add('selected');
+                        
+                        wordDetail.classList.remove('hidden');
+                        document.getElementById('wordLoading').classList.remove('hidden');
+                        document.getElementById('wordContent').classList.add('hidden');
+                        
+                        // User lang for response
+                        const userLang = document.getElementById('lang').value || 'pt';
+                        
+                        try {
+                            const result = await explorarPalavra(cleanWord, textToExplore, userLang);
+                            
+                            document.getElementById('detailWord').textContent = cleanWord;
+                            document.getElementById('detailClass').textContent = result.classe;
+                            document.getElementById('detailMeaning').textContent = result.significado;
+                            
+                            // NEW FIELD POPULATION
+                            document.getElementById('detailSynonyms').textContent = result.sinonimos || '-';
+                            
+                            document.getElementById('detailExample').textContent = `"${result.exemplo}"`;
+                            
+                            document.getElementById('wordLoading').classList.add('hidden');
+                            document.getElementById('wordContent').classList.remove('hidden');
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    };
+                }
+                
+                exploreText.appendChild(span);
+            });
         };
 
         const optRetry = document.createElement("div");
@@ -1562,8 +1173,8 @@ pairs.forEach(p => {
             }
         };
 
-        // Ordem do menu: Estudar primeiro
-        //menu.appendChild(optStudy);
+        // Ordem do menu
+        menu.appendChild(optExplore); // NOVO
         menu.appendChild(optVar);
         menu.appendChild(optCtx);
         menu.appendChild(optRetry);
@@ -1771,10 +1382,16 @@ pairs.forEach(p => {
     studyModal.style.display = "none";
   };
   
+  // --- LÓGICA DO MODAL DE EXPLORAÇÃO ---
+  const exploreModal = document.getElementById("exploreModal");
+  document.getElementById("closeExplore").onclick = () => {
+    exploreModal.style.display = "none";
+  };
+
   window.addEventListener('click', (event) => {
-    if (event.target == studyModal) {
-        studyModal.style.display = 'none';
-    }
+    if (event.target == studyModal) studyModal.style.display = 'none';
+    if (event.target == exploreModal) exploreModal.style.display = 'none';
+    if (event.target == reformulateModal) reformulateModal.style.display = 'none';
   });
 
 // --- LÓGICA DO MODAL DE REFORMULAÇÃO ---
@@ -1797,24 +1414,22 @@ closeReformulate.onclick = () => {
     reformulateModal.style.display = "none";
 };
 
-window.addEventListener('click', (event) => {
-    if (event.target == reformulateModal) {
-        reformulateModal.style.display = 'none';
-    }
-});
-
+// Tornamos acessível globalmente pois é chamado pelo onclick do HTML
 window.processReformulation = async (targetLang) => {
     reformulateModal.style.display = "none";
     
     const originalText = msgEl.value;
     const oldPlaceholder = msgEl.placeholder;
+    // Captura o idioma atual do usuário para passar para o serviço
+    const userLang = document.getElementById('lang').value || 'pt'; 
     
     msgEl.value = "";
     msgEl.placeholder = "Otimizando frase com IA...";
     msgEl.disabled = true;
     
     try {
-        const optimizedText = await otimizarTextoParaTraducao(originalText, targetLang);
+        // Agora passamos o idioma do usuário também
+        const optimizedText = await otimizarTextoParaTraducao(originalText, targetLang, userLang);
         // Tira as aspas se a IA colocou
         msgEl.value = optimizedText.replace(/^"|"$/g, '').trim();
     } catch (error) {
