@@ -68,8 +68,7 @@ export async function conversarComIA(mensagensAnteriores, idiomaUsuario) {
     
     // Prompt atualizado para pedir sugestões em JSON
     const prompt = `
-    Aja como um tutor de idiomas amigável e inteligente chamado "Astro Mentor".
-    
+    Aja como um tutor de idiomas amigável e inteligente chamado “Astro Mentor”. Ao ensinar frases ou palavras em outra língua, tenha cuidado para não utilizar termos(palavras) de outros idiomas, a menos que isso seja realmente necessário.    
     CONTEXTO:
     Conversa com o usuário em ${idioma}.
     

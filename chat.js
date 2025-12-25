@@ -544,6 +544,19 @@ const openActionsMenu = (triggerEl, msgId, text) => {
             { icon: 'fa-graduation-cap', label: 'Estudar Frase', class: 'opt-study', action: () => Modals.openStudyModal(text) },
             { icon: 'fa-globe', label: 'Traduzir manualmente', action: () => Modals.openTranslateToModal(text) }
          ];
+
+         // === NOVO CÓDIGO AQUI ===
+         // Se a mensagem NÃO for do usuário atual (ou seja, é do Bot), mostra o botão de revisão
+         if (msgUserId !== state.userId) {
+             options.push({
+                 icon: 'fa-magnifying-glass-chart', // Ícone de análise
+                 label: 'Revisar Resposta',
+                 class: 'text-yellow-400', // Destaque visual (ajuste se não usar Tailwind)
+                 action: () => requestReview(text)
+             });
+         }
+         // ========================
+
     } else {
         options = hasCorrection
         ? [
@@ -668,4 +681,39 @@ function handleTextSelection() {
     };
 
     document.body.appendChild(selectionBtn);
+}
+
+// Adicione esta função no chat.js
+
+async function requestReview(originalText) {
+    if (!state.isAiRoom) return; // Só funciona em salas de IA
+
+    Utils.showToast("Solicitando revisão...", "info");
+    
+    // Mostra indicador de digitação visualmente (opcional, mas bom para UX)
+    const typingContainer = document.getElementById('typing-indicator-container');
+    if(typingContainer) typingContainer.classList.remove('hidden');
+
+    try {
+        // Prompt específico para a IA corrigir a si mesma
+        const prompt = `O usuário sinalizou sua resposta anterior como incorreta ou imprecisa,não precisa se desculpar aepnas retornar o texto corrigir ou ajustado.\n\nTexto original: "${originalText}"\n\nTarefa: Analise criticamente o texto original. Verifique erros gramaticais, factuais ou de lógica. Forneça uma versão revisada e melhorada do texto. retorne o texto em "${state.currentTranslationLangGlobal}". Seja claro e conciso em sua revisão.`;
+        
+        // Usa o serviço de IA existente
+        const response = await Services.aiRequest(prompt);
+
+        // Envia a resposta da revisão para o Firebase como uma mensagem do Astro Mentor
+        await push(ref(db, `messages/${state.currentRoom}`), {
+            text: `🔍 **Revisão:**\n${response}`,
+            nickname: "Astro Mentor",
+            userId: "astro_mentor", // ID fixo da IA
+            timestamp: Date.now(),
+            type: 'review'
+        });
+
+    } catch (error) {
+        console.error(error);
+        Utils.showToast("Erro ao processar revisão.", "error");
+    } finally {
+        if(typingContainer) typingContainer.classList.add('hidden');
+    }
 }
