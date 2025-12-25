@@ -1,18 +1,19 @@
 {
-  "name": "Chat Global",
-  "short_name": "Chat",
-  "start_url": ".",
+  "name": "Astro Chat - Global Edition",
+  "short_name": "Astro",
+  "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#3b82f6",
+  "background_color": "#0f172a",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait",
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/3253/3253508.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/3253/3253508.png",
       "sizes": "512x512",
       "type": "image/png"
     }
