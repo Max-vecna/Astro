@@ -60,67 +60,101 @@ export async function verificarGramatica(texto) {
     }
 }
 
+export async function conversarComIA(mensagensAnteriores, idiomaUsuario) {
+    const idioma = LANG_MAP[idiomaUsuario] || "Português";
+    
+    // Construção do contexto de chat simples
+    const contexto = mensagensAnteriores.map(m => `${m.role}: ${m.text}`).join('\n');
+    
+    // Prompt atualizado para pedir sugestões em JSON
+    const prompt = `
+    Aja como um tutor de idiomas amigável e inteligente chamado "Astro Mentor".
+    
+    CONTEXTO:
+    Conversa com o usuário em ${idioma}.
+    
+    OBJETIVOS:
+    1. Responda de forma natural à mensagem do usuário.
+    2. Se houver erro grave, corrija gentilmente no final.
+    3. Gere 3 sugestões curtas de respostas que o usuário poderia dar para continuar a conversa.
+    
+    Histórico:
+    ${contexto}
+    
+    IMPORTANTE: Retorne APENAS um JSON válido neste formato:
+    {
+        "text": "Sua resposta aqui...",
+        "suggestions": ["Opção 1 de resposta", "Opção 2", "Opção 3"]
+    }
+    `;
+
+    try {
+        const respostaRaw = await aiRequest(prompt, true);
+        const json = extractJSON(respostaRaw);
+        return json;
+    } catch (e) {
+        console.error("Erro ao parsear resposta da IA", e);
+        // Fallback caso a IA não retorne JSON
+        return { 
+            text: "Desculpe, pode repetir? (Erro de comunicação)", 
+            suggestions: [] 
+        };
+    }
+}
+
 export async function traduzir(texto, targetLang) {
     const cacheKey = `${texto}_${targetLang}`;
     if (translationCache[cacheKey]) return translationCache[cacheKey];
 
     const idioma = LANG_MAP[targetLang] || targetLang;
 
-    const prompt = `
-        Aja como um linguista profissional.
+   const prompt = `
+    Aja como um linguista profissional.
+    Texto: "${texto}"
 
-        Analise o texto abaixo (não faça correções ortográficas ou gramaticais):
+    1. Detecte o idioma real.
+    2. Verifique erros gramaticais NO ORIGINAL.
+    3. Se houver erros, retorne "tem_erros": true, "texto_corrigido" e "explicacao".
+    4. Se NÃO houver erros, traduza para ${idioma}.
 
-        "${texto}"
-
-        Retorne APENAS um JSON neste formato exato:
-
-        {
-            "ja_esta_no_idioma": boolean,
-            "traducao": "string ou null",
-            "tem_erros": boolean,
-            "texto_corrigido": "string ou null",
-            "explicacao": "string ou null"
-        }
-
-        REGRAS:
-        - Se o texto NÃO estiver em ${idioma}:
-        - "traducao" deve conter a tradução para ${idioma}
-        - os demais campos podem ser null
-        - Se o texto JÁ estiver em ${idioma}:
-        - NÃO traduza
-        - Verifique erros de digitação, gramática ou clareza
-        - Explique as correções de forma simples
-        - Nunca inclua texto fora do JSON.        
+    RETORNE APENAS JSON:
+    {
+    "idioma_detectado": "string",
+    "tem_erros": boolean,
+    "traducao": "string ou null",
+    "texto_corrigido": "string ou null",
+    "explicacao": "string ou null"
+    }
     `;
 
     try {
         const res = await aiRequest(prompt, false);
         const data = extractJSON(res);
-        console.log("Resposta tradução/revisão:", data);
-        let resultado;
+        
+       let resultado;
 
-        if (!data.ja_esta_no_idioma) {
-            resultado = data.traducao || texto;
-        } else if (data.tem_erros) {
-            resultado =
-                `Revisão detectada:\n\n` +
-                `Forma sugerida:\n${data.texto_corrigido}\n\n` +
-                `Explicação:\n${data.explicacao}`;
+        if (data.tem_erros) {
+            resultado = {
+                texto: `Correção sugerida: ${data.texto_corrigido}\n\n(${data.explicacao})`,
+                temErro: true
+            };
+        } else if (data.traducao) {
+            resultado = {
+                texto: data.traducao,
+                temErro: false
+            };
         } else {
-           resultado = data.traducao || texto;
+            resultado = {
+                texto,
+                temErro: false
+            };
         }
 
         translationCache[cacheKey] = resultado;
-        return {
-            texto: resultado,
-            temErro: data.ja_esta_no_idioma && data.tem_erros === true
-        };
-
+        return resultado;
 
     } catch (e) {
-        console.error("Erro na tradução/revisão:", e);
-        return texto;
+        return { texto: texto, temErro: false };
     }
 }
 
@@ -133,7 +167,7 @@ export async function analisarContexto(texto, targetLang) {
 
 export async function gerarVariacoes(texto, targetLang) {
     const idioma = LANG_MAP[targetLang] || "português";
-    const prompt = `Gere 3 variações da tradução para ${idioma} de: "${texto}".`;
+    const prompt = `Gere 3 variações da tradução para ${idioma} de: "${texto}" sem explicação ou pontos.`;
     const txt = await aiRequest(prompt);
     return txt.split("\n").filter(t => t.trim().length > 0);
 }
@@ -159,22 +193,13 @@ export async function detectarIdioma(texto) {
     const prompt = `
 Detecte o idioma do texto abaixo.
 Retorne APENAS um JSON válido no formato:
-
-{
-  "lang": "pt",
-  "iso": "pt-BR",
-  "nome": "Português"
-}
-
-Texto:
-"${texto}"
-    `.trim();
+{ "lang": "pt", "iso": "pt-BR", "nome": "Português" }
+Texto: "${texto}"`.trim();
 
     try {
         const res = await aiRequest(prompt, false);
         return extractJSON(res);
     } catch (e) {
-        console.error("Erro ao detectar idioma", e);
         return null;
     }
 }

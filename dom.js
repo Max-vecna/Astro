@@ -19,6 +19,7 @@ export const DOMElements = {
     replyPreview: document.getElementById('reply-preview'),
     
     // Displays de Texto
+    roomNameDisplay: document.querySelector('.room-name-display'), // Novo: Nome da sala no chat
     roomCodeDisplay: document.querySelector('.room-code-value'),
     userCountDisplay: document.getElementById('user-count-display'),
     userAvatarsContainer: document.getElementById('user-avatars-container'),
@@ -27,6 +28,7 @@ export const DOMElements = {
     
     // Modals
     roomActionsModal: document.getElementById('room-actions-modal'),
+    modalRoomNameInput: document.getElementById('modal-room-name-input'), // Novo: Input de nome da sala
     modalRoomCodeInput: document.getElementById('modal-room-code-input'),
     settingsModal: document.getElementById('settings-modal'),
     studyModal: document.getElementById('study-modal'),
@@ -43,6 +45,7 @@ export const DOMElements = {
     leaveBtn: document.getElementById('leave-btn'),
     notifBtn: document.getElementById('notif-btn'),
     newConversationBtn: document.getElementById('new-conversation-btn'),
+    aiRoomBtn: document.getElementById('ai-room-btn'), // Novo: Botão Sala IA
     settingsBtn: document.getElementById('settings-btn'),
     saveNicknameBtn: document.getElementById('save-nickname-btn'),
     changeNicknameBtn: document.getElementById('change-nickname-btn'),
@@ -59,6 +62,7 @@ export const DOMElements = {
     
     // Seletores
     roomLangSelector: document.getElementById('room-lang-selector'),
+    roomLangContainer: document.getElementById('room-lang-container'),
     introLangSelector: document.getElementById('intro-lang-selector'),
     themeBtns: document.querySelectorAll('.theme-btn'),
     bubbleStyleSelector: document.getElementById('bubble-style-selector'),

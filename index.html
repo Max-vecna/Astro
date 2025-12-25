@@ -19,7 +19,7 @@
 
    <link rel="stylesheet" href="styles.css">
 </head>
-<body data-theme="dark" data-bubble-style="astro" data-bg-style="cosmos">
+<body data-theme="dark" data-bubble-style="astro" data-bg-style="cosmos" data-chat-bg="whatsapp">
     
     <!-- Script para altura mobile -->
     <script>
@@ -30,14 +30,17 @@
         setAppHeight();
     </script>
 
-    <!-- Splash Screen -->
-    <div id="splash-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900 transition-opacity duration-500">
-        <div class="flex items-center text-5xl font-bold text-slate-200 z-10">
-            <i class="fas fa-globe-americas mr-3 text-indigo-500 animate-pulse"></i>
-            <span>Astro</span>
+     <!-- Splash Screen -->
+    <div id="splash-screen" class="fixed inset-0 z-[100] bg-[#0f172a] flex flex-col items-center justify-center transition-opacity duration-500">
+        <div class="relative w-32 h-32 mb-8">
+            <div class="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
+            <div class="absolute inset-0 border-4 border-blue-500 rounded-full animate-spin border-t-transparent"></div>
+            <div class="absolute inset-0 flex items-center justify-center">
+                <i class="fas fa-rocket text-4xl text-blue-500"></i>
+            </div>
         </div>
-        <div class="splash-loader w-12 h-12 border-4 border-slate-700 rounded-full mt-12 z-10"></div>
-        <p class="absolute bottom-10 text-slate-500 text-center px-4 z-10">Conectando mundos e idiomas.</p>
+        <h1 class="text-2xl font-bold text-white tracking-widest font-pixel">ASTRO CHAT</h1>
+        <p class="text-blue-400 mt-2 text-sm">Carregando universos...</p>
     </div>
 
     <!-- App Container -->
@@ -88,14 +91,22 @@
             
             <main data-bubble-style="modern" id="room-list-container" class="md:rounded-b-2xl flex-1 overflow-y-auto p-4 space-y-3 scroll-container md:bg-[var(--surface-color)] md:bg-opacity-90"></main>
 
+            <!-- Botão Config -->
             <div class="absolute bottom-6 left-6 z-20">
                  <button id="settings-btn" class="w-14 h-14 bg-[var(--surface-color)] hover:bg-opacity-80 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 transform hover:scale-110 border border-white/10 text-[var(--text-color)]">
                     <i class="fas fa-cog text-xl"></i>
                 </button>
             </div>
 
-            <div id="new-conversation-container" class="absolute bottom-6 right-6 z-20">
-                 <button id="new-conversation-btn" class="w-16 h-16 bg-[var(--primary-color)] hover:opacity-90 rounded-full flex items-center justify-center shadow-lg transition-transform duration-300 transform hover:scale-110 text-white">
+            <!-- Botões de Ação (Nova Sala e IA) -->
+            <div class="absolute bottom-6 right-6 z-20 flex flex-col gap-3">
+                 <!-- Botão IA Mentor (NOVO) -->
+                 <button id="ai-room-btn" class="w-16 h-16 bg-gradient-to-br from-purple-600 to-indigo-600 hover:opacity-90 rounded-full flex items-center justify-center shadow-lg transition-transform duration-300 transform hover:scale-110 text-white border-2 border-white/20" title="Conversar com IA">
+                    <i class="fas fa-robot text-2xl"></i>
+                </button>
+                
+                 <!-- Botão Nova Conversa -->
+                 <button id="new-conversation-btn" class="w-16 h-16 bg-[var(--primary-color)] hover:opacity-90 rounded-full flex items-center justify-center shadow-lg transition-transform duration-300 transform hover:scale-110 text-white" title="Nova Sala">
                     <i class="fas fa-plus text-2xl"></i>
                 </button>
             </div>
@@ -110,10 +121,21 @@
                     </button>
                     <div>
                         <div class="relative group cursor-pointer flex flex-col" id="room-code-wrapper">
-                            <h2 class="font-bold text-lg text-[var(--text-color)] leading-tight flex items-center gap-2">
-                                #<span class="room-code-value tracking-wider"></span>
-                            </h2>
-                            <p id="user-count-display" class="text-xs text-green-400 font-medium"></p>
+                           <div class="flex items-center gap-3">
+                                <div id="room-icon"
+                                    class="w-10 h-10 rounded-xl flex items-center justify-center 
+                                            bg-gradient-to-br from-blue-500 to-indigo-600 
+                                            text-white shadow-lg transition-transform">
+                                    <i class="fas fa-rocket text-lg"></i>
+                                </div>
+
+                                <div class="flex flex-col leading-tight">
+                                    <span class="room-name-display font-bold text-lg"></span>
+                                    <span class="text-xs opacity-60 font-mono flex">
+                                        #<span class="room-code-value"></span> <p id="user-count-display" class="text-xs text-green-400 font-medium ml-2"></p>
+                                    </span>
+                                </div>
+                            </div>                            
                         </div>
                     </div>
                 </div>
@@ -125,8 +147,7 @@
                     </button>
 
                     <!-- Seletor de Idioma da Sala -->
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-language text-[var(--text-muted-color)]"></i>
+                    <div class="flex items-center gap-2" id="room-lang-container">
                         <select id="room-lang-selector" title="Seu idioma pessoal para tradução">
                             <option value="pt">Português</option>
                             <option value="en">English</option>
@@ -141,7 +162,7 @@
                         </select>
                     </div>
 
-                    <div class="flex items-center -space-x-2" id="user-avatars-container"></div>
+                    <div class="md:flex items-center -space-x-2 hidden" id="user-avatars-container"></div>
                 </div>
             </header>
 
@@ -212,12 +233,30 @@
                         <option value="aurora">🌌 Aurora</option>
                         <option value="grid">🟤 Minimal Grid</option>
                         <option value="nebula">🌌 Nebula (Animado)</option>
-    <option value="ocean">🌊 Ocean Wave</option>
-    <option value="cybergrid">🧬 Cyber Grid</option>
-
+                        <option value="ocean">🌊 Ocean Wave</option>
+                        <option value="cybergrid">🧬 Cyber Grid</option>
                     </select>
                     <i class="fas fa-image absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none"></i>
                 </div>
+            </div>
+
+            <!-- FUNDO DO CHAT -->
+            <div>
+                <label class="text-sm font-medium text-muted-color mb-2 block">
+                    Fundo do Chat
+                </label>
+
+                <select id="chat-bg-selector" class="w-full p-3 bg-slate-900/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary-color)] text-white cursor-pointer appearance-none"">
+                    <option value="cartoon">🎨 Cartoon</option>
+                    <option value="whatsapp">💬 WhatsApp</option>
+                    <option value="whatsapp-light">💭 WhatsApp Claro</option>
+                    <option value="nebula">🌌 Nebulosa</option>
+                    <option value="glass">🧊 Vidro</option>
+                    <option value="grid">🔲 Grade</option>
+                    <option value="gradient">🌈 Gradiente</option>
+                    <option value="dark">🌑 Escuro</option>
+                    <option value="light">☀️ Claro</option>
+                </select>
             </div>
 
             <!-- Estilo dos Balões -->
@@ -245,19 +284,22 @@
                 </div>
                 
                 <!-- ÁREA DE VISUALIZAÇÃO (PREVIEW) NOVO -->
-                <div class="mt-4 p-4 rounded-xl border border-white/10 bg-black/40 relative overflow-hidden">
-                    <p class="text-[10px] text-muted-color mb-3 text-center uppercase tracking-widest font-bold z-10 relative">Pré-visualização</p>
-                    
-                    <div class="flex flex-col gap-3 pointer-events-none z-10 relative">
-                        <!-- Balão do outro (Received) -->
+                <div id="preview-background" class="mt-4 p-4 rounded-xl border border-white/10 relative overflow-hidden preview-bg" data-bg-style="cosmos">
+                    <p class="text-[10px] text-muted-color mb-3 text-center uppercase tracking-widest font-bold z-10 relative">
+                        Pré-visualização
+                    </p>
+
+                    <div class="flex flex-col gap-4 pointer-events-none z-10 relative">
+
+                        <!-- RECEBIDA -->
                         <div class="message-wrapper items-start !mb-0">
                             <div class="chat-bubble">
                                 <div class="translated-text">Olá! Tudo bem?</div>
                                 <div class="original-text">Hello! How are you?</div>
                             </div>
                         </div>
-                        
-                        <!-- Balão do próprio usuário (Sent) -->
+
+                        <!-- ENVIADA -->
                         <div class="message-wrapper items-end !mb-0">
                             <div class="chat-bubble">
                                 <div class="translated-text">Tudo ótimo!</div>
@@ -383,16 +425,30 @@
                  <h3 class="text-xl font-bold">Nova Conversa</h3>
                  <button id="close-room-actions-modal-btn" class="text-2xl text-muted-color hover:text-text-color">&times;</button>
             </div>
-            <button id="modal-create-room-btn" class="w-full bg-[var(--primary-color)] text-white hover:opacity-90 font-bold p-4 rounded-xl transition-all flex items-center justify-center gap-3 text-lg shadow-lg">
-                <i class="fas fa-plus-circle"></i> Criar Sala Privada
-            </button>
-            <div class="relative flex py-2 items-center"><div class="flex-grow border-t border-white/10"></div><span class="flex-shrink mx-4 text-muted-color text-sm">OU</span><div class="flex-grow border-t border-white/10"></div></div>
-            <div>
-                 <label class="text-sm font-medium text-muted-color mb-2 block">Código da Sala</label>
-                 <div class="flex gap-2">
-                    <input type="text" id="modal-room-code-input" placeholder="CÓDIGO" class="flex-1 p-3 bg-[var(--surface-color)] border border-white/10 rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary-color)] text-center uppercase tracking-widest font-bold text-white">
-                    <button id="modal-confirm-join-btn" class="bg-emerald-600 hover:bg-emerald-700 p-3 rounded-xl font-bold aspect-square flex items-center justify-center transition-colors text-white"><i class="fas fa-arrow-right"></i></button>
-                 </div>
+           <div class="p-6 space-y-6">
+                <!-- Seção Criar -->
+                <div class="space-y-3">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Criar Nova Sala</label>
+                    <input type="text" id="modal-room-name-input" placeholder="Nome da sala (ex: Família, Estudo...)" class="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-white outline-none focus:ring-2 focus:ring-blue-500">
+                    <button id="modal-create-room-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2">
+                        <i class="fas fa-plus"></i> Gerar Sala Privada
+                    </button>
+                </div>
+
+                <div class="relative flex items-center py-2">
+                    <div class="flex-grow border-t border-white/5"></div>
+                    <span class="flex-shrink mx-4 text-[10px] text-slate-500 font-bold uppercase tracking-widest">Ou Entrar</span>
+                    <div class="flex-grow border-t border-white/5"></div>
+                </div>
+
+                <!-- Seção Entrar -->
+                <div class="space-y-3">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Código de Acesso</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="modal-room-code-input" placeholder="CÓDIGO" class="flex-1 p-3 bg-white/5 border border-white/10 rounded-xl text-center uppercase font-mono font-bold text-white tracking-widest outline-none focus:ring-2 focus:ring-emerald-500">
+                        <button id="modal-confirm-join-btn" class="w-12 h-12 bg-emerald-600 hover:bg-emerald-500 rounded-xl flex items-center justify-center text-white"><i class="fas fa-arrow-right"></i></button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

@@ -55,12 +55,16 @@ DOMElements.messageInput.addEventListener('input', function() {
     this.style.height = 'auto';
     this.style.height = (this.scrollHeight) + 'px';
     
+    // Na sala IA, não enviamos "typing" para outros usuários, apenas local ou mockado se quisessemos
+    if (state.isAiRoom) return;
+
     const typingRef = ref(db, `typing/${state.currentRoom}/${state.userId}`);
     if (this.value) {
         set(typingRef, { nickname: state.nickname, text: this.value.substring(0, 60) });
         if (state.typingTimeout) clearTimeout(state.typingTimeout);
         state.typingTimeout = setTimeout(() => set(typingRef, null), 3000);
-    } else { set(typingRef, null); }
+    } else { set(typingRef, null); 
+        }
 });
 
 DOMElements.messageInput.onkeydown = (e) => { 
@@ -133,14 +137,23 @@ document.body.addEventListener('click', () => { if(!state.audioUnlocked) Utils.u
 
 // Modals Triggers
 DOMElements.newConversationBtn.onclick = () => { DOMElements.roomActionsModal.classList.remove('hidden'); DOMElements.roomActionsModal.classList.add('flex'); };
+// Evento para o botão de Sala IA (NOVO)
+DOMElements.aiRoomBtn.onclick = Room.joinAiRoom;
+
 DOMElements.closeRoomActionsModalBtn.onclick = () => { DOMElements.roomActionsModal.classList.add('hidden'); DOMElements.roomActionsModal.classList.remove('flex'); };
 
-DOMElements.modalCreateRoomBtn.onclick = () => { 
-    const code = Math.random().toString(36).substring(2, 7).toUpperCase(); 
-    Room.joinRoom(code); 
-    DOMElements.roomActionsModal.classList.add('hidden'); DOMElements.roomActionsModal.classList.remove('flex'); 
-    navigator.clipboard.writeText(code); 
+DOMElements.modalCreateRoomBtn.onclick = async () => {
+    const code = Math.random().toString(36).substring(2, 7).toUpperCase();
+    const name = DOMElements.modalRoomNameInput.value.trim() || "Nova Sala";
+
+    await Room.createRoom(code, name);
+
+    DOMElements.roomActionsModal.classList.add('hidden');
+    DOMElements.roomActionsModal.classList.remove('flex');
+
+    navigator.clipboard.writeText(code);
 };
+
 
 DOMElements.modalConfirmJoinBtn.onclick = () => { 
     const code = DOMElements.modalRoomCodeInput.value.trim().toUpperCase(); 
@@ -155,9 +168,40 @@ DOMElements.closeSettingsModalBtn.onclick = () => { DOMElements.settingsModal.cl
 
 DOMElements.themeBtns.forEach(btn => btn.onclick = () => { localStorage.setItem('astroTheme', btn.dataset.theme); location.reload(); });
 DOMElements.leaveBtn.onclick = Room.leaveRoom;
-DOMElements.roomCodeDisplay.onclick = () => { navigator.clipboard.writeText(state.currentRoom); Utils.showToast("Código copiado!"); };
+DOMElements.roomCodeDisplay.onclick = () => { 
+    if (state.isAiRoom) return;
+    navigator.clipboard.writeText(state.currentRoom); Utils.showToast("Código copiado!"); 
+};
 
 // Fechamento de Modals
 DOMElements.closeStudyModalBtn.onclick = () => { DOMElements.studyModal.classList.add('hidden'); DOMElements.studyModal.classList.remove('flex'); };
 DOMElements.closeGrammarModalBtn.onclick = () => { DOMElements.grammarModal.classList.add('hidden'); DOMElements.grammarModal.classList.remove('flex'); };
 DOMElements.closeGenericModalBtn.onclick = () => { DOMElements.genericModal.classList.add('hidden'); DOMElements.genericModal.classList.remove('flex'); };
+
+// ===============================
+// FUNDO DO CHAT (WhatsApp style)
+// ===============================
+
+const chatBgSelector = document.getElementById("chat-bg-selector");
+
+// aplicar fundo salvo
+const savedChatBg = localStorage.getItem("chatBgStyle") || "whatsapp";
+document.body.setAttribute("data-chat-bg", savedChatBg);
+const preview = document.getElementById("preview-background");
+if (preview) preview.setAttribute("data-bg-style", savedChatBg);
+
+// sincronizar select, se existir
+if (chatBgSelector) {
+    chatBgSelector.value = savedChatBg;
+
+    chatBgSelector.addEventListener("change", (e) => {
+    const value = e.target.value;
+
+    document.body.setAttribute("data-chat-bg", value);
+    localStorage.setItem("chatBgStyle", value);
+
+    const preview = document.getElementById("preview-background");
+    if (preview) preview.setAttribute("data-bg-style", value);
+});
+
+}
