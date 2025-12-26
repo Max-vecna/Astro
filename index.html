@@ -1,462 +1,1223 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Astro Chat - Global Edition</title>
-    
-    <!-- PWA Settings -->
-    <meta name="theme-color" content="#4f46e5">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2554/2554978.png">
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    
-    <!-- Fonte Pixelada para o estilo Retro -->
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Chat Global – Tradução Inteligente</title>
+  
+  <meta name="theme-color" content="#3b82f6">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/724/724715.png">
 
-   <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' }</script>
+  <link rel="stylesheet" href="style.css" />
 </head>
-<body data-theme="dark" data-bubble-style="astro" data-bg-style="cosmos" data-chat-bg="whatsapp">
-    
-    <!-- Script para altura mobile -->
-    <script>
-        const setAppHeight = () => {
-            document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
-        };
-        window.addEventListener('resize', setAppHeight);
-        setAppHeight();
-    </script>
+<body class="bg-gray-50 dark:bg-gray-950 transition-colors duration-200">
 
-     <!-- Splash Screen -->
-    <div id="splash-screen" class="fixed inset-0 z-[100] bg-[#0f172a] flex flex-col items-center justify-center transition-opacity duration-500">
-        <div class="relative w-32 h-32 mb-8">
-            <div class="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
-            <div class="absolute inset-0 border-4 border-blue-500 rounded-full animate-spin border-t-transparent"></div>
-            <div class="absolute inset-0 flex items-center justify-center">
-                <i class="fas fa-rocket text-4xl text-blue-500"></i>
-            </div>
+<div class="w-full h-[100dvh] flex flex-col overflow-hidden relative">
+
+  <!-- HEADER -->
+  <div class="h-14 px-4 flex items-center justify-between bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b dark:border-gray-800 z-20 absolute top-0 w-full shadow-sm">
+    <div class="flex items-center gap-3">
+        <!-- Status Online -->
+        <div id="presenceBadge" class="hidden flex items-center gap-2 px-3 py-1 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900 rounded-full">
+            <span class="w-2 h-2 rounded-full bg-green-500 online-indicator"></span>
+            <span id="onlineCount" class="text-xs font-bold text-green-700 dark:text-green-400">1 On</span>
         </div>
-        <h1 class="text-2xl font-bold text-white tracking-widest font-pixel">ASTRO CHAT</h1>
-        <p class="text-blue-400 mt-2 text-sm">Carregando universos...</p>
-    </div>
 
-    <!-- App Container -->
-    <div id="app-container" class="w-full h-full flex items-center justify-center opacity-0 transition-opacity duration-500" style="height: var(--app-height);">
+        <button id="notifBtn" class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+        </button>
+
+        <button id="helpBtn" class="hidden sm:flex w-9 h-9 items-center justify-center rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        </button>
         
-        <!-- Nickname Screen -->
-        <div id="nickname-screen" class="w-full max-w-sm p-6 glassmorphism rounded-2xl shadow-lg flex-col gap-5 hidden sm:max-w-md md:max-w-lg">
-             <h2 class="text-2xl font-bold text-center flex items-center justify-center gap-3"><i class="fas fa-user-astronaut text-indigo-400"></i>Identificação</h2>
-            
-            <!-- Campo Nome -->
-            <div>
-                <label for="nickname-input" class="text-sm font-medium text-muted-color">Seu Apelido</label>
-                <input type="text" id="nickname-input" placeholder="Viajante Estelar" class="w-full mt-1 p-3 bg-slate-900/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-center text-white">
-            </div>
-
-            <!-- Campo Idioma -->
-            <div>
-                <label for="intro-lang-selector" class="text-sm font-medium text-muted-color">Seu Idioma Principal</label>
-                <div class="relative mt-1">
-                     <select id="intro-lang-selector" class="w-full p-3 bg-slate-900/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-white cursor-pointer">
-                        <option value="pt">🇧🇷 Português</option>
-                        <option value="en">🇺🇸 English</option>
-                        <option value="es">🇪🇸 Español</option>
-                        <option value="fr">🇫🇷 Français</option>
-                        <option value="de">🇩🇪 Deutsch</option>
-                        <option value="it">🇮🇹 Italiano</option>
-                        <option value="ja">🇯🇵 日本語</option>
-                        <option value="zh">🇨🇳 中文</option>
-                        <option value="ru">🇷🇺 Русский</option>
-                        <option value="ar">🇸🇦 العربية</option>
-                     </select>
-                     <i class="fas fa-chevron-down absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none"></i>
-                </div>
-            </div>
-
-            <button id="save-nickname-btn" class="w-full bg-[var(--primary-color)] hover:opacity-90 font-bold p-3 rounded-xl transition-all text-lg text-white shadow-lg mt-2">Entrar</button>
-        </div>
-
-        <!-- Lobby Screen -->
-        <div id="lobby-screen" class="w-full h-full max-w-md flex-col hidden relative sm:max-w-lg md:max-w-2xl bg-[var(--background-color)] md:bg-transparent md:h-5/6">
-             <header class="flex items-center justify-between p-4 glassmorphism md:rounded-t-2xl z-10">
-                <h2 class="text-xl font-bold">Conversas</h2>
-                <div class="flex items-center gap-3">
-                    <p class="text-sm">Olá, <span id="lobby-nickname" class="font-bold text-[var(--primary-color)]"></span>!</p>
-                    <button id="change-nickname-btn" class="text-muted-color hover:text-text-color transition-colors"><i class="fas fa-edit"></i></button>
-                </div>
-            </header>
-            
-            <main data-bubble-style="modern" id="room-list-container" class="md:rounded-b-2xl flex-1 overflow-y-auto p-4 space-y-3 scroll-container md:bg-[var(--surface-color)] md:bg-opacity-90"></main>
-
-            <!-- Botão Config -->
-            <div class="absolute bottom-6 left-6 z-20">
-                 <button id="settings-btn" class="w-14 h-14 bg-[var(--surface-color)] hover:bg-opacity-80 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 transform hover:scale-110 border border-white/10 text-[var(--text-color)]">
-                    <i class="fas fa-cog text-xl"></i>
-                </button>
-            </div>
-
-            <!-- Botões de Ação (Nova Sala e IA) -->
-            <div class="absolute bottom-6 right-6 z-20 flex flex-col gap-3">
-                 <!-- Botão IA Mentor (NOVO) -->
-                 <button id="ai-room-btn" class="w-16 h-16 bg-gradient-to-br from-purple-600 to-indigo-600 hover:opacity-90 rounded-full flex items-center justify-center shadow-lg transition-transform duration-300 transform hover:scale-110 text-white border-2 border-white/20" title="Conversar com IA">
-                    <i class="fas fa-robot text-2xl"></i>
-                </button>
-                
-                 <!-- Botão Nova Conversa -->
-                 <button id="new-conversation-btn" class="w-16 h-16 bg-[var(--primary-color)] hover:opacity-90 rounded-full flex items-center justify-center shadow-lg transition-transform duration-300 transform hover:scale-110 text-white" title="Nova Sala">
-                    <i class="fas fa-plus text-2xl"></i>
-                </button>
-            </div>
-        </div>
-
-        <!-- Chat Screen -->
-        <div id="chat-screen" class="w-full h-full flex-col hidden bg-[var(--background-color)] md:max-w-4xl md:h-5/6 md:rounded-2xl md:shadow-2xl md:border md:border-white/5 relative">
-            <header class="flex items-center justify-between p-3 glassmorphism md:rounded-t-2xl z-10 gap-2">
-                <div class="flex items-center gap-2">
-                    <button id="leave-btn" class="p-2 rounded-full hover:bg-white/10 text-lg transition-colors text-[var(--text-color)]">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <div>
-                        <div class="relative group cursor-pointer flex flex-col" id="room-code-wrapper">
-                           <div class="flex items-center gap-3">
-                                <div id="room-icon"
-                                    class="w-10 h-10 rounded-xl flex items-center justify-center 
-                                            bg-gradient-to-br from-blue-500 to-indigo-600 
-                                            text-white shadow-lg transition-transform">
-                                    <i class="fas fa-rocket text-lg"></i>
-                                </div>
-
-                                <div class="flex flex-col leading-tight">
-                                    <span class="room-name-display font-bold text-lg"></span>
-                                    <span class="text-xs opacity-60 font-mono flex">
-                                        #<span class="room-code-value"></span> <p id="user-count-display" class="text-xs text-green-400 font-medium ml-2"></p>
-                                    </span>
-                                </div>
-                            </div>                            
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-3">
-                    <!-- Botão de Notificação -->
-                    <button id="notif-btn" class="text-[var(--text-muted-color)] hover:text-[var(--primary-color)] transition-colors p-1" title="Ativar Notificações">
-                        <i class="fas fa-bell-slash"></i>
-                    </button>
-
-                    <!-- Seletor de Idioma da Sala -->
-                    <div class="flex items-center gap-2" id="room-lang-container">
-                        <select id="room-lang-selector" title="Seu idioma pessoal para tradução">
-                            <option value="pt">Português</option>
-                            <option value="en">English</option>
-                            <option value="es">Español</option>
-                            <option value="fr">Français</option>
-                            <option value="de">Deutsch</option>
-                            <option value="it">Italiano</option>
-                            <option value="ja">日本語</option>
-                            <option value="zh">中文</option>
-                            <option value="ru">Русский</option>
-                            <option value="ar">العربية</option>
-                        </select>
-                    </div>
-
-                    <div class="md:flex items-center -space-x-2 hidden" id="user-avatars-container"></div>
-                </div>
-            </header>
-
-            <main id="messages-container" class="flex-1 p-4 overflow-y-auto flex flex-col scroll-container bg-[var(--surface-color)]/30">
-                <div id="messages-list" class="flex flex-col gap-1 pb-4">
-                    <div id="typing-indicator-container" class="h-8 transition-all duration-300"></div>
-                </div>
-            </main>
-
-            <!-- Footer / Input Area -->
-            <footer class="p-3 glassmorphism md:rounded-b-2xl z-20">                
-                <div id="reply-preview" class="hidden mb-2 p-2 rounded-lg bg-black/20 border-l-4 border-[var(--secondary-color)]"></div>
-                
-                <div class="flex  gap-2 w-full">
-                    <div class="flex-1 relative">
-                        <textarea id="message-input" rows="1" placeholder="Digite uma mensagem..." class="w-full bg-[var(--surface-color)] text-[var(--text-color)] rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-[var(--primary-color)] border border-white/5 resize-none overflow-hidden max-h-32" style="min-height: 48px;"></textarea>
-                    </div>
-                    
-                    <!-- Botões de Ação Agrupados e Alinhados -->
-                    <div class="flex gap-1 shrink-0">
-                        <button id="grammar-check-btn" style=" background: #334155" class="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-transform active:scale-90 hover:bg-white/10 text-emerald-400" title="Corrigir Gramática">
-                            <i class="fas fa-check-double text-lg"></i>
-                        </button>
-
-                        <button id="rewrite-btn" class="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-transform active:scale-90 hover:bg-white/10 text-purple-400" title="Melhorar texto com IA">
-                            <i class="fas fa-magic text-lg"></i>
-                        </button>
-
-                        <button id="send-btn" class="bg-[var(--primary-color)] hover:opacity-90 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-transform active:scale-90 shadow-lg text-white">
-                            <i class="fas fa-paper-plane text-lg"></i>
-                        </button>
-                    </div>
-                </div>
-            </footer>
-        </div>
+        <button id="darkModeBtn" class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-yellow-900/20 text-gray-600 dark:text-yellow-400 transition-colors">
+           <svg id="iconSun" class="hidden dark:block" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+           <svg id="iconMoon" class="block dark:hidden" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </button>
     </div>
     
-    <!-- Modals -->
-    <div id="settings-modal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
-        <div class="glassmorphism p-6 rounded-2xl max-w-sm w-full flex flex-col gap-4 my-auto">
-            <div class="flex justify-between items-center">
-                 <h3 class="text-xl font-bold">Configurações</h3>
-                 <button id="close-settings-modal-btn" class="text-2xl text-muted-color hover:text-text-color">&times;</button>
-            </div>
-            
-            <!-- Tema Light/Dark -->
-            <div>
-                <label class="text-sm font-medium text-muted-color mb-2 block">Tema do App</label>
-                <div class="flex gap-3">
-                    <button data-theme="dark" class="theme-btn flex-1 p-3 rounded-xl border-2 border-transparent bg-slate-800 text-white flex flex-col items-center gap-1 transition-all">
-                        <i class="fas fa-moon"></i> Dark
-                    </button>
-                    <button data-theme="light" class="theme-btn flex-1 p-3 rounded-xl border-2 border-transparent bg-slate-200 text-black flex flex-col items-center gap-1 transition-all">
-                        <i class="fas fa-sun"></i> Light
-                    </button>
+    <select id="lang" class="bg-gray-100 dark:bg-gray-800 border-none rounded-lg px-3 py-1.5 text-xs font-bold text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+      <option value="ar">🇸🇦 Árabe</option>
+      <option value="pt">🇧🇷 Português</option>      
+      <option value="es">🇪🇸 Espanhol</option>
+      <option value="ja">🇯🇵 Japonês</option>
+      <option value="zh">🇨🇳 Chinês</option>
+      <option value="en">🇺🇸 Inglês</option>
+    </select>
+  </div>
+
+  <!-- HELP MODAL -->
+  <div id="helpModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="font-bold text-xl text-gray-800 dark:text-white flex items-center gap-2">
+                <span class="text-blue-500">ℹ️</span> Guia Rápido
+            </h2>
+            <button id="closeHelp" class="close-modal-btn"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        </div>
+        
+        <div class="modal-body-scroll space-y-6 text-sm text-gray-600 dark:text-gray-300">
+            <div class="flex gap-4">
+                <div class="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg h-fit text-blue-600"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path></svg></div>
+                <div>
+                    <h3 class="font-bold text-gray-900 dark:text-white mb-1">Tradução Automática</h3>
+                    <p>Tudo o que você recebe é traduzido instantaneamente para o idioma selecionado no topo.</p>
                 </div>
             </div>
 
-            <!-- Estilo do Fundo (NOVO) -->
-             <div>
-                <label class="text-sm font-medium text-muted-color mb-2 block">Plano de Fundo</label>
-                <div class="relative">
-                    <select id="bg-style-selector" class="w-full p-3 bg-slate-900/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary-color)] text-white cursor-pointer appearance-none">
-                        <option value="cosmos">✨ Cosmos (Animado)</option>
-                        <option value="deep">🌑 Deep Space (Sólido)</option>
-                        <option value="sunset">🌅 Sunset (Gradiente)</option>
-                        <option value="matrix">💻 Matrix (Cyber Grid)</option>
-                        <option value="aurora">🌌 Aurora</option>
-                        <option value="grid">🟤 Minimal Grid</option>
-                        <option value="nebula">🌌 Nebula (Animado)</option>
-                        <option value="ocean">🌊 Ocean Wave</option>
-                        <option value="cybergrid">🧬 Cyber Grid</option>
-                    </select>
-                    <i class="fas fa-image absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none"></i>
-                </div>
-            </div>
-
-            <!-- FUNDO DO CHAT -->
-            <div>
-                <label class="text-sm font-medium text-muted-color mb-2 block">
-                    Fundo do Chat
-                </label>
-
-                <select id="chat-bg-selector" class="w-full p-3 bg-slate-900/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary-color)] text-white cursor-pointer appearance-none"">
-                    <option value="cartoon">🎨 Cartoon</option>
-                    <option value="whatsapp">💬 WhatsApp</option>
-                    <option value="whatsapp-light">💭 WhatsApp Claro</option>
-                    <option value="nebula">🌌 Nebulosa</option>
-                    <option value="glass">🧊 Vidro</option>
-                    <option value="grid">🔲 Grade</option>
-                    <option value="gradient">🌈 Gradiente</option>
-                    <option value="dark">🌑 Escuro</option>
-                    <option value="light">☀️ Claro</option>
-                </select>
-            </div>
-
-            <!-- Estilo dos Balões -->
-            <div>
-                <label class="text-sm font-medium text-muted-color mb-2 block">Estilo dos Balões</label>
-                <div class="relative">
-                    <select id="bubble-style-selector" class="w-full p-3 bg-slate-900/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary-color)] text-white cursor-pointer appearance-none">
-                        <option value="astro">✨ Astro Original</option>
-                        <option value="modern">🔵 Moderno</option>
-                        <option value="cyber">🤖 Cyberpunk</option>
-                        <option value="neon">⚡ Neon Glow (Novo)</option>
-                        <option value="pixel">👾 Pixel Retro (Novo)</option>
-                        <option value="classic">💬 Clássico</option>
-                        <option value="soft">☁️ Soft</option>
-                        <option value="comic">💥 Comic</option>
-                        <option value="glass">🧊 Glass</option>
-                        <option value="paper">📄 Paper</option>
-                        <option value="terminal">💻 Terminal</option>
-                        <option value="rpg">⚔️ RPG Medieval</option>
-                        <option value="bubblegum">🍭 Bubble Gum</option>
-                        <option value="brutalist">🏁 Brutalista</option>
-                        <option value="hologram">💎 Holograma</option>
-                    </select>
-                    <i class="fas fa-paint-brush absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none"></i>
-                </div>
-                
-                <!-- ÁREA DE VISUALIZAÇÃO (PREVIEW) NOVO -->
-                <div id="preview-background" class="mt-4 p-4 rounded-xl border border-white/10 relative overflow-hidden preview-bg" data-bg-style="cosmos">
-                    <p class="text-[10px] text-muted-color mb-3 text-center uppercase tracking-widest font-bold z-10 relative">
-                        Pré-visualização
-                    </p>
-
-                    <div class="flex flex-col gap-4 pointer-events-none z-10 relative">
-
-                        <!-- RECEBIDA -->
-                        <div class="message-wrapper items-start !mb-0">
-                            <div class="chat-bubble">
-                                <div class="translated-text">Olá! Tudo bem?</div>
-                                <div class="original-text">Hello! How are you?</div>
-                            </div>
-                        </div>
-
-                        <!-- ENVIADA -->
-                        <div class="message-wrapper items-end !mb-0">
-                            <div class="chat-bubble">
-                                <div class="translated-text">Tudo ótimo!</div>
-                            </div>
-                        </div>
-                    </div>
+            <div class="flex gap-4">
+                <div class="bg-purple-100 dark:bg-purple-900/30 p-2 rounded-lg h-fit text-purple-600"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></div>
+                <div>
+                    <h3 class="font-bold text-gray-900 dark:text-white mb-1">Menu de Opções (⋮)</h3>
+                    <p>Clique nos três pontos em qualquer mensagem recebida para ver <strong>Variações</strong> de tradução, entender o <strong>Contexto</strong> ou <strong>Retraduzir</strong> se necessário.</p>
                 </div>
             </div>
             
-            <div class="border-t border-white/10 pt-4">
-                <button id="clear-data-btn" class="w-full p-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 flex items-center justify-center gap-2 transition-all font-bold text-sm">
-                    <i class="fas fa-trash-alt"></i> Limpar Dados / Sair
-                </button>
+            <div class="flex gap-4">
+                <div class="bg-pink-100 dark:bg-pink-900/30 p-2 rounded-lg h-fit text-pink-600"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></div>
+                <div>
+                    <h3 class="font-bold text-gray-900 dark:text-white mb-1">Reformular com IA</h3>
+                    <p>Use o botão mágico ao lado do envio para otimizar sua mensagem antes de enviar.</p>
+                </div>
             </div>
         </div>
     </div>
+  </div>
 
-    <!-- Modal de Estudo -->
-    <div id="study-modal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4 backdrop-blur-sm">
-        <div class="glassmorphism p-0 rounded-2xl max-w-lg w-full flex flex-col max-h-[90vh] overflow-hidden">
-            <div class="p-4 border-b border-white/10 flex justify-between items-center bg-[var(--primary-color)] text-white">
-                <h3 class="font-bold flex items-center gap-2"><i class="fas fa-graduation-cap"></i> Modo Estudo</h3>
-                <button id="close-study-modal" class="text-xl hover:text-white/80">&times;</button>
+  <!-- CHAT AREA -->
+  <div id="chat" class="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-white dark:bg-gray-900 scroll-smooth pb-20 pt-16">
+    <div id="loadingOld" class="text-center py-4 text-xs text-gray-400 hidden animate-pulse">
+      Carregando histórico...
+    </div>
+    
+    <div id="typingIndicator" class="hidden w-fit bg-gray-100 dark:bg-gray-800 rounded-full px-4 py-2 text-xs text-gray-500 dark:text-gray-400 italic mb-2 transition-all duration-300 flex items-center gap-2 border border-gray-200 dark:border-gray-700 ml-4">
+        <span class="flex gap-1">
+            <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0s"></span>
+            <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
+            <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+        </span>
+        <span id="typingText">Alguém está digitando...</span>
+    </div>
+  </div>
+
+  <!-- INPUT AREA -->
+  <div class="p-3 bg-white dark:bg-gray-900 border-t dark:border-gray-800 z-20 absolute bottom-0 w-full shadow-[0_-5px_15px_rgba(0,0,0,0.02)]">
+    <div class="flex gap-2 items-end max-w-4xl mx-auto">
+    
+      <input id="msg" placeholder="Digite sua mensagem..." class="flex-1 p-3.5 bg-gray-100 dark:bg-gray-800 border-transparent focus:bg-white dark:focus:bg-gray-700 text-gray-900 dark:text-white rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder-gray-400 dark:placeholder-gray-500" autocomplete="off" />
+      
+      <!-- Botão Reformular -->
+      <button id="btnReformulate" class="btn-reformulate w-12 h-12 flex items-center justify-center rounded-full shrink-0 shadow-lg shadow-purple-500/20 mb-0.5" title="Otimizar com IA">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/>
+            <path d="m14 7 3 3"/>
+            <path d="M5 6v4"/>
+            <path d="M19 14v4"/>
+            <path d="M10 2v2"/>
+            <path d="M7 8H3"/>
+            <path d="M21 16h-4"/>
+            <path d="M11 3H9"/>
+          </svg>
+      </button>
+      <button id="send" class="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center rounded-full shrink-0 shadow-lg shadow-blue-500/30 transition-all active:scale-95 mb-0.5">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 ml-0.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3 21l18-9L3 3l3 9zm0 0h6" />
+          </svg>
+      </button>
+    </div>    
+  </div>
+</div>
+
+<!-- MODAL VARIAÇÕES -->
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+        <h2 class="font-bold text-lg text-gray-800 dark:text-white">Escolha uma tradução</h2>
+        <button id="closeModal" class="close-modal-btn"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+    </div>
+    
+    <div class="modal-body-scroll bg-gray-50 dark:bg-gray-900/50">
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-3 px-1">Selecione a opção que melhor se adapta ao contexto:</p>
+        <ul id="variants" class="text-sm space-y-2 selectable"></ul>
+    </div>
+    
+    <div class="modal-footer">
+        <button id="loadMore" class="text-blue-600 dark:text-blue-400 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-900/20 px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+            Gerar mais
+        </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REFORMULAR -->
+<div id="reformulateModal" class="modal">
+  <div class="modal-content">
+      <div class="modal-body-scroll text-center py-8">
+        <div class="mb-5 bg-violet-100 dark:bg-violet-900/30 p-4 rounded-full text-violet-600 dark:text-violet-400 mx-auto w-fit shadow-inner">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M9 9l6 6"></path><path d="M15 9l-6 6"></path></svg>
+        </div>
+        <h2 class="font-bold text-2xl mb-2 text-gray-800 dark:text-white">Otimizar Mensagem</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-8 max-w-xs mx-auto">Para qual idioma essa mensagem será traduzida? A IA vai reescrever sua frase para garantir precisão.</p>
+        
+        <div class="lang-grid w-full mb-6">
+            <div class="lang-option" onclick="processReformulation('en')">
+                <span class="text-3xl mb-1">🇺🇸</span>
+                <label>English</label>
             </div>
-            <div class="p-6 overflow-y-auto">
-                <p class="text-sm text-muted-color mb-2 uppercase font-bold tracking-wider">Frase Original</p>
-                <div id="study-original-text" class="text-lg mb-6 p-4 bg-[var(--surface-color)] rounded-xl border border-white/5 leading-relaxed"></div>
+            <div class="lang-option" onclick="processReformulation('es')">
+                <span class="text-3xl mb-1">🇪🇸</span>
+                <label>Español</label>
+            </div>
+            <div class="lang-option" onclick="processReformulation('ja')">
+                <span class="text-3xl mb-1">🇯🇵</span>
+                <label>日本語</label>
+            </div>
+            <div class="lang-option" onclick="processReformulation('zh')">
+                <span class="text-3xl mb-1">🇨🇳</span>
+                <label>中文</label>
+            </div>
+            <div class="lang-option" onclick="processReformulation('ar')">
+                <span class="text-3xl mb-1">🇸🇦</span>
+                <label>العربية</label>
+            </div>
+            <div class="lang-option" onclick="processReformulation('pt')">
+                <span class="text-3xl mb-1">🇧🇷</span>
+                <label>Português</label>
+            </div>
+        </div>
+        <button id="closeReformulate" class="text-gray-400 text-sm hover:text-gray-600 dark:hover:text-gray-200 transition-colors">Cancelar</button>
+      </div>
+  </div>
+</div>
+
+<!-- MODAL BOAS-VINDAS -->
+<div id="welcomeModal" class="modal" data-backdrop="static">
+    <div class="modal-content">
+        <div class="modal-body-scroll text-center py-8">
+            <div class="mb-5 bg-blue-100 dark:bg-blue-900/30 p-4 rounded-full text-blue-600 dark:text-blue-400 mx-auto w-fit shadow-inner">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            </div>
+            <h2 class="font-bold text-2xl mb-2 text-gray-800 dark:text-white">Bem-vindo!</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-8 max-w-xs mx-auto">Para começarmos, qual é o seu idioma nativo? Todas as mensagens serão traduzidas para ele.</p>
+            
+            <div class="lang-grid w-full">
+                <div class="lang-option" onclick="setInitialLang('pt')">
+                    <span class="text-3xl mb-1">🇧🇷</span>
+                    <label>Português</label>
+                </div>
+                <div class="lang-option" onclick="setInitialLang('en')">
+                    <span class="text-3xl mb-1">🇺🇸</span>
+                    <label>English</label>
+                </div>
+                <div class="lang-option" onclick="setInitialLang('es')">
+                    <span class="text-3xl mb-1">🇪🇸</span>
+                    <label>Español</label>
+                </div>
+                <div class="lang-option" onclick="setInitialLang('ja')">
+                    <span class="text-3xl mb-1">🇯🇵</span>
+                    <label>日本語</label>
+                </div>
+                <div class="lang-option" onclick="setInitialLang('zh')">
+                    <span class="text-3xl mb-1">🇨🇳</span>
+                    <label>中文</label>
+                </div>
+                <div class="lang-option" onclick="setInitialLang('ar')">
+                    <span class="text-3xl mb-1">🇸🇦</span>
+                    <label>العربية</label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- LÓGICA DO DARK MODE E UI ---
+    
+    const darkModeBtn = document.getElementById('darkModeBtn');
+    const htmlEl = document.documentElement;
+
+    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      htmlEl.classList.add('dark');
+    } else {
+      htmlEl.classList.remove('dark');
+    }
+
+    darkModeBtn.addEventListener('click', () => {
+        if (htmlEl.classList.contains('dark')) {
+            htmlEl.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        } else {
+            htmlEl.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        }
+    });
+
+    const helpBtn = document.getElementById('helpBtn');
+    const helpModal = document.getElementById('helpModal');
+    const closeHelp = document.getElementById('closeHelp');
+
+    helpBtn.onclick = () => helpModal.style.display = 'flex';
+    closeHelp.onclick = () => helpModal.style.display = 'none';
+
+    window.addEventListener('click', (event) => {
+        if (event.target == helpModal) {
+            helpModal.style.display = 'none';
+        }
+    });
+
+    // --- UI HELPERS ---
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 's' || e.key === 'S')) {
+            e.preventDefault();
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.menu-trigger') && !e.target.closest('.options-menu')) {
+            document.querySelectorAll('.options-menu.show').forEach(menu => {
+                menu.classList.remove('show', 'open-left', 'open-right');
+            });
+        }
+    });
+
+    document.addEventListener('scroll', function() {
+        document.querySelectorAll('.options-menu.show').forEach(menu => {
+            menu.classList.remove('show', 'open-left', 'open-right');
+        });
+    }, true);
+</script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+  import { getDatabase, ref, push, onChildAdded, set, get, query, orderByChild, remove, update, onValue, onDisconnect, onChildChanged, limitToLast } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+  
+  // Atualizado: importando analisarContexto de volta
+  import { traduzir, gerarVariacoes, otimizarTextoParaTraducao, analisarContexto } from './translationService.js';
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js");
+  }
+
+  const firebaseConfig = {
+    apiKey: "", // Inserido via runtime
+    authDomain: "astro-642b6.firebaseapp.com",
+    databaseURL: "https://astro-642b6-default-rtdb.firebaseio.com",
+    projectId: "astro-642b6",
+    storageBucket: "astro-642b6.appspot.com",
+    messagingSenderId: "141832763492",
+    appId: "1:141832763492:web:c8f6a529849bab54ee8771"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const SALA_ID = "sala_fixa";
+  const chatEl = document.getElementById("chat");
+  const msgEl = document.getElementById("msg");
+  const typingIndicator = document.getElementById("typingIndicator");
+  const typingText = document.getElementById("typingText");
+  
+  const savedNick = localStorage.getItem("chat_nick");
+  localStorage.clear(); 
+  const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+  if (savedNick) localStorage.setItem("chat_nick", savedNick);
+  localStorage.setItem("theme", currentTheme);
+
+  let nick = localStorage.getItem("chat_nick");
+  if (!nick) {
+    nick = "User-" + Math.floor(Math.random() * 9000 + 1000);
+    localStorage.setItem("chat_nick", nick);
+  }
+
+  // --- GESTÃO DE IDIOMA VIA FIREBASE ---
+  let TARGET_LANG = "pt"; 
+  const langSelect = document.getElementById("lang");
+  const welcomeModal = document.getElementById("welcomeModal");
+  const userSettingsRef = ref(db, `users/${nick}/settings`);
+
+  onValue(userSettingsRef, (snap) => {
+    const data = snap.val();
+    if (data && data.lang) {
+        TARGET_LANG = data.lang;
+        langSelect.value = TARGET_LANG;
+        welcomeModal.style.display = 'none';
+        updateAllTranslations();
+    } else {
+        welcomeModal.style.display = 'flex';
+    }
+  });
+
+  window.setInitialLang = (selectedLang) => {
+      update(userSettingsRef, { lang: selectedLang })
+        .then(() => {
+            welcomeModal.style.display = 'none';
+        })
+        .catch(err => console.error("Erro ao salvar idioma", err));
+  };
+
+  langSelect.onchange = () => {
+    const newLang = langSelect.value;
+    update(userSettingsRef, { lang: newLang });
+  };
+
+  // --- RESTO DA LÓGICA DO CHAT ---
+
+  let heartbeatInterval = null; 
+  let typingTimeout = null;
+  let messageElements = {}; 
+
+  const presenceRef = ref(db, `salas/${SALA_ID}/presenca/${nick}`);
+  const connectedRef = ref(db, ".info/connected");
+  const presenceListRef = ref(db, `salas/${SALA_ID}/presenca`);
+  const presenceBadge = document.getElementById("presenceBadge");
+  const onlineCountEl = document.getElementById("onlineCount");
+
+  function updatePresence() {
+    if (document.visibilityState === 'visible' || heartbeatInterval) { 
+        update(presenceRef, { 
+            online: true, 
+            lastChanged: Date.now() 
+        });
+    } else {
+        remove(presenceRef);
+    }
+  }
+
+  onValue(connectedRef, (snap) => {
+    if (snap.val() === true) {
+      updatePresence();
+      onDisconnect(presenceRef).remove();
+      if (!heartbeatInterval) {
+          heartbeatInterval = setInterval(() => {
+              if (document.hidden) { updatePresence(); }
+          }, 30000); 
+      }
+    } else {
+      if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+      }
+    }
+  });
+
+  document.addEventListener("visibilitychange", () => {
+      updatePresence(); 
+      if (document.hidden) {
+          if (!heartbeatInterval) {
+              heartbeatInterval = setInterval(() => { updatePresence(); }, 30000);
+          }
+      } else {
+          if (heartbeatInterval) {
+              clearInterval(heartbeatInterval);
+              heartbeatInterval = null;
+          }
+      }
+  });
+
+  onValue(presenceListRef, (snap) => {
+      const count = snap.size; 
+      const typingUsers = [];
+
+      snap.forEach(child => {
+          const userData = child.val();
+          if (child.key !== nick && userData.typing) {
+              typingUsers.push(child.key);
+          }
+      });
+
+      if (count > 0) {
+          presenceBadge.classList.remove('hidden');
+          presenceBadge.classList.add('flex');
+          const text = count === 1 ? "Só você" : `${count} On`;
+          onlineCountEl.textContent = text;
+      } else {
+          presenceBadge.classList.add('hidden');
+      }
+
+      if (typingUsers.length > 0) {
+          const text = typingUsers.length === 1 
+            ? `${typingUsers[0]} está a escrever...` 
+            : typingUsers.length === 2
+                ? `${typingUsers[0]} e ${typingUsers[1]} estão a escrever...`
+                : `${typingUsers.length} pessoas estão a escrever...`;
+          
+          typingText.textContent = text;
+          typingIndicator.classList.remove('hidden');
+          chatEl.appendChild(typingIndicator);
+          chatEl.scrollTop = chatEl.scrollHeight;
+      } else {
+          typingIndicator.classList.add('hidden');
+      }
+  });
+
+  msgEl.addEventListener("input", () => {
+      update(presenceRef, { typing: true });
+      if (typingTimeout) clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+          update(presenceRef, { typing: false });
+      }, 2000);
+  });
+
+  const loadTime = Date.now();
+  const originalTitle = document.title;
+  let notificationAudio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+  notificationAudio.volume = 0.5;
+  let audioUnlocked = false;
+  const notifBtn = document.getElementById('notifBtn');
+  
+  function updateNotifIcon() {
+    if (Notification.permission === 'granted') {
+        notifBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>`;
+        notifBtn.title = "Notificações Ativadas";
+    } else {
+        notifBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path><line x1="2" y1="2" x2="22" y2="22"></line></svg>`;
+        notifBtn.title = "Ativar Notificações";
+    }
+  }
+
+  if ("Notification" in window) {
+      updateNotifIcon();
+  } else {
+      notifBtn.style.display = 'none';
+  }
+
+  async function unlockAudioAndRequestPermission() {
+    if (!audioUnlocked) {
+        try {
+            await notificationAudio.play();
+            notificationAudio.pause();
+            notificationAudio.currentTime = 0;
+            audioUnlocked = true;
+        } catch (e) {}
+    }
+    if ("Notification" in window && Notification.permission !== "granted") {
+        try {
+            const permission = await Notification.requestPermission();
+            updateNotifIcon();
+            if (permission === 'granted') {
+                notificationAudio.play().catch(e => {});
+                new Notification("Chat Global", { body: "Notificações ativadas!" });
+            }
+        } catch (e) {}
+    }
+  }
+
+  notifBtn.onclick = unlockAudioAndRequestPermission;
+  document.body.addEventListener('click', () => { if(!audioUnlocked) unlockAudioAndRequestPermission(); }, { once: true });
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      document.title = originalTitle;
+    }
+  });
+
+ async function sendNativeNotification(sender, text) {
+    if (!("serviceWorker" in navigator)) return;
+    const registration = await navigator.serviceWorker.ready;
+    registration.showNotification(`Nova mensagem de ${sender}`, {
+      body: text,
+      icon: "https://cdn-icons-png.flaticon.com/512/724/724715.png",
+      badge: "https://cdn-icons-png.flaticon.com/512/724/724715.png",
+      tag: "chat-msg",
+      renotify: true
+    });
+  }
+
+  // --- FUNÇÕES DE UPDATE DE UI ---
+
+  function resetAllContexts() {
+    const contextElements = document.querySelectorAll('.context-text');
+    contextElements.forEach(el => {
+        const messageDiv = el.closest('.message');
+        if (messageDiv) {
+            const key = messageDiv.dataset.key;
+            if (messageElements[key]) {
+                updateMessageDOM(messageElements[key].dom, messageElements[key].data, key);
+            }
+        }
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+     if (!e.target.classList.contains('context-text') && !e.target.closest('.ctx-opt')) {
+         resetAllContexts();
+     }
+  });
+
+  msgEl.onfocus = resetAllContexts;
+  msgEl.onclick = resetAllContexts;
+
+  function updateAllTranslations() {
+    resetAllContexts();
+    fila.length = 0; 
+    Object.keys(messageElements).forEach(key => {
+        const item = messageElements[key];
+        if (item.data.nick !== nick) {
+            if (!item.data.traducoes || !item.data.traducoes[TARGET_LANG]) {
+                const contentEl = item.dom.querySelector('.message-content');
+                contentEl.textContent = "traduzindo...";
+                contentEl.classList.add('italic', 'text-gray-400');
+                fila.push({ 
+                    texto: item.data.texto, 
+                    element: contentEl, 
+                    key, 
+                    lang: TARGET_LANG 
+                });
+            }
+        }
+        updateMessageDOM(item.dom, item.data, key);
+    });
+    processarFila(); 
+  }
+
+  const salaRef = ref(db, `salas/${SALA_ID}`);
+  get(salaRef).then(snap => {
+    if (!snap.exists()) {
+       set(salaRef, { nome: "Sala Principal", criadaEm: Date.now() });
+    }
+  });
+
+  window.selectTranslation = async function(key, newTranslation, contentElement) {
+    contentElement.textContent = newTranslation;
+    try {
+      const updates = {};
+      updates[TARGET_LANG] = newTranslation;
+      await update(ref(db, `salas/${SALA_ID}/mensagens/${key}/traducoes`), updates);
+    } catch (e) {
+      console.error(e);
+    }
+    document.getElementById("modal").style.display = "none";
+  }
+
+ async function retraduzirMensagem(key, contentElement) {
+  const snap = await get(ref(db, `salas/${SALA_ID}/mensagens/${key}`));
+  const data = snap.val();
+  if (!data?.texto) return;
+
+  const textoOriginal = data.texto;
+
+  contentElement.textContent = "Traduzindo novamente...";
+  contentElement.classList.add("italic", "text-gray-400");
+  
+  try {
+    const novaTraducao = await traduzir(textoOriginal, TARGET_LANG, true);
+    contentElement.textContent = novaTraducao;
+    contentElement.classList.remove("italic", "text-gray-400");
+  } catch (e) {
+    console.error("Erro ao retraduzir:", e);
+    contentElement.textContent = "Erro ao retraduzir. Tente novamente.";
+  }
+}
+
+  // --- FILA DE TRADUÇÃO OTIMIZADA ---
+  const fila = [];
+  let activeRequests = 0;
+  const MAX_CONCURRENT = 3; // Permitir 3 requests ao mesmo tempo
+
+  async function processarFila() {
+    if (fila.length === 0) return;
+    if (activeRequests >= MAX_CONCURRENT) return;
+
+    while (activeRequests < MAX_CONCURRENT && fila.length > 0) {
+        const item = fila.shift();
+        activeRequests++;
+        
+        traduzir(item.texto, item.lang)
+            .then(async (traduzido) => {
+                 if (item.element.textContent === "traduzindo...") {
+                    item.element.textContent = traduzido;
+                 }
+                 item.element.classList.remove('italic', 'text-gray-400');
+
+                 if (item.key) {
+                    const updates = {};
+                    updates[item.lang] = traduzido;
+                    // Tenta salvar sem bloquear UI
+                    try {
+                        await update(ref(db, `salas/${SALA_ID}/mensagens/${item.key}/traducoes`), updates);
+                    } catch(e) {}
+                 }
+            })
+            .catch(e => {
+                 item.element.textContent = item.texto; 
+                 item.element.classList.remove('italic', 'text-gray-400');
+            })
+            .finally(() => {
+                activeRequests--;
+                processarFila(); // Chama próximo imediatamente
+            });
+    }
+  }
+  
+  function startEdit(key, currentText, contentElement) {
+    resetAllContexts(); // Reseta contexto ao editar
+    const messageDiv = contentElement.parentElement;
+    const timeContainer = messageDiv.querySelector('.time-container');
+    
+    messageDiv.classList.add('editing');
+    contentElement.style.display = 'none';
+    timeContainer.style.display = 'none';
+    
+    messageDiv.querySelectorAll('.action-btn').forEach(btn => btn.style.display = 'none');
+
+    const editArea = document.createElement('div');
+    editArea.className = 'edit-area';
+    
+    const textarea = document.createElement('textarea');
+    textarea.className = 'edit-textarea';
+    textarea.value = currentText;
+    textarea.rows = 2;
+    
+    const controls = document.createElement('div');
+    controls.className = 'edit-controls';
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'edit-btn-action btn-cancel';
+    cancelBtn.textContent = 'Cancelar';
+    
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'edit-btn-action btn-save';
+    saveBtn.textContent = 'Salvar';
+
+    controls.appendChild(cancelBtn);
+    controls.appendChild(saveBtn);
+    editArea.appendChild(textarea);
+    editArea.appendChild(controls);
+    
+    messageDiv.insertBefore(editArea, timeContainer);
+
+    textarea.style.height = 'auto';
+    textarea.style.height = (textarea.scrollHeight + 2) + 'px';
+    textarea.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight + 2) + 'px';
+    });
+
+    const cleanup = () => {
+        editArea.style.opacity = '0';
+        editArea.style.transform = 'translateY(-5px)';
+        setTimeout(() => {
+             editArea.remove();
+             contentElement.style.display = 'block';
+             timeContainer.style.display = 'flex';
+             messageDiv.querySelectorAll('.action-btn').forEach(btn => btn.style.display = 'flex');
+             messageDiv.classList.remove('editing');
+        }, 200);
+    };
+    
+    cancelBtn.onclick = cleanup;
+    
+    saveBtn.onclick = async () => {
+        const newText = textarea.value.trim();
+        if (newText === currentText) {
+            cleanup(); 
+            return;
+        }
+        
+        if (newText.length === 0) {
+            return;
+        }
+
+        saveBtn.textContent = 'Salvando...';
+        saveBtn.disabled = true;
+        saveBtn.style.opacity = '0.7';
+
+        try {
+            await update(ref(db, `salas/${SALA_ID}/mensagens/${key}`), {
+                texto: newText,
+                edited: true,
+                traducoes: null 
+            });
+            cleanup(); 
+        } catch (e) {
+            console.error("Erro ao salvar edição:", e);
+            saveBtn.textContent = 'Salvar';
+            saveBtn.disabled = false;
+            saveBtn.style.opacity = '1';
+        }
+    };
+    
+    textarea.focus();
+  }
+  
+  function updateMessageDOM(div, data, key) {
+    const { nick: from, texto, traducoes, edited } = data;
+    const isReceived = from !== nick;
+    
+    const content = div.querySelector('.message-content');
+    const original = div.querySelector('.original');
+    const timeContainer = div.querySelector('.time-container');
+    
+    content.classList.remove("context-text", "italic", "text-gray-400"); // Remove context-text
+    content.onclick = null; // Remove onclick
+
+    div.querySelectorAll('.edited-tag').forEach(el => el.remove());
+    
+    if (isReceived) {
+        const cachedTranslation = traducoes && traducoes[TARGET_LANG];
+        const isTranslating = content.textContent === "traduzindo..." || content.textContent === "Traduzindo novamente..." || content.textContent.startsWith("ERRO:");
+        
+        if (cachedTranslation) {
+            content.textContent = cachedTranslation;
+            content.classList.remove('italic', 'text-gray-400');
+        } else if (!isTranslating) { 
+            content.textContent = "traduzindo...";
+            content.classList.add('italic', 'text-gray-400');
+            fila.push({ texto, element: content, key, lang: TARGET_LANG });
+            processarFila();
+        }
+        if (original) original.textContent = texto;
+
+    } else {
+        content.textContent = texto;
+        content.classList.remove('italic', 'text-gray-400');
+        const editBtn = div.querySelector('.edit-btn');
+        if (editBtn) {
+            editBtn.onclick = () => {
+              startEdit(key, content.textContent, content);
+            };
+        }
+    }
+
+    if (edited) {
+        const editedTag = document.createElement("span");
+        editedTag.className = "edited-tag text-xs";
+        editedTag.textContent = "(editado)";
+        timeContainer.prepend(editedTag);
+    }
+  }
+  
+  function createMessageDom(data, key) {
+    const { nick: from, texto, timestamp, edited } = data;
+
+    const isNew = timestamp > loadTime;
+    const isReceived = from !== nick;
+    
+    if (isNew && isReceived) {
+        try {
+            const playPromise = notificationAudio.play();
+            if (playPromise !== undefined) { playPromise.catch(e => {}); }
+            if ("vibrate" in navigator) { navigator.vibrate([200]); }
+        } catch(e) {}
+        sendNativeNotification(from, texto);
+        if (document.hidden) { document.title = `(1) ${from} diz...`; }
+    }
+
+    const div = document.createElement("div");
+    div.dataset.key = key; 
+    div.dataset.timestamp = timestamp || 0;
+    div.className = `message flex flex-col gap-1 ${from === nick ? 'sent' : 'received'}`; 
+
+    const content = document.createElement("div");
+    content.className = "message-content"; 
+    div.appendChild(content);
+
+    if (from === nick) {
+        const editBtn = document.createElement("div");
+        editBtn.className = "action-btn edit-btn";
+        editBtn.title = "Editar Mensagem";
+        editBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 20h9"></path><path d="M16.5 3.5l4 4L7 19l-4 1 1-4z"></path>
+            </svg>
+        `;
+        editBtn.onclick = () => startEdit(key, content.textContent, content); 
+        div.appendChild(editBtn);
+        
+    } else {
+        const original = document.createElement("div");
+        original.className = "original";
+        div.appendChild(original);
+
+        const menuTrigger = document.createElement("div");
+        menuTrigger.className = "action-btn menu-trigger";
+        menuTrigger.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="1"></circle>
+                <circle cx="12" cy="5" r="1"></circle>
+                <circle cx="12" cy="19" r="1"></circle>
+            </svg>
+        `;
+
+        const menu = document.createElement("div");
+        menu.className = "options-menu";
+        
+        const optRetry = document.createElement("div");
+        optRetry.className = "options-item retry-opt";
+        optRetry.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.5 15a9 9 0 0 1 14.8-8.8L23 10"></path><path d="M1 14l4.7 4.7A9 9 0 0 0 20.5 9"></path></svg>
+            <span>Retraduzir</span>
+        `;
+        optRetry.onclick = (e) => {
+            e.stopPropagation(); 
+            resetAllContexts(); // Resetar outros contextos
+            retraduzirMensagem(key, content);
+            menu.classList.remove('show', 'open-left', 'open-right');
+        };
+
+        const optVar = document.createElement("div");
+        optVar.className = "options-item var-opt";
+        optVar.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
+            <span>Variações</span>
+        `;
+        optVar.onclick = async (e) => {
+            e.stopPropagation();
+            resetAllContexts(); // Resetar outros contextos
+            menu.classList.remove('show', 'open-left', 'open-right');
+
+            const currentContentElement = content;
+            const latestData = messageElements[key]?.data;
+            const originalText = latestData ? latestData.texto : original.textContent;
+            const variantsUl = document.getElementById("variants");
+            const loadMoreBtn = document.getElementById("loadMore");
+            const modal = document.getElementById("modal");
+
+            variantsUl.innerHTML = "<li class='text-gray-500 text-center py-4 animate-pulse'>Gerando variações...</li>";
+            modal.style.display = "flex";
+            
+            const addItems = (items) => {
+                items.forEach(v => {
+                    const li = document.createElement('li');
+                    li.className = 'variant-item text-gray-800'; 
+                    li.textContent = v;
+                    li.onclick = () => window.selectTranslation(key, v, currentContentElement); 
+                    variantsUl.appendChild(li);
+                });
+            };
+
+            try {
+                const vars = await gerarVariacoes(originalText, TARGET_LANG);
+                variantsUl.innerHTML = '';
+                addItems(vars);
+            } catch (e) {
+                variantsUl.innerHTML = "<li class='text-red-500 text-center'>Erro ao gerar. Tente novamente.</li>";
+            }
+             
+             loadMoreBtn.onclick = async () => {
+                  const originalBtnText = loadMoreBtn.innerHTML;
+                  loadMoreBtn.innerHTML = `<span class="animate-spin inline-block mr-1">↻</span> Gerando...`;
+                  loadMoreBtn.disabled = true;
+                  loadMoreBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                  try {
+                      const moreVars = await gerarVariacoes(originalText, TARGET_LANG, 3);
+                      addItems(moreVars);
+                      variantsUl.scrollTo({ top: variantsUl.scrollHeight, behavior: 'smooth' });
+                  } catch (e) { console.error(e); } finally {
+                      loadMoreBtn.innerHTML = originalBtnText;
+                      loadMoreBtn.disabled = false;
+                      loadMoreBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                  }
+              };
+        };
+        
+        const optCtx = document.createElement("div");
+        optCtx.className = "options-item ctx-opt";
+        optCtx.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+            <span>Contexto</span>
+        `;
+        optCtx.onclick = async (e) => {
+            e.stopPropagation();
+            resetAllContexts();
+            menu.classList.remove('show', 'open-left', 'open-right');
+
+            const latestData = messageElements[key]?.data;
+            const textoOriginal = latestData?.texto;
+            if (!textoOriginal) return;
+
+            content.textContent = "Analisando contexto...";
+            content.classList.add("italic", "text-gray-400");
+
+            try {
+                const contexto = await analisarContexto(textoOriginal, TARGET_LANG);
+                content.textContent = contexto;
+                content.classList.add("context-text");
+                content.classList.remove("italic", "text-gray-400");
                 
-                <div id="study-result-area" class="hidden">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="text-xs font-bold px-2 py-1 rounded bg-pink-500/20 text-pink-400 border border-pink-500/30" id="word-class-badge">Classe</span>
-                        <span class="text-xs font-bold px-2 py-1 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30" id="word-lang-badge">Idioma</span>
-                    </div>
-                    
-                    <div class="flex items-center gap-3">
-                        <h4 id="word-translation" class="text-xl font-bold text-[var(--secondary-color)]"></h4>
-                        <div id="word-speak-container"></div>
-                    </div>
-                    
-                    <p id="word-explanation" class="text-sm text-[var(--text-color)] mb-4 leading-relaxed mt-2"></p>
-                    
-                    <div class="bg-black/20 p-3 rounded-lg border-l-2 border-[var(--primary-color)]">
-                        <p class="text-xs text-muted-color mb-1">Exemplo</p>
-                        <p id="word-example" class="italic text-sm"></p>
-                    </div>
-                </div>
-                <div id="study-loading" class="hidden py-8 flex justify-center">
-                    <div class="splash-loader w-8 h-8 border-2 border-[var(--text-color)] rounded-full"></div>
-                </div>
-            </div>
-        </div>
-    </div>
+                content.onclick = () => {
+                   const currentData = messageElements[key]?.data;
+                   if (currentData) {
+                       updateMessageDOM(div, currentData, key);
+                   }
+                };
 
-    <!-- Modal de Correção Gramatical -->
-    <div id="grammar-modal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4 backdrop-blur-sm">
-        <div class="glassmorphism p-0 rounded-2xl max-w-md w-full flex flex-col max-h-[90vh] overflow-hidden shadow-2xl">
-            <div class="p-4 border-b border-white/10 flex justify-between items-center bg-emerald-600 text-white">
-                <h3 class="font-bold flex items-center gap-2"><i class="fas fa-check-double"></i> Revisão Gramatical</h3>
-                <button id="close-grammar-modal" class="text-xl hover:text-white/80 transition-colors">&times;</button>
-            </div>
-            <div class="p-6 overflow-y-auto flex-1">
-                <div id="grammar-loading" class="flex flex-col items-center justify-center py-8">
-                    <div class="splash-loader w-10 h-10 border-4 border-emerald-500 rounded-full mb-3"></div>
-                    <p class="text-emerald-400 text-sm animate-pulse">Analisando frase...</p>
-                </div>
-                
-                <div id="grammar-result" class="hidden flex-col gap-4">
-                    <!-- Estado: Sem Erros -->
-                    <div id="grammar-success" class="hidden flex-col items-center text-center py-4">
-                        <div class="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mb-3">
-                            <i class="fas fa-check text-3xl text-emerald-400"></i>
-                        </div>
-                        <h4 class="text-lg font-bold text-white">Tudo certo!</h4>
-                        <p class="text-muted-color text-sm">Nenhum erro encontrado na sua frase.</p>
-                    </div>
+            } catch (e) {
+                content.textContent = "Erro ao analisar contexto.";
+                setTimeout(() => {
+                   const currentData = messageElements[key]?.data;
+                   if (currentData) updateMessageDOM(div, currentData, key);
+                }, 3000);
+            }
+        };
 
-                    <!-- Estado: Com Erros -->
-                    <div id="grammar-errors" class="hidden flex-col gap-4">
-                        <div>
-                            <p class="text-xs text-muted-color uppercase font-bold tracking-wider mb-1">Sua Frase</p>
-                            <div class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-100 line-through decoration-red-400/50 decoration-2" id="grammar-original"></div>
-                        </div>
+        // Ordem do menu
+        menu.appendChild(optCtx); // Adicionado de volta
+        menu.appendChild(optVar);
+        menu.appendChild(optRetry);
 
-                        <div class="flex justify-center text-white/20">
-                            <i class="fas fa-arrow-down"></i>
-                        </div>
+        menuTrigger.onclick = (e) => {
+            e.stopPropagation();
+            resetAllContexts(); // Fechar contextos abertos ao abrir menu
 
-                        <div>
-                            <p class="text-xs text-muted-color uppercase font-bold tracking-wider mb-1">Sugestão</p>
-                            <div class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-100 font-medium shadow-inner" id="grammar-suggestion"></div>
-                        </div>
+            const isShown = menu.classList.contains('show');
+            
+            document.querySelectorAll('.options-menu.show').forEach(m => {
+                m.classList.remove('show', 'open-left', 'open-right');
+            });
 
-                        <div class="bg-[var(--surface-color)] p-4 rounded-xl border border-white/5 mt-2">
-                            <h5 class="text-sm font-bold text-[var(--secondary-color)] mb-2 flex items-center gap-2">
-                                <i class="fas fa-info-circle"></i> Explicação
-                            </h5>
-                            <p id="grammar-explanation" class="text-sm text-[var(--text-color)] leading-relaxed"></p>
-                        </div>
+            if (isShown) return; 
 
-                        <button id="apply-correction-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold p-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 mt-2">
-                            <i class="fas fa-check"></i> Aplicar Correção
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+            menu.classList.add('show');
 
-    <!-- Modal Genérico -->
-    <div id="generic-modal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4 backdrop-blur-sm">
-        <div class="glassmorphism p-6 rounded-2xl max-w-md w-full flex flex-col gap-4">
-            <div class="flex justify-between items-center">
-                 <h3 class="text-xl font-bold" id="generic-modal-title">Resultado</h3>
-                 <button id="close-generic-modal" class="text-2xl text-muted-color hover:text-text-color">&times;</button>
-            </div>
-            <div id="generic-modal-content" class="text-[var(--text-color)] leading-relaxed max-h-[60vh] overflow-y-auto"></div>
-        </div>
-    </div>
+            const btnRect = menuTrigger.getBoundingClientRect();
+            const menuRect = menu.getBoundingClientRect();
+            
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            let top = btnRect.top + (btnRect.height / 2) - (menuRect.height / 2);
+            
+            if (top < 10) top = 10;
+            if (top + menuRect.height > viewportHeight - 10) {
+                top = viewportHeight - menuRect.height - 10;
+            }
+            
+            let openedLeft = false;
+            let left = btnRect.right + 10; 
+            
+            if (left + menuRect.width > viewportWidth - 5) {
+                left = btnRect.left - menuRect.width - 10;
+                openedLeft = true;
+            }
+            
+            menu.style.top = `${top}px`;
+            menu.style.left = `${left}px`;
+            
+            if (openedLeft) {
+                menu.classList.add('open-left');
+                menu.classList.remove('open-right');
+            } else {
+                menu.classList.add('open-right');
+                menu.classList.remove('open-left');
+            }
+        };
 
-    <div id="room-actions-modal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4 backdrop-blur-sm">
-        <div class="glassmorphism p-6 rounded-2xl max-w-sm w-full flex flex-col gap-5">
-            <div class="flex justify-between items-center">
-                 <h3 class="text-xl font-bold">Nova Conversa</h3>
-                 <button id="close-room-actions-modal-btn" class="text-2xl text-muted-color hover:text-text-color">&times;</button>
-            </div>
-           <div class="p-6 space-y-6">
-                <!-- Seção Criar -->
-                <div class="space-y-3">
-                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Criar Nova Sala</label>
-                    <input type="text" id="modal-room-name-input" placeholder="Nome da sala (ex: Família, Estudo...)" class="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-white outline-none focus:ring-2 focus:ring-blue-500">
-                    <button id="modal-create-room-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2">
-                        <i class="fas fa-plus"></i> Gerar Sala Privada
-                    </button>
-                </div>
+        div.appendChild(menuTrigger);
+        div.appendChild(menu);
+    }
+    
+    const timeContainer = document.createElement("div");
+    timeContainer.className = "time-container";
+    
+    const time = document.createElement("span");
+    time.className = "time";
+    time.textContent = new Date(timestamp).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' });
+    timeContainer.appendChild(time);
+    
+    div.appendChild(timeContainer);
+    
+    updateMessageDOM(div, data, key); 
 
-                <div class="relative flex items-center py-2">
-                    <div class="flex-grow border-t border-white/5"></div>
-                    <span class="flex-shrink mx-4 text-[10px] text-slate-500 font-bold uppercase tracking-widest">Ou Entrar</span>
-                    <div class="flex-grow border-t border-white/5"></div>
-                </div>
+    return div;
+  }
+  
+  let sortTimeout;
+  function scheduleSort() {
+      if (sortTimeout) clearTimeout(sortTimeout);
+      sortTimeout = setTimeout(() => {
+          const messages = Array.from(chatEl.querySelectorAll(".message"));
+          const typing = document.getElementById("typingIndicator");
+          const loading = document.getElementById("loadingOld");
 
-                <!-- Seção Entrar -->
-                <div class="space-y-3">
-                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Código de Acesso</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="modal-room-code-input" placeholder="CÓDIGO" class="flex-1 p-3 bg-white/5 border border-white/10 rounded-xl text-center uppercase font-mono font-bold text-white tracking-widest outline-none focus:ring-2 focus:ring-emerald-500">
-                        <button id="modal-confirm-join-btn" class="w-12 h-12 bg-emerald-600 hover:bg-emerald-500 rounded-xl flex items-center justify-center text-white"><i class="fas fa-arrow-right"></i></button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+          messages.sort((a, b) => {
+              const tsA = parseInt(a.dataset.timestamp) || 0;
+              const tsB = parseInt(b.dataset.timestamp) || 0;
+              return tsA - tsB;
+          });
+          
+          messages.forEach(msg => chatEl.appendChild(msg));
+          
+          if (loading) chatEl.prepend(loading);
+          if (typing) chatEl.appendChild(typing);
+          
+          chatEl.scrollTop = chatEl.scrollHeight;
+      }, 300); 
+  }
 
-    <!-- Toast Container -->
-    <div id="toast-container"></div>
+  onChildAdded(query(ref(db, `salas/${SALA_ID}/mensagens`), orderByChild("timestamp"), limitToLast(50)), snap => {
+    const key = snap.key;
+    const data = snap.val();
+    
+    if (!messageElements[key]) {
+        const div = createMessageDom(data, key);
+        messageElements[key] = { dom: div, data: data };
+        
+        const currentTs = parseInt(data.timestamp) || 0; 
+        let inserted = false;
+        
+        const children = Array.from(chatEl.children);
+        for (let i = children.length - 1; i >= 0; i--) {
+            const child = children[i];
+            if (!child.classList.contains('message')) continue;
+            
+            const childTs = parseInt(child.dataset.timestamp || 0);
+            if (childTs <= currentTs) {
+                if (child.nextSibling) {
+                    chatEl.insertBefore(div, child.nextSibling);
+                } else {
+                    chatEl.appendChild(div);
+                }
+                inserted = true;
+                break;
+            }
+        }
 
-    <!-- MAIN APP SCRIPT -->
-    <script type="module" src="app.js"></script>
+        if (!inserted) {
+            const loadingOld = document.getElementById('loadingOld');
+            if (loadingOld && loadingOld.nextSibling) {
+                 chatEl.insertBefore(div, loadingOld.nextSibling);
+            } else if (chatEl.firstChild) {
+                 chatEl.insertBefore(div, chatEl.firstChild);
+            } else {
+                 chatEl.appendChild(div);
+            }
+        }
+        
+        chatEl.appendChild(typingIndicator);
+        scheduleSort();
+    }
+    chatEl.scrollTop = chatEl.scrollHeight;
+  });
+
+  onChildChanged(ref(db, `salas/${SALA_ID}/mensagens`), snap => {
+    const key = snap.key;
+    const data = snap.val();
+    
+    if (messageElements[key]) {
+        messageElements[key].data = data; 
+        updateMessageDOM(messageElements[key].dom, data, key);
+    }
+  });
+
+  document.getElementById("send").onclick = async () => {
+    if (typingTimeout) clearTimeout(typingTimeout);
+    update(presenceRef, { typing: false });
+    
+    const texto = msgEl.value.trim();
+    if (!texto) return;
+
+    await push(ref(db, `salas/${SALA_ID}/mensagens`), {
+      nick,
+      texto,
+      timestamp: Date.now()
+    });
+
+    msgEl.value = "";
+
+    try {
+        const msgsRef = ref(db, `salas/${SALA_ID}/mensagens`);
+        const snapshot = await get(query(msgsRef, orderByChild("timestamp")));
+        
+        if (snapshot.size > 20) {
+            const mensagensParaApagar = [];
+            let count = 0;
+            const limiteExclusao = snapshot.size - 20;
+
+            snapshot.forEach((child) => {
+                if (count < limiteExclusao) {
+                    mensagensParaApagar.push(child.key);
+                    count++;
+                }
+            });
+
+            mensagensParaApagar.forEach((key) => {
+                remove(ref(db, `salas/${SALA_ID}/mensagens/${key}`));
+                if (messageElements[key]) {
+                    messageElements[key].dom.remove();
+                    delete messageElements[key];
+                }
+            });
+        }
+    } catch (erro) {
+        console.error("Erro limpeza:", erro);
+    }
+  };
+  
+  msgEl.addEventListener("keypress", (e) => {
+      if(e.key === "Enter") document.getElementById("send").click();
+  });
+
+  document.getElementById("closeModal").onclick = () => {
+    document.getElementById("modal").style.display = "none";
+  };
+  
+  window.addEventListener('click', (event) => {
+    if (event.target == modal) modal.style.display = 'none';
+    if (event.target == reformulateModal) reformulateModal.style.display = 'none';
+  });
+
+// --- LÓGICA DO MODAL DE REFORMULAÇÃO ---
+const reformulateModal = document.getElementById("reformulateModal");
+const btnReformulate = document.getElementById("btnReformulate");
+const closeReformulate = document.getElementById("closeReformulate");
+
+btnReformulate.onclick = () => {
+    if (msgEl.value.trim().length === 0) {
+        msgEl.focus();
+        msgEl.classList.add('ring-2', 'ring-red-400');
+        setTimeout(() => msgEl.classList.remove('ring-2', 'ring-red-400'), 500);
+        return;
+    }
+    reformulateModal.style.display = "flex";
+};
+
+closeReformulate.onclick = () => {
+    reformulateModal.style.display = "none";
+};
+
+window.processReformulation = async (targetLang) => {
+    reformulateModal.style.display = "none";
+    
+    const originalText = msgEl.value;
+    const oldPlaceholder = msgEl.placeholder;
+    const userLang = document.getElementById('lang').value || 'pt'; 
+    
+    msgEl.value = "";
+    msgEl.placeholder = "Otimizando frase com IA...";
+    msgEl.disabled = true;
+    
+    try {
+        const optimizedText = await otimizarTextoParaTraducao(originalText, targetLang, userLang);
+        msgEl.value = optimizedText.replace(/^"|"$/g, '').trim();
+    } catch (error) {
+        console.error("Erro na otimização:", error);
+        msgEl.value = originalText;
+        alert("Não foi possível otimizar agora. Tente novamente.");
+    } finally {
+        msgEl.disabled = false;
+        msgEl.placeholder = oldPlaceholder;
+        msgEl.focus();
+    }
+};
+
+const salaMensagensRef = ref(db, `salas/${SALA_ID}/mensagens`);
+
+onValue(query(salaMensagensRef, limitToLast(1)), (snap) => {
+  if (!snap.exists()) {
+    resetChatUI();
+  }
+});
+function resetChatUI() {
+  chatEl.innerHTML = '';
+  messageElements = {};
+  fila.length = 0;
+  chatEl.scrollTop = 0;
+}
+</script>
 </body>
 </html>

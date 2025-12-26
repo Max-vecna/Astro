@@ -1,1 +1,1 @@
-# Astro-Global
+# Astro
