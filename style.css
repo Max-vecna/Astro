@@ -137,17 +137,11 @@ html.dark .original { border-top-color: rgba(255,255,255,0.1); }
 .time-container {
     font-size: 0.65rem; 
     opacity: 0.7; 
-    position: absolute;
-    bottom: 6px;
-    right: 10px;
     display: flex; 
     align-items: center; 
     gap: 4px;
+    margin-top: 5px;
 
-    transform: rotate(-90deg);
-    position: absolute;
-    top: 0;
-    right: 0;
 }
 .sent .time-container { color: rgba(255, 255, 255, 0.85); }
 .edited-tag { font-style: italic; opacity: 0.8; }

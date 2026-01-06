@@ -44,6 +44,7 @@ async function fetchWithTimeout(url, timeout = 8000) {
 /* ==========================
    TRADUÇÃO
 ========================== */
+const key = "pk_LXNS0odhUSH9AJf1"; // Chave pública de acesso à API
 
 export async function traduzir(texto, langCode, retry = true) {
   checkInternet();
@@ -56,7 +57,7 @@ Produza SOMENTE a tradução, sem comentários ou explicações.
 Texto: "${texto}"`
   );
 
-  const url = `https://text.pollinations.ai/${prompt}`;
+  const url = `https://gen.pollinations.ai/text/${prompt}?key=${key}`;
   const timeout = getTimeoutBySize(texto);
 
   try {
